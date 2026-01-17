@@ -1,0 +1,187 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:amenity_name",
+ "creation": "2025-12-30 13:38:51.297640",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_hlvz",
+  "amenity_name",
+  "is_group",
+  "parent_amenity",
+  "column_break_edwp",
+  "image",
+  "amenity_specifications_section",
+  "column_break_szng",
+  "lines",
+  "column_break_ozha",
+  "amenity_price",
+  "varid_price",
+  "facility_prices",
+  "amenity_bundle_section",
+  "annexes",
+  "section_break_kkeb",
+  "lft",
+  "old_parent",
+  "column_break_htug",
+  "rgt"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_hlvz",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "lft",
+   "fieldtype": "Int",
+   "hidden": 1,
+   "label": "Left",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "rgt",
+   "fieldtype": "Int",
+   "hidden": 1,
+   "label": "Right",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "is_group",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Is Group"
+  },
+  {
+   "fieldname": "old_parent",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "Old Parent",
+   "options": "Amenity"
+  },
+  {
+   "fieldname": "parent_amenity",
+   "fieldtype": "Link",
+   "ignore_user_permissions": 1,
+   "label": "Parent Amenity",
+   "options": "Amenity"
+  },
+  {
+   "fieldname": "section_break_kkeb",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "amenity_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Amenity Name",
+   "no_copy": 1,
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "column_break_edwp",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "image",
+   "fieldtype": "Attach Image",
+   "hidden": 1,
+   "label": "Image",
+   "no_copy": 1
+  },
+  {
+   "fieldname": "amenity_specifications_section",
+   "fieldtype": "Section Break",
+   "label": "Amenity Specifications"
+  },
+  {
+   "fieldname": "annexes",
+   "fieldtype": "Table",
+   "label": "Annexes",
+   "options": "Annexes"
+  },
+  {
+   "fieldname": "column_break_szng",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_ozha",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "amenity_price",
+   "fieldtype": "Currency",
+   "label": "Amenity Price",
+   "non_negative": 1
+  },
+  {
+   "bold": 1,
+   "fieldname": "lines",
+   "fieldtype": "Int",
+   "label": "Lines",
+   "non_negative": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "varid_price",
+   "fieldtype": "Check",
+   "label": "Varid Price",
+   "no_copy": 1
+  },
+  {
+   "depends_on": "varid_price",
+   "fieldname": "facility_prices",
+   "fieldtype": "Table",
+   "label": "Facility Prices",
+   "mandatory_depends_on": "varid_price",
+   "options": "Facility Prices"
+  },
+  {
+   "fieldname": "amenity_bundle_section",
+   "fieldtype": "Section Break",
+   "label": "Amenity Bundle"
+  },
+  {
+   "fieldname": "column_break_htug",
+   "fieldtype": "Column Break"
+  }
+ ],
+ "grid_page_length": 50,
+ "image_field": "image",
+ "index_web_pages_for_search": 1,
+ "is_tree": 1,
+ "links": [],
+ "modified": "2026-01-17 13:38:36.432185",
+ "modified_by": "Administrator",
+ "module": "Butler",
+ "name": "Amenity",
+ "naming_rule": "By fieldname",
+ "nsm_parent_field": "parent_amenity",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "translated_doctype": 1
+}

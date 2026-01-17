@@ -11,15 +11,15 @@ app_license = "agpl-3.0"
 # required_apps = []
 
 # Each item in the list will be shown as an app in the apps page
-# add_to_apps_screen = [
-# 	{
-# 		"name": "butler",
-# 		"logo": "/assets/butler/logo.png",
-# 		"title": "Butler",
-# 		"route": "/butler",
-# 		"has_permission": "butler.api.permission.has_app_permission"
-# 	}
-# ]
+add_to_apps_screen = [
+    {
+        "name": "butler",
+        "logo": "/assets/butler/images/logo.svg",
+                "title": "Butler",
+                "route": "/butler",
+                "has_permission": "butler.api.permission.has_app_permission"
+    }
+]
 
 # Includes in <head>
 # ------------------
@@ -247,3 +247,6 @@ app_license = "agpl-3.0"
 # List of apps whose translatable strings should be excluded from this app's translations.
 # ignore_translatable_strings_from = []
 
+
+website_route_rules = [
+    {'from_route': '/butler/<path:app_path>', 'to_route': 'butler'},]
