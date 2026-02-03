@@ -16,7 +16,7 @@ export default function Login() {
 
     try {
       await login({ username, password });
-      // Reload the page so that the boot info and user session is fetched again
+      // Redirect to home (customer type selection) after login
       const URL = import.meta.env.VITE_BASE_NAME
         ? `/${import.meta.env.VITE_BASE_NAME}`
         : "";

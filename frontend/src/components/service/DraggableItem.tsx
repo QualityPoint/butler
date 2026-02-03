@@ -7,12 +7,18 @@ interface DraggableItemProps {
   item: PackageItem;
   isDragging?: boolean;
   onRemove?: () => void;
+  onIncrement?: () => void;
+  onDecrement?: () => void;
+  disabled?: boolean;
 }
 
 export function DraggableItem({
   item,
   isDragging,
   onRemove,
+  onIncrement,
+  onDecrement,
+  disabled = false,
 }: DraggableItemProps) {
   const {
     attributes,
@@ -21,7 +27,10 @@ export function DraggableItem({
     transform,
     transition,
     isDragging: isSortableDragging,
-  } = useSortable({ id: item.id });
+  } = useSortable({ 
+    id: item.id,
+    disabled,
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -33,22 +42,56 @@ export function DraggableItem({
       ref={setNodeRef}
       style={style}
       {...attributes}
-      {...listeners}
       className={cn(
-        "group relative bg-card border-3 border-border p-4 cursor-grab active:cursor-grabbing",
+        "group relative bg-card border-3 border-border p-4 min-h-16",
         "shadow-md hover:shadow-lg transition-all hover:-translate-y-0.5",
         "font-sans text-base",
         isDragging || isSortableDragging ? "opacity-50" : "opacity-100",
       )}
     >
-      <div className="flex items-center justify-between">
-        <span className="font-medium">{item.name}</span>
-        <span className="text-xs bg-primary px-2 py-1 border-2 border-border font-head">
+      <div className="flex items-center justify-between gap-4">
+        <div 
+          {...listeners}
+          className="flex-1 cursor-grab active:cursor-grabbing"
+        >
+          <span className="font-medium">{item.name}</span>
+        </div>
+        
+        {/* Quantity controls */}
+        {(onIncrement || onDecrement) && (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDecrement?.();
+              }}
+              disabled={item.count <= 1 || disabled}
+              className="w-8 h-8 flex items-center justify-center text-xl font-bold bg-gray-200 text-white hover:bg-primary hover:text-primary-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              −
+            </button>
+            <span className="font-head text-base min-w-10 text-center px-2">
+              {item.count}
+            </span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onIncrement?.();
+              }}
+              disabled={disabled}
+              className="w-8 h-8 flex items-center justify-center text-xl font-bold bg-gray-800 text-white hover:bg-primary hover:text-primary-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              +
+            </button>
+          </div>
+        )}
+        
+        <span className="text-xs bg-primary px-2 py-1 border-2 border-border font-head whitespace-nowrap">
           {item.category}
         </span>
       </div>
 
-      {onRemove && (
+      {onRemove && !disabled && (
         <button
           onClick={(e) => {
             e.stopPropagation();

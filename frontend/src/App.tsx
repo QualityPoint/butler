@@ -7,8 +7,15 @@ import {
 import { FrappeProvider } from "frappe-react-sdk";
 import { UserProvider } from "./contexts/UserContext";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
-import Home from "./pages/Home";
+import { Toaster } from "./components/ui/sonner";
 import Service from "./pages/Service";
+import CustomerType from "./pages/CustomerType";
+import Register from "./pages/Register";
+import Facilities from "./pages/Facilities";
+import AddFacility from "./pages/AddFacility";
+import Facility from "./pages/Facility";
+import Customers from "./pages/Customers";
+import Leads from "./pages/Leads";
 import Login from "./pages/auth/Login";
 import "./App.css";
 
@@ -30,7 +37,14 @@ const router = createBrowserRouter(
     <>
       <Route path="/login" element={<Login />} />
       <Route path="/" element={<ProtectedRoute />}>
-        <Route index element={<Home />} />
+        <Route index element={<CustomerType />} />
+        <Route path="customer-type" element={<CustomerType />} />
+        <Route path="customers" element={<Customers />} />
+        <Route path="leads" element={<Leads />} />
+        <Route path="register" element={<Register />} />
+        <Route path="facilities" element={<Facilities />} />
+        <Route path="facility/new" element={<AddFacility />} />
+        <Route path="facility/:facilityId" element={<Facility />} />
         <Route path="service" element={<Service />} />
         {/* Add more protected routes here */}
       </Route>
@@ -73,6 +87,7 @@ function App() {
     >
       <UserProvider>
         <RouterProvider router={router} />
+        <Toaster />
       </UserProvider>
     </FrappeProvider>
   );

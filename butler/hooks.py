@@ -25,8 +25,8 @@ add_to_apps_screen = [
 # ------------------
 
 # include js, css files in header of desk.html
-# app_include_css = "/assets/butler/css/butler.css"
-# app_include_js = "/assets/butler/js/butler.js"
+app_include_css = "/assets/butler/css/butler.css"
+app_include_js = "butler.bundle.js"
 
 # include js, css files in header of web template
 # web_include_css = "/assets/butler/css/butler.css"

@@ -1,0 +1,63 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-02-03 17:47:00.845488",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "allow_zero_qty_in_service_order",
+  "allow_amenity_zero_qty",
+  "editable_amenity_price",
+  "column_break_aufy"
+ ],
+ "fields": [
+  {
+   "default": "0",
+   "fieldname": "allow_zero_qty_in_service_order",
+   "fieldtype": "Check",
+   "label": "Allow Service Order with Zero Quantity"
+  },
+  {
+   "default": "0",
+   "fieldname": "allow_amenity_zero_qty",
+   "fieldtype": "Check",
+   "label": "Allow Amenity with Zero Quantity in Service Order"
+  },
+  {
+   "default": "0",
+   "fieldname": "editable_amenity_price",
+   "fieldtype": "Check",
+   "label": "Allow User to Edit Amenity Price in Service Order"
+  },
+  {
+   "fieldname": "column_break_aufy",
+   "fieldtype": "Column Break"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-02-03 17:56:14.172275",
+ "modified_by": "Administrator",
+ "module": "Butler",
+ "name": "Butler Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

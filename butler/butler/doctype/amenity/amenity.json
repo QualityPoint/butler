@@ -2,89 +2,39 @@
  "actions": [],
  "allow_rename": 1,
  "autoname": "field:amenity_name",
- "creation": "2025-12-30 13:38:51.297640",
+ "creation": "2026-02-02 18:24:19.258634",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "section_break_hlvz",
+  "amenity_item",
   "amenity_name",
-  "is_group",
-  "parent_amenity",
-  "column_break_edwp",
+  "amenity_category",
+  "column_break_jaun",
+  "disabled",
+  "is_dependant_amenity",
+  "depends_on",
   "image",
   "amenity_specifications_section",
-  "column_break_szng",
   "lines",
-  "column_break_ozha",
+  "requires_number_of_floors",
+  "column_break_fvih",
   "amenity_price",
-  "varid_price",
+  "has_varied_price",
   "facility_prices",
   "amenity_bundle_section",
-  "annexes",
-  "section_break_kkeb",
-  "lft",
-  "old_parent",
-  "column_break_htug",
-  "rgt"
+  "annexes"
  ],
  "fields": [
   {
-   "fieldname": "section_break_hlvz",
-   "fieldtype": "Section Break"
-  },
-  {
-   "fieldname": "lft",
-   "fieldtype": "Int",
-   "hidden": 1,
-   "label": "Left",
-   "no_copy": 1,
-   "read_only": 1
-  },
-  {
-   "fieldname": "rgt",
-   "fieldtype": "Int",
-   "hidden": 1,
-   "label": "Right",
-   "no_copy": 1,
-   "read_only": 1
-  },
-  {
-   "default": "0",
-   "fieldname": "is_group",
-   "fieldtype": "Check",
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Is Group"
-  },
-  {
-   "fieldname": "old_parent",
-   "fieldtype": "Link",
-   "hidden": 1,
-   "label": "Old Parent",
-   "options": "Amenity"
-  },
-  {
-   "fieldname": "parent_amenity",
-   "fieldtype": "Link",
-   "ignore_user_permissions": 1,
-   "label": "Parent Amenity",
-   "options": "Amenity"
-  },
-  {
-   "fieldname": "section_break_kkeb",
-   "fieldtype": "Section Break"
-  },
-  {
    "fieldname": "amenity_name",
    "fieldtype": "Data",
-   "in_list_view": 1,
    "label": "Amenity Name",
    "no_copy": 1,
    "reqd": 1,
    "unique": 1
   },
   {
-   "fieldname": "column_break_edwp",
+   "fieldname": "column_break_jaun",
    "fieldtype": "Column Break"
   },
   {
@@ -95,50 +45,75 @@
    "no_copy": 1
   },
   {
+   "fieldname": "amenity_category",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Amenity Category",
+   "options": "Amenity Category",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "is_dependant_amenity",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Is Dependant Amenity",
+   "no_copy": 1
+  },
+  {
+   "depends_on": "is_dependant_amenity",
+   "fieldname": "depends_on",
+   "fieldtype": "Table",
+   "label": "Primary Amenities",
+   "mandatory_depends_on": "is_dependant_amenity",
+   "options": "Amenity Depends On"
+  },
+  {
    "fieldname": "amenity_specifications_section",
    "fieldtype": "Section Break",
    "label": "Amenity Specifications"
-  },
-  {
-   "fieldname": "annexes",
-   "fieldtype": "Table",
-   "label": "Annexes",
-   "options": "Annexes"
-  },
-  {
-   "fieldname": "column_break_szng",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "column_break_ozha",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "amenity_price",
-   "fieldtype": "Currency",
-   "label": "Amenity Price",
-   "non_negative": 1
   },
   {
    "bold": 1,
    "fieldname": "lines",
    "fieldtype": "Int",
    "label": "Lines",
-   "non_negative": 1
+   "non_negative": 1,
+   "reqd": 1
   },
   {
    "default": "0",
-   "fieldname": "varid_price",
+   "fieldname": "requires_number_of_floors",
    "fieldtype": "Check",
-   "label": "Varid Price",
+   "label": "Requires Number of Floors"
+  },
+  {
+   "fieldname": "column_break_fvih",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "amenity_price",
+   "fieldtype": "Currency",
+   "label": "Amenity Price",
+   "non_negative": 1,
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "has_varied_price",
+   "fieldtype": "Check",
+   "label": "Has Varied Price",
    "no_copy": 1
   },
   {
-   "depends_on": "varid_price",
+   "depends_on": "has_varied_price",
    "fieldname": "facility_prices",
    "fieldtype": "Table",
    "label": "Facility Prices",
-   "mandatory_depends_on": "varid_price",
+   "mandatory_depends_on": "has_varied_price",
+   "no_copy": 1,
    "options": "Facility Prices"
   },
   {
@@ -147,21 +122,38 @@
    "label": "Amenity Bundle"
   },
   {
-   "fieldname": "column_break_htug",
-   "fieldtype": "Column Break"
+   "fieldname": "annexes",
+   "fieldtype": "Table",
+   "label": "Annexes",
+   "options": "Annexes"
+  },
+  {
+   "default": "0",
+   "fieldname": "disabled",
+   "fieldtype": "Check",
+   "label": "Disabled",
+   "no_copy": 1
+  },
+  {
+   "description": "The item must be of a non-stock type",
+   "fieldname": "amenity_item",
+   "fieldtype": "Link",
+   "label": "Amenity Item",
+   "no_copy": 1,
+   "options": "Item",
+   "reqd": 1,
+   "unique": 1
   }
  ],
  "grid_page_length": 50,
  "image_field": "image",
  "index_web_pages_for_search": 1,
- "is_tree": 1,
  "links": [],
- "modified": "2026-01-17 13:38:36.432185",
+ "modified": "2026-02-03 12:07:56.410862",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Amenity",
  "naming_rule": "By fieldname",
- "nsm_parent_field": "parent_amenity",
  "owner": "Administrator",
  "permissions": [
   {

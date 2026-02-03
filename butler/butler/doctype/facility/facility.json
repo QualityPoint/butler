@@ -15,11 +15,10 @@
   "facility_specification_section",
   "multistorey",
   "number_of_floors",
+  "floor_area",
   "total_area",
   "column_break_rnuy",
   "facility_blueprint",
-  "amenities_section",
-  "amenities",
   "location_tab",
   "national_address_section",
   "street",
@@ -93,8 +92,7 @@
   {
    "fieldname": "street",
    "fieldtype": "Data",
-   "label": "Street",
-   "reqd": 1
+   "label": "Street"
   },
   {
    "fieldname": "building_no",
@@ -115,13 +113,15 @@
    "fieldname": "latitude",
    "fieldtype": "Float",
    "label": "Latitude",
-   "no_copy": 1
+   "no_copy": 1,
+   "read_only": 1
   },
   {
    "fieldname": "longitude",
    "fieldtype": "Float",
    "label": "Longitude",
-   "no_copy": 1
+   "no_copy": 1,
+   "read_only": 1
   },
   {
    "fieldname": "facility_national_address",
@@ -160,8 +160,9 @@
    "fieldname": "total_area",
    "fieldtype": "Float",
    "label": "Total Area (m<sup>2</sup>)",
+   "mandatory_depends_on": "eval:doc.multistorey===0;",
    "non_negative": 1,
-   "reqd": 1
+   "read_only_depends_on": "multistorey"
   },
   {
    "fieldname": "column_break_rnuy",
@@ -174,22 +175,18 @@
    "no_copy": 1
   },
   {
-   "fieldname": "amenities_section",
-   "fieldtype": "Section Break",
-   "label": "Amenities"
-  },
-  {
-   "fieldname": "amenities",
-   "fieldtype": "Table",
-   "label": "Amenities",
-   "options": "Facility Amenities",
-   "reqd": 1
+   "depends_on": "multistorey",
+   "fieldname": "floor_area",
+   "fieldtype": "Float",
+   "label": "Floor Area",
+   "mandatory_depends_on": "multistorey",
+   "non_negative": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-12-30 15:59:06.490501",
+ "modified": "2026-02-03 12:20:42.115161",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Facility",

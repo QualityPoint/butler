@@ -1,0 +1,258 @@
+{
+ "actions": [],
+ "autoname": "naming_series:",
+ "creation": "2026-02-02 19:47:12.648692",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_qscy",
+  "naming_series",
+  "facility",
+  "facility_type",
+  "column_break_vopn",
+  "order_date",
+  "column_break_wldh",
+  "order_type",
+  "bundle_type",
+  "amended_from",
+  "facility_specificaions_section",
+  "multistorey",
+  "number_of_floors",
+  "floor_area",
+  "column_break_zifk",
+  "total_area",
+  "bundle_specifications_section",
+  "bundle_price",
+  "column_break_htvt",
+  "amenity_categories",
+  "amenities_section",
+  "amenities",
+  "section_break_bmtu",
+  "amenity_count",
+  "discount",
+  "column_break_bjfc",
+  "total",
+  "grand_total"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_qscy",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Service Order",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Series",
+   "no_copy": 1,
+   "options": "SRV-ORD-.YYYY.-",
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "column_break_wldh",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "facility",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Facility",
+   "options": "Facility",
+   "reqd": 1
+  },
+  {
+   "fieldname": "amenities_section",
+   "fieldtype": "Section Break",
+   "hide_border": 1,
+   "label": "Amenities"
+  },
+  {
+   "fieldname": "amenities",
+   "fieldtype": "Table",
+   "label": "Amenities",
+   "options": "Facility Amenities",
+   "reqd": 1
+  },
+  {
+   "depends_on": "eval:doc.order_type===\"Bundle\";",
+   "fieldname": "bundle_type",
+   "fieldtype": "Link",
+   "label": "Bundle Type",
+   "mandatory_depends_on": "eval:doc.order_type===\"Bundle\";",
+   "options": "Butler Bundle"
+  },
+  {
+   "collapsible": 1,
+   "depends_on": "eval:doc.order_type===\"Bundle\";",
+   "fieldname": "bundle_specifications_section",
+   "fieldtype": "Section Break",
+   "label": "Bundle Specifications"
+  },
+  {
+   "fieldname": "bundle_price",
+   "fieldtype": "Currency",
+   "label": "Bundle Price",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_htvt",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "amenity_categories",
+   "fieldtype": "Table",
+   "label": "Amenity Categories",
+   "options": "Bundle Specifications",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_vopn",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Today",
+   "fieldname": "order_date",
+   "fieldtype": "Date",
+   "in_standard_filter": 1,
+   "label": "Order Date",
+   "reqd": 1
+  },
+  {
+   "default": "Bundle",
+   "fieldname": "order_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Order Type",
+   "no_copy": 1,
+   "options": "\nBundle\nQuotation\nAmenities",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_bmtu",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "amenity_count",
+   "fieldtype": "Int",
+   "label": "Amenity Count",
+   "non_negative": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_bjfc",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "total",
+   "fieldtype": "Currency",
+   "label": "Total",
+   "read_only": 1
+  },
+  {
+   "fieldname": "discount",
+   "fieldtype": "Percent",
+   "label": "Discount (%)",
+   "precision": "1"
+  },
+  {
+   "bold": 1,
+   "fieldname": "grand_total",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Grand Total",
+   "non_negative": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "facility_type",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Facility Type",
+   "options": "Facility Type",
+   "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "facility_specificaions_section",
+   "fieldtype": "Section Break",
+   "label": "Facility Specificaions"
+  },
+  {
+   "default": "0",
+   "fieldname": "multistorey",
+   "fieldtype": "Check",
+   "label": "Multi-storey",
+   "read_only": 1
+  },
+  {
+   "depends_on": "multistorey",
+   "fieldname": "number_of_floors",
+   "fieldtype": "Int",
+   "label": "Number of Floors",
+   "read_only": 1
+  },
+  {
+   "depends_on": "multistorey",
+   "fieldname": "floor_area",
+   "fieldtype": "Float",
+   "label": "Floor Area",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_area",
+   "fieldtype": "Float",
+   "label": "Total Area (m<sup>2</sup>)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_zifk",
+   "fieldtype": "Column Break"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-02-03 19:15:05.591595",
+ "modified_by": "Administrator",
+ "module": "Butler",
+ "name": "Service Order",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "facility",
+ "track_changes": 1,
+ "translated_doctype": 1
+}

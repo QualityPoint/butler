@@ -1,4 +1,39 @@
-# React + TypeScript + Vite
+# Butler Frontend
+
+React + TypeScript + Vite frontend for Butler app with Frappe Framework integration.
+
+## 📚 Documentation
+
+- **[Error Handling](docs/ERROR_HANDLING.md)** - Complete error handling system guide
+- **[Frappe Integration](docs/FRAPPE_INTEGRATION.md)** - Backend integration details
+- **[Frappe React Guide](docs/FRAPPE_REACT_INTEGRATION_GUIDE.md)** - Complete integration guide
+- **[RetroUI Setup](docs/RETROUI_SETUP.md)** - Design system documentation
+
+## 🚀 Development
+
+```bash
+# Install dependencies
+npm install
+
+# Start dev server (with proxy to Frappe)
+npm run dev
+
+# Build for production
+npm run build
+```
+
+## 🏗️ Tech Stack
+
+- **React 19** + **TypeScript**
+- **Vite 7** - Build tool
+- **Tailwind CSS 4** - Styling
+- **frappe-react-sdk** - Backend integration
+- **Sonner** - Toast notifications
+- **RetroUI** - Design system
+
+---
+
+## Vite + React Template Info
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 

@@ -3,6 +3,7 @@ export interface PackageItem {
   id: string;
   name: string;
   category: string;
+  count: number;
 }
 
 export const packageCategories = [
@@ -90,16 +91,17 @@ export const packageData: Record<PackageCategory, string[]> = {
 // Generate items with unique IDs
 export const getAllPackageItems = (): PackageItem[] => {
   const items: PackageItem[] = [];
-  
+
   Object.entries(packageData).forEach(([category, itemNames]) => {
     itemNames.forEach((name) => {
       items.push({
         id: `${category.toLowerCase()}-${name.toLowerCase().replace(/\s+/g, "-")}`,
         name,
         category,
+        count: 1,
       });
     });
   });
-  
+
   return items;
 };
