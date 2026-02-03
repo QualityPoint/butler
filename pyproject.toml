@@ -6,7 +6,7 @@ authors = [
 description = "An App to manage services related to smart building systems"
 requires-python = ">=3.10"
 readme = "README.md"
-dynamic = ["version"]
+version = "0.0.1"
 dependencies = [
     # "frappe~=15.0.0" # Installed and managed by bench.
 ]
