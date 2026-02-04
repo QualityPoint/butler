@@ -9,9 +9,13 @@ function Home() {
   const { currentUser, logout } = useUser();
 
   const handleLogout = async () => {
-    await logout();
-    // Redirect to Frappe's login page
-    window.location.href = "/app/login";
+    try {
+      await logout();
+    } catch (error) {
+      console.error("Logout error:", error);
+      // On error (including CSRF), redirect to login page
+      window.location.href = "/login";
+    }
   };
 
   return (
