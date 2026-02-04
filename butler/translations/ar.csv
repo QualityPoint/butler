@@ -1,0 +1,112 @@
+Allow Amenity with Zero Quantity in Service Order,السماح بالمرفق بكمية صفر في طلب الخدمة,
+Allow Service Order with Zero Quantity,السماح بطلب خدمة بكمية صفر,
+Allow User to Edit Amenity Price in Service Order,السماح للمستخدم بتحرير سعر المرفق في طلب الخدمة,
+Amenity,مرفق,
+Amenity Annex,ملحق المرفق,
+Amenity Annexes,ملحقات المرفق,
+Amenity Bundle,حزمة المرفق,
+Amenity Category,فئة المرافق,
+Amenity Categories,فئات المرافق,
+Amenity Count,عدد المرافق,
+Amenity Item,بند المرفق,
+Amenity Name,اسم المرفق,
+Amenity Price,سعر المرفق,
+Amenity Quotation,عرض سعر المرفق,
+Amenity Specifications,مواصفات المرفق,
+Amenity Type,نوع المرفق,
+Amenity Types,أنواع المرافق,
+Amenities,المرافق,
+Amount,المبلغ,
+Annex Name,اسم الملحق,
+Annexes,الملحقات,
+Add Amenity,إضافة مرفق,
+Add Amenity Category,إضافة فئة مرفق,
+Add Amenity Type,إضافة نوع مرفق,
+Add Facility,إضافة منشأة,
+Add Facility Type,إضافة نوع منشأة,
+Add Service Order,إضافة طلب خدمة,
+
+
+Building No,رقم المبنى,
+Bundle Info,معلومات الباقة,
+Bundle Item,بند الباقة,
+Bundle Items,بنود الباقة,
+Bundle Name,اسم الباقة,
+Bundle Price,سعر الباقة,
+Bundle Specifications,مواصفات الباقة,
+Bundles,الباقات,
+Butler Bundle,باقة باتلر,
+Butler Bundles,باقات باتلر,
+Butler Settings,إعدادات باتلر,
+
+
+Category Name,اسم الفئة,
+Count,العدد,
+
+
+Description,الوصف,
+Details,تفاصيل,
+
+
+Facility,منشأة,
+Facility Blueprint,مخطط المنشأة,
+Facility For,منشأة لـ,
+Facility Prices,أسعار المنشأة,
+Facility Specification,مواصفات المنشأة,
+Facility Specifications,مواصفات المنشآت,
+Facility Type,نوع المنشأة,
+Facility Types,أنواع المنشآت,
+Facilities,منشآت,
+Floor Area,مساحة الطابق,
+
+
+Grand Total,الإجمالي العام,
+
+
+Has Varied Prices,لديه أسعار متنوعة,
+
+
+Is Dependant Amenity,هل هو مرفق تابع,
+
+
+Latitude,خط العرض,
+Lines,خطوط,
+Location,موقع,
+Longitude,خط الطول,
+
+
+"Max Discount (%)",الخصم الأقصى (%),
+"Multi-storey",متعدد الطوابق,
+
+
+National Address,العنوان الوطني,
+Number of Amenities,عدد المرافق,
+Number of Floors,عدد الطوابق,
+Number of Storeys,عدد الطوابق,
+
+
+Order Date,تاريخ الطلب,
+Order Type,نوع الطلب,
+
+
+Party,طرف,
+Party Name,اسم الطرف,
+Price,السعر,
+Primary Amenities,المرافق الأساسية,
+
+
+Quantity,الكمية,
+
+
+Requires Number of Floors,يتطلب عدد الطوابق,
+Restricted number of storeys,عدد الطوابق المقيد,
+
+
+Series,التسلسل,
+Service Order,طلب خدمة,
+Service Orders,طلبات خدمة,
+Street,شارع,
+
+
+Total,الإجمالي,
+"Total Area (m<sup>2</sup>)",إجمالي المساحة (متر مربع),
