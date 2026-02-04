@@ -22,7 +22,7 @@
   {
    "fieldname": "items",
    "fieldtype": "Table",
-   "label": "items",
+   "label": "Items",
    "options": "Amenity Quotation Item",
    "reqd": 1
   }
@@ -30,7 +30,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-02-04 15:36:22.340098",
+ "modified": "2026-02-04 16:07:44.766246",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Amenity Quotation",

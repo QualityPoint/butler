@@ -13,6 +13,6 @@ export interface AmenityQuotation{
 	idx?: number
 	/**	Amenity : Link - Amenity	*/
 	amenity: string
-	/**	items : Table - Amenity Quotation Item	*/
+	/**	Items : Table - Amenity Quotation Item	*/
 	items: AmenityQuotationItem[]
 }
