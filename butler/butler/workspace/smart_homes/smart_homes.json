@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\":\"vFFyHFYMwh\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Smart Homes</span>\",\"col\":12}},{\"id\":\"kwS1WsT_X7\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Facility\",\"col\":3}},{\"id\":\"xjUInyLweG\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"GXT55nzEDs\",\"type\":\"card\",\"data\":{\"card_name\":\"Facilities\",\"col\":4}}]",
+ "content": "[{\"id\":\"vFFyHFYMwh\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Smart Homes</span>\",\"col\":12}},{\"id\":\"oCS-zcMLA9\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Butler\",\"col\":3}},{\"id\":\"xjUInyLweG\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"GXT55nzEDs\",\"type\":\"card\",\"data\":{\"card_name\":\"Facilities\",\"col\":4}},{\"id\":\"Mt-5wfu0NQ\",\"type\":\"card\",\"data\":{\"card_name\":\"Amenity Configuration\",\"col\":4}},{\"id\":\"b75TD90vmz\",\"type\":\"card\",\"data\":{\"card_name\":\"Services\",\"col\":4}},{\"id\":\"tyeRuUgsu-\",\"type\":\"card\",\"data\":{\"card_name\":\"Butler Settings\",\"col\":4}}]",
  "creation": "2026-01-17 12:25:00.543044",
  "custom_blocks": [],
  "docstatus": 0,
@@ -17,7 +17,7 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Facilities",
-   "link_count": 3,
+   "link_count": 2,
    "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
@@ -45,15 +45,102 @@
   {
    "hidden": 0,
    "is_query_report": 0,
+   "label": "Services",
+   "link_count": 2,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Service Order",
+   "link_count": 0,
+   "link_to": "Service Order",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Butler Bundle",
+   "link_count": 0,
+   "link_to": "Butler Bundle",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Butler Settings",
+   "link_count": 1,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Butler Settings",
+   "link_count": 0,
+   "link_to": "Butler Settings",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Amenity Configuration",
+   "link_count": 4,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
    "label": "Amenity",
    "link_count": 0,
    "link_to": "Amenity",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Amenity Category",
+   "link_count": 0,
+   "link_to": "Amenity Category",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Amenity Annex",
+   "link_count": 0,
+   "link_to": "Amenity Annex",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Amenity Quotation",
+   "link_count": 0,
+   "link_to": "Amenity Quotation",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
   }
  ],
- "modified": "2026-01-17 12:28:29.249308",
+ "modified": "2026-02-04 15:37:34.042631",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Smart Homes",
@@ -67,11 +154,10 @@
  "shortcuts": [
   {
    "color": "Grey",
-   "doc_view": "New",
-   "label": "Facility",
-   "link_to": "Facility",
-   "stats_filter": "[]",
-   "type": "DocType"
+   "doc_view": "List",
+   "label": "Butler",
+   "type": "URL",
+   "url": "/butler"
   }
  ],
  "title": "Smart Homes"
