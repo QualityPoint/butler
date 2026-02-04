@@ -7,12 +7,6 @@ export default function CustomerType() {
   const navigate = useNavigate();
   const { logout } = useUser();
 
-  const handleLogout = async () => {
-    await logout();
-    // Redirect to Frappe's login page
-    window.location.href = "/app/login";
-  };
-
   const handleCustomerTypeSelection = (type: "customer" | "lead" | "new") => {
     if (type === "customer") {
       // Navigate to customer lookup/login
@@ -49,7 +43,7 @@ export default function CustomerType() {
             </div>
             <Button
               variant="outline"
-              onClick={handleLogout}
+              onClick={logout}
               className="whitespace-nowrap"
             >
               <LogOut className="w-4 h-4 mr-2" />

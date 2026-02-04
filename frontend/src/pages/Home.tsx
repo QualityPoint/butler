@@ -8,16 +8,6 @@ function Home() {
   const [count, setCount] = useState(0);
   const { currentUser, logout } = useUser();
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-    } catch (error) {
-      console.error("Logout error:", error);
-      // On error (including CSRF), redirect to login page
-      window.location.href = "/login";
-    }
-  };
-
   return (
     <div className="min-h-screen bg-background p-8">
       <div className="max-w-4xl mx-auto">
@@ -49,7 +39,7 @@ function Home() {
               <Button variant="secondary">Service Packages</Button>
             </Link>
 
-            <Button variant="outline" onClick={handleLogout}>
+            <Button variant="outline" onClick={logout}>
               Logout
             </Button>
           </div>
