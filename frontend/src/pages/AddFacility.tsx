@@ -250,15 +250,16 @@ export default function AddFacility() {
             />
 
             {/* Submit Buttons */}
-            <div className="flex gap-4 pt-4">
+            <div className="flex flex-wrap gap-2 sm:gap-4 pt-4">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => navigate("/")}
                 disabled={isSubmitting}
+                className="text-sm sm:text-base"
               >
-                <Home className="w-4 h-4 mr-2" />
-                Home
+                <Home className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Home</span>
               </Button>
               <Button
                 type="button"
@@ -266,14 +267,14 @@ export default function AddFacility() {
                 onClick={() =>
                   navigate(`/facilities?lead_id=${leadId}&facility_for=${facilityFor}`)
                 }
-                className="flex-1"
+                className="flex-1 text-sm sm:text-base min-w-[80px]"
                 disabled={isSubmitting}
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
-                className="flex-1 text-lg"
+                className="flex-1 text-base sm:text-lg min-w-[100px]"
                 disabled={isSubmitting || typesLoading}
               >
                 {isSubmitting ? "Adding..." : "Add Facility"}

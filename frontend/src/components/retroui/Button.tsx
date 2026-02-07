@@ -5,7 +5,7 @@ import React, { type ButtonHTMLAttributes } from "react";
 import { Slot } from "@radix-ui/react-slot";
 
 export const buttonVariants = cva(
-  "font-head transition-all rounded outline-hidden cursor-pointer duration-200 font-medium flex items-center",
+  "font-head transition-all rounded outline-hidden cursor-pointer duration-200 font-medium flex items-center justify-center whitespace-nowrap",
   {
     variants: {
       variant: {
@@ -19,9 +19,9 @@ export const buttonVariants = cva(
         ghost: "bg-transparent text-foreground hover:bg-accent",
       },
       size: {
-        sm: "px-3 py-1 text-sm shadow hover:shadow-none",
-        md: "px-4 py-1.5 text-base",
-        lg: "px-6 lg:px-8 py-2 lg:py-3 text-md lg:text-lg",
+        sm: "px-2 py-1 text-xs sm:px-3 sm:text-sm shadow hover:shadow-none",
+        md: "px-3 py-1.5 text-sm sm:px-4 sm:text-base",
+        lg: "px-4 py-2 text-base sm:px-6 lg:px-8 sm:py-2 lg:py-3 sm:text-md lg:text-lg",
         icon: "p-2",
       },
     },

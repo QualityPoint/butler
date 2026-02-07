@@ -199,20 +199,20 @@ export default function Register() {
             </div>
 
             {/* Submit Button */}
-            <div className="flex gap-4">
+            <div className="flex flex-wrap gap-2 sm:gap-4">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => navigate("/")}
-                className="flex-1"
+                className="flex-1 min-w-[100px] text-sm sm:text-base"
                 disabled={isSubmitting}
               >
-                <Home className="w-4 h-4 mr-2" />
-                Home
+                <Home className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Home</span>
               </Button>
               <Button
                 type="submit"
-                className="flex-1 text-lg"
+                className="flex-1 min-w-[140px] text-base sm:text-lg"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? "Registering..." : "Complete Registration"}

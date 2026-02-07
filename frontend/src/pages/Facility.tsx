@@ -292,23 +292,25 @@ export default function FacilityDetail() {
                 </p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2 sm:gap-3">
               {isEditMode ? (
                 <>
                   <Button
                     variant="outline"
                     onClick={handleCancel}
                     disabled={isUpdating}
+                    className="text-sm sm:text-base"
                   >
-                    <X className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                    Cancel
+                    <X className="w-4 h-4 sm:w-5 sm:h-5 sm:mr-2" />
+                    <span className="hidden sm:inline">Cancel</span>
                   </Button>
                   <Button
                     onClick={handleSave}
                     disabled={isUpdating}
+                    className="text-sm sm:text-base"
                   >
-                    <Save className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                    {isUpdating ? "Saving..." : "Save"}
+                    <Save className="w-4 h-4 sm:w-5 sm:h-5 sm:mr-2" />
+                    <span className="hidden sm:inline">{isUpdating ? "Saving..." : "Save"}</span>
                   </Button>
                 </>
               ) : (
@@ -316,15 +318,17 @@ export default function FacilityDetail() {
                   <Button
                     variant="outline"
                     onClick={handleBack}
+                    className="text-sm sm:text-base"
                   >
-                    <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                    Back
+                    <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 sm:mr-2" />
+                    <span className="hidden sm:inline">Back</span>
                   </Button>
                   <Button
                     onClick={handleEdit}
+                    className="text-sm sm:text-base"
                   >
-                    <Edit className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                    Edit
+                    <Edit className="w-4 h-4 sm:w-5 sm:h-5 sm:mr-2" />
+                    <span className="hidden sm:inline">Edit</span>
                   </Button>
                 </>
               )}

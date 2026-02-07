@@ -638,20 +638,22 @@ function Service() {
           )}
 
           {/* Navigation Buttons */}
-          <div className="mt-6 flex justify-center gap-4">
+          <div className="mt-6 flex flex-wrap justify-center gap-2 sm:gap-4">
             <Button
               variant="outline"
               onClick={() => navigate(-1)}
+              className="text-sm sm:text-base"
             >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back
+              <ArrowLeft className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Back</span>
             </Button>
             <Button
               variant="outline"
               onClick={() => navigate("/")}
+              className="text-sm sm:text-base"
             >
-              <Home className="w-4 h-4 mr-2" />
-              Home
+              <Home className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Home</span>
             </Button>
           </div>
         </div>
