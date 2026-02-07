@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 
@@ -13,7 +14,7 @@ no_cache = 1
 def get_context():
     frappe.db.commit()
     context = frappe._dict()
-    context.boot = get_boot()
+    context.boot = json.dumps(get_boot())
     if frappe.session.user != "Guest":
         capture("active_site", "butler")
     return context
@@ -30,8 +31,12 @@ def get_boot():
     return frappe._dict(
         {
             "frappe_version": frappe.__version__,
+            "versions": {
+                "frappe": frappe.__version__,
+            },
             "default_route": get_default_route(),
             "site_name": frappe.local.site,
+            "sitename": frappe.local.site,
             "read_only_mode": frappe.flags.read_only,
             "csrf_token": frappe.sessions.get_csrf_token(),
             "setup_complete": cint(frappe.get_system_settings("setup_complete")),
