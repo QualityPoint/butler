@@ -26,7 +26,7 @@ export function DroppableArea({ items, onRemove, onIncrement, onDecrement, onCle
   return (
     <div className="bg-card border-4 border-border p-6 shadow-lg">
       <div className="flex justify-between items-center mb-4 border-b-2 border-border pb-2">
-        <h2 className="text-3xl font-head">
+        <h2 className="text-xl sm:text-2xl font-head break-words">
           Your Package
         </h2>
         {onClearAll && items.length > 0 && (

@@ -80,7 +80,7 @@ export function Bundle({
   return (
     /* Order Configuration */
     <div className="bg-card border-4 border-border p-6 shadow-lg">
-      <h3 className="text-2xl font-head mb-4 border-b-2 border-border pb-2">
+      <h3 className="text-xl sm:text-2xl font-head mb-4 border-b-2 border-border pb-2 break-words">
         Order Configuration
       </h3>
 
@@ -145,7 +145,7 @@ export function BundleDetails({
 
   return (
     <div className="mt-8 bg-accent border-4 border-border p-6 shadow-lg">
-      <h3 className="text-2xl font-head mb-4 border-b-2 border-border pb-2">
+      <h3 className="text-xl sm:text-2xl font-head mb-4 border-b-2 border-border pb-2 break-words">
         Bundle Details
       </h3>
 

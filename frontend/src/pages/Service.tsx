@@ -454,11 +454,11 @@ function Service() {
                   className="h-20 w-20"
                 />
               </div>
-              <div className="w-full">
-                <h1 className="text-5xl font-head text-center">
+              <div className="w-full max-w-2xl">
+                <h1 className="text-3xl sm:text-4xl font-head text-center break-words">
                   Service Packages
                 </h1>
-                <p className="text-center mt-2 font-sans text-lg">
+                <p className="text-center mt-2 font-sans text-base sm:text-lg break-words">
                   Drag and drop items to build your custom package
                 </p>
               </div>
@@ -501,7 +501,7 @@ function Service() {
             {/* Left: Category Selection */}
             <div className="space-y-6">
               <div className="bg-card border-4 border-border p-6 shadow-lg">
-                <h2 className="text-3xl font-head mb-4 border-b-2 border-border pb-2">
+                <h2 className="text-2xl font-head mb-4 border-b-2 border-border pb-2 break-words">
                   Categories
                 </h2>
                 <div className="flex flex-wrap gap-3">
@@ -551,7 +551,7 @@ function Service() {
 
               {/* Available Items */}
               <div className="bg-card border-4 border-border p-6 shadow-lg">
-                <h3 className="text-2xl font-head mb-4 border-b-2 border-border pb-2">
+                <h3 className="text-xl font-head mb-4 border-b-2 border-border pb-2 break-words line-clamp-2">
                   {amenityCategories?.find((cat) => cat.name === selectedCategory)?.category_name || "Select a Category"} Items
                 </h3>
                 <div className="flex flex-col gap-3 h-125 overflow-y-auto pr-2">

@@ -256,22 +256,22 @@ export default function FacilityDetail() {
               <div className="bg-secondary p-4 border-4 border-border flex-shrink-0">
                 <Building2 className="w-12 h-12 text-white" />
               </div>
-              <div className="text-center sm:text-left flex-1">
-                <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-head">
+              <div className="text-center sm:text-left flex-1 max-w-2xl">
+                <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-head break-words">
                   {isEditMode ? (
                     <input
                       name="facility_name"
                       type="text"
                       value={formData.facility_name}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2 border-4 border-border font-head bg-white"
+                      className="w-full px-4 py-2 border-4 border-border font-head bg-white text-base sm:text-lg"
                       placeholder="Facility Name"
                     />
                   ) : (
                     facility.facility_name
                   )}
                 </h1>
-                <p className="mt-1 sm:mt-2 font-sans text-sm sm:text-base md:text-lg text-muted-foreground">
+                <p className="mt-1 sm:mt-2 font-sans text-sm sm:text-base text-muted-foreground break-words">
                   {isEditMode ? (
                     <select
                       name="facility_type"

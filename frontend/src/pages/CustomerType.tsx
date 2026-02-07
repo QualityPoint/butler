@@ -32,11 +32,11 @@ export default function CustomerType() {
                 alt="Butler Logo"
                 className="h-16 w-16 sm:h-20 sm:w-20 flex-shrink-0"
               />
-              <div className="text-center sm:text-left">
-                <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-head">
+              <div className="text-center sm:text-left max-w-2xl">
+                <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-head break-words">
                   Welcome to Butler
                 </h1>
-                <p className="mt-1 sm:mt-2 font-sans text-sm sm:text-base md:text-lg">
+                <p className="mt-1 sm:mt-2 font-sans text-sm sm:text-base break-words">
                   Please select your account type
                 </p>
               </div>
@@ -64,7 +64,7 @@ export default function CustomerType() {
               </div>
               
               <div className="text-center space-y-3">
-                <h2 className="text-3xl font-head">Customer</h2>
+                <h2 className="text-2xl font-head">Customer</h2>
                 <p className="font-sans text-muted-foreground">
                   Already registered as a customer? Access your account and
                   manage your services.
@@ -91,7 +91,7 @@ export default function CustomerType() {
               </div>
               
               <div className="text-center space-y-3">
-                <h2 className="text-3xl font-head">Lead</h2>
+                <h2 className="text-2xl font-head">Lead</h2>
                 <p className="font-sans text-muted-foreground">
                   Previously registered as a lead? Continue your registration
                   and manage facilities.

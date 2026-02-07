@@ -65,9 +65,9 @@ export default function Customers() {
               alt="Butler Logo"
               className="h-16 w-16 sm:h-20 sm:w-20 flex-shrink-0"
             />
-            <div className="text-center sm:text-left">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-head">Find Your Account</h1>
-              <p className="mt-1 sm:mt-2 font-sans text-sm sm:text-base md:text-lg">
+            <div className="text-center sm:text-left max-w-xl">
+              <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-head break-words">Find Your Account</h1>
+              <p className="mt-1 sm:mt-2 font-sans text-sm sm:text-base break-words">
                 Search for your existing customer record
               </p>
             </div>
