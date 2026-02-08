@@ -7,6 +7,7 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "annex_item",
   "annex_name",
   "image",
   "description"
@@ -17,6 +18,7 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Annex Name",
+   "no_copy": 1,
    "reqd": 1,
    "unique": 1
   },
@@ -31,13 +33,23 @@
    "hidden": 1,
    "label": "Image",
    "no_copy": 1
+  },
+  {
+   "description": "The item must be of a non-stock type",
+   "fieldname": "annex_item",
+   "fieldtype": "Link",
+   "label": "Annex Item",
+   "no_copy": 1,
+   "options": "Item",
+   "reqd": 1,
+   "unique": 1
   }
  ],
  "grid_page_length": 50,
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-12-30 14:10:54.086781",
+ "modified": "2026-02-08 14:05:41.203919",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Amenity Annex",
