@@ -13,6 +13,3 @@ butler/www/butler.html
 
 # Spurious root lockfile — root package.json has no deps (frontend has its own)
 /yarn.lock
-
-# Local backup of the old React frontend, kept until Vue parity is confirmed
-/frontend-react-old/
