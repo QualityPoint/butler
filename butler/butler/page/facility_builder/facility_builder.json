@@ -1,0 +1,26 @@
+{
+ "content": null,
+ "creation": "2026-06-09 17:32:15.834454",
+ "docstatus": 0,
+ "doctype": "Page",
+ "idx": 0,
+ "modified": "2026-06-09 17:32:15.834454",
+ "modified_by": "Administrator",
+ "module": "Butler",
+ "name": "facility-builder",
+ "owner": "Administrator",
+ "page_name": "facility-builder",
+ "roles": [
+  {
+   "role": "Sales User"
+  },
+  {
+   "role": "Sales Manager"
+  }
+ ],
+ "script": null,
+ "standard": "Yes",
+ "style": null,
+ "system_page": 1,
+ "title": "Facility Builder"
+}

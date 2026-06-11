@@ -6,58 +6,22 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "facility_for",
-  "party_name",
-  "customer_name",
-  "column_break_xytd",
-  "facility_type",
   "facility_name",
-  "facility_specification_section",
-  "multistorey",
-  "number_of_floors",
-  "floor_area",
-  "total_area",
-  "column_break_rnuy",
-  "facility_blueprint",
-  "location_tab",
-  "national_address_section",
-  "street",
-  "building_no",
-  "facility_national_address",
-  "address_details",
-  "column_break_xllu",
+  "facility_type",
+  "column_break_xytd",
+  "blueprints",
+  "geometry",
+  "location_section",
   "location",
+  "section_break_nfqh",
   "latitude",
-  "longitude"
+  "longitude",
+  "column_break_srtl",
+  "address_html",
+  "references_section",
+  "links"
  ],
  "fields": [
-  {
-   "fieldname": "facility_for",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Facility For",
-   "options": "DocType",
-   "reqd": 1
-  },
-  {
-   "bold": 1,
-   "fieldname": "party_name",
-   "fieldtype": "Dynamic Link",
-   "in_global_search": 1,
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Party",
-   "options": "facility_for",
-   "reqd": 1,
-   "search_index": 1
-  },
-  {
-   "fieldname": "customer_name",
-   "fieldtype": "Data",
-   "label": "Customer Name",
-   "read_only": 1
-  },
   {
    "fieldname": "column_break_xytd",
    "fieldtype": "Column Break"
@@ -80,30 +44,6 @@
    "unique": 1
   },
   {
-   "fieldname": "location_tab",
-   "fieldtype": "Tab Break",
-   "label": "Location"
-  },
-  {
-   "fieldname": "national_address_section",
-   "fieldtype": "Section Break",
-   "label": "National Address"
-  },
-  {
-   "fieldname": "street",
-   "fieldtype": "Data",
-   "label": "Street"
-  },
-  {
-   "fieldname": "building_no",
-   "fieldtype": "Data",
-   "label": "Building No"
-  },
-  {
-   "fieldname": "column_break_xllu",
-   "fieldtype": "Column Break"
-  },
-  {
    "fieldname": "location",
    "fieldtype": "Geolocation",
    "label": "Location",
@@ -124,69 +64,57 @@
    "read_only": 1
   },
   {
-   "fieldname": "facility_national_address",
-   "fieldtype": "Attach",
-   "label": "National Address",
-   "no_copy": 1
-  },
-  {
-   "fieldname": "address_details",
-   "fieldtype": "Small Text",
-   "label": "Address Details",
-   "no_copy": 1,
-   "read_only": 1
-  },
-  {
-   "fieldname": "facility_specification_section",
+   "fieldname": "location_section",
    "fieldtype": "Section Break",
-   "label": "Facility Specification"
+   "label": "Location"
   },
   {
-   "default": "0",
-   "fieldname": "multistorey",
-   "fieldtype": "Check",
-   "label": "Multi-storey",
-   "no_copy": 1
+   "fieldname": "section_break_nfqh",
+   "fieldtype": "Section Break"
   },
   {
-   "depends_on": "multistorey",
-   "fieldname": "number_of_floors",
-   "fieldtype": "Int",
-   "label": "Number of Floors",
-   "mandatory_depends_on": "multistorey",
-   "non_negative": 1
-  },
-  {
-   "fieldname": "total_area",
-   "fieldtype": "Float",
-   "label": "Total Area (m<sup>2</sup>)",
-   "mandatory_depends_on": "eval:doc.multistorey===0;",
-   "non_negative": 1,
-   "read_only_depends_on": "multistorey"
-  },
-  {
-   "fieldname": "column_break_rnuy",
+   "fieldname": "column_break_srtl",
    "fieldtype": "Column Break"
   },
   {
-   "fieldname": "facility_blueprint",
-   "fieldtype": "Attach",
-   "label": "Facility Blueprint",
-   "no_copy": 1
+   "fieldname": "address_html",
+   "fieldtype": "HTML",
+   "label": "Address HTML"
   },
   {
-   "depends_on": "multistorey",
-   "fieldname": "floor_area",
-   "fieldtype": "Float",
-   "label": "Floor Area",
-   "mandatory_depends_on": "multistorey",
-   "non_negative": 1
+   "fieldname": "references_section",
+   "fieldtype": "Section Break",
+   "label": "References"
+  },
+  {
+   "fieldname": "links",
+   "fieldtype": "Table",
+   "label": "Links",
+   "options": "Dynamic Link",
+   "reqd": 1
+  },
+  {
+   "fieldname": "geometry",
+   "fieldtype": "Code",
+   "hidden": 1,
+   "label": "Geometry",
+   "no_copy": 1,
+   "options": "JSON",
+   "read_only": 1
+  },
+  {
+   "fieldname": "blueprints",
+   "fieldtype": "Table",
+   "label": "Blueprints",
+   "no_copy": 1,
+   "options": "Facility Blueprint",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-02-03 12:20:42.115161",
+ "modified": "2026-06-10 16:42:31.051459",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Facility",
