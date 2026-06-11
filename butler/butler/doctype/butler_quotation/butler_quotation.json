@@ -15,12 +15,6 @@
   "order_type",
   "bundle_type",
   "amended_from",
-  "facility_specificaions_section",
-  "multistorey",
-  "number_of_floors",
-  "floor_area",
-  "column_break_zifk",
-  "total_area",
   "bundle_specifications_section",
   "bundle_price",
   "column_break_htvt",
@@ -32,7 +26,7 @@
   "discount",
   "column_break_bjfc",
   "total",
-  "grand_total"
+  "net_total"
  ],
  "fields": [
   {
@@ -168,15 +162,6 @@
    "precision": "1"
   },
   {
-   "bold": 1,
-   "fieldname": "grand_total",
-   "fieldtype": "Currency",
-   "in_list_view": 1,
-   "label": "Grand Total",
-   "non_negative": 1,
-   "read_only": 1
-  },
-  {
    "fieldname": "facility_type",
    "fieldtype": "Link",
    "in_standard_filter": 1,
@@ -185,51 +170,23 @@
    "read_only": 1
   },
   {
-   "collapsible": 1,
-   "fieldname": "facility_specificaions_section",
-   "fieldtype": "Section Break",
-   "label": "Facility Specificaions"
-  },
-  {
-   "default": "0",
-   "fieldname": "multistorey",
-   "fieldtype": "Check",
-   "label": "Multi-storey",
+   "bold": 1,
+   "fieldname": "net_total",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Net Total",
+   "non_negative": 1,
    "read_only": 1
-  },
-  {
-   "depends_on": "multistorey",
-   "fieldname": "number_of_floors",
-   "fieldtype": "Int",
-   "label": "Number of Floors",
-   "read_only": 1
-  },
-  {
-   "depends_on": "multistorey",
-   "fieldname": "floor_area",
-   "fieldtype": "Float",
-   "label": "Floor Area",
-   "read_only": 1
-  },
-  {
-   "fieldname": "total_area",
-   "fieldtype": "Float",
-   "label": "Total Area (m<sup>2</sup>)",
-   "read_only": 1
-  },
-  {
-   "fieldname": "column_break_zifk",
-   "fieldtype": "Column Break"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-02-03 19:15:05.591595",
+ "modified": "2026-06-11 12:55:57.372594",
  "modified_by": "Administrator",
  "module": "Butler",
- "name": "Service Order",
+ "name": "Butler Quotation",
  "naming_rule": "By \"Naming Series\" field",
  "owner": "Administrator",
  "permissions": [

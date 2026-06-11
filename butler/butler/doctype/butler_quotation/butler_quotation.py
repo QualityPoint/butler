@@ -6,12 +6,12 @@ from frappe import _
 from frappe.model.document import Document
 
 
-class ServiceOrder(Document):
+class ButlerQuotation(Document):
     def before_validate(self):
         self.calculate_amenity_count()
 
     def validate(self):
-        self.validate_duplicated_service_order()
+        self.validate_duplicated_butler_quotation()
 
     def calculate_amenity_count(self):
         """
@@ -26,18 +26,18 @@ class ServiceOrder(Document):
 
         self.amenity_count = total_count
 
-    def validate_duplicated_service_order(self):
+    def validate_duplicated_butler_quotation(self):
         """
         Validate that no submitted service order exists for the same facility.
         Multiple draft orders are allowed, but only one submitted order per facility.
         """
         if not self.facility:
             frappe.throw(
-                _("Facility must be set to validate duplicate Service Orders."), title="Facility Required")
+                _("Facility must be set to validate duplicate Butler Quotations."), title="Facility Required")
 
-        # Check if there's already a submitted service order for this facility
+        # Check if there's already a submitted butler quotation for this facility
         existing_submitted = frappe.db.exists(
-            "Service Order",
+            "Butler Quotation",
             {
                 "facility": self.facility,
                 "docstatus": 1,  # Submitted
@@ -47,9 +47,9 @@ class ServiceOrder(Document):
 
         if existing_submitted:
             frappe.throw(
-                f"A submitted Service Order already exists for facility {self.facility}. "
-                "Please cancel or amend the existing order before creating a new one.",
-                title="Duplicate Service Order"
+                f"A submitted Butler Quotation already exists for facility {self.facility}. "
+                "Please cancel or amend the existing quotation before creating a new one.",
+                title="Duplicate Butler Quotation"
             )
 
 

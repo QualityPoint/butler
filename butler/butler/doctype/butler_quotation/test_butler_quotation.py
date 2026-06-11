@@ -5,5 +5,5 @@
 from frappe.tests.utils import FrappeTestCase
 
 
-class TestServiceOrder(FrappeTestCase):
+class TestButlerQuotation(FrappeTestCase):
 	pass

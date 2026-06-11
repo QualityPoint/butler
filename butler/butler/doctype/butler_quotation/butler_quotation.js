@@ -1,7 +1,7 @@
 // Copyright (c) 2026, QP and contributors
 // For license information, please see license.txt
 
-frappe.ui.form.on("Service Order", {
+frappe.ui.form.on("Butler Quotation", {
     setup(frm) {
         frm.set_query("amenity_name", "amenities", function () {
             return {
@@ -16,7 +16,7 @@ frappe.ui.form.on("Service Order", {
         if (frm.doc.bundle_type && frm.doc.order_type === "Bundle") {
             // Call server-side method to get bundle details
             frappe.call({
-                method: "butler.butler.doctype.service_order.service_order.get_bundle_details",
+                method: "butler.butler.doctype.butler_quotation.butler_quotation.get_bundle_details",
                 args: {
                     bundle_type: frm.doc.bundle_type
                 },
@@ -72,7 +72,7 @@ frappe.ui.form.on("Service Order", {
         if (frm.doc.facility) {
             // Call server-side method to get facility specifications
             frappe.call({
-                method: "butler.butler.doctype.service_order.service_order.get_facility_specifications",
+                method: "butler.butler.doctype.butler_quotation.butler_quotation.get_facility_specifications",
                 args: {
                     facility: frm.doc.facility
                 },
@@ -111,7 +111,7 @@ frappe.ui.form.on("Facility Amenities", {
         if (row.amenity_name && frm.doc.facility) {
             // Call server-side method to get amenity details
             frappe.call({
-                method: "butler.butler.doctype.service_order.service_order.get_amenity_details",
+                method: "butler.butler.doctype.butler_quotation.butler_quotation.get_amenity_details",
                 args: {
                     amenity_name: row.amenity_name,
                     facility: frm.doc.facility
