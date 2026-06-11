@@ -1,0 +1,78 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-06-09 16:21:59.284193",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "default_map_center_section",
+  "default_map_latitude",
+  "default_map_longitude",
+  "column_break_yrcq",
+  "default_map_zoom",
+  "fetch_coordinates_from_country"
+ ],
+ "fields": [
+  {
+   "fieldname": "default_map_center_section",
+   "fieldtype": "Section Break",
+   "label": "Default Map Center"
+  },
+  {
+   "description": "Default latitude for the map center when no location is set.",
+   "fieldname": "default_map_latitude",
+   "fieldtype": "Float",
+   "label": "Default Latitude",
+   "precision": "6"
+  },
+  {
+   "description": "Default longitude for the map center when no location is set.",
+   "fieldname": "default_map_longitude",
+   "fieldtype": "Float",
+   "label": "Default Longitude",
+   "precision": "6"
+  },
+  {
+   "fieldname": "column_break_yrcq",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "6",
+   "description": "Default zoom level for the map (1\u201318).",
+   "fieldname": "default_map_zoom",
+   "fieldtype": "Int",
+   "label": "Default Zoom Level"
+  },
+  {
+   "fieldname": "fetch_coordinates_from_country",
+   "fieldtype": "Button",
+   "label": "Fetch From System Country"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-06-09 16:49:29.148659",
+ "modified_by": "Administrator",
+ "module": "Butler",
+ "name": "Address Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Sales Master Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
