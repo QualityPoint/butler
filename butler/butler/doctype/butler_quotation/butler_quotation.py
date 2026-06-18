@@ -5,13 +5,31 @@ import erpnext
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import cint, flt, fmt_money
+from frappe.model.mapper import get_mapped_doc
+from frappe.utils import add_days, add_months, cint, flt, fmt_money, getdate, nowdate
 
 
 class ButlerQuotation(Document):
     def before_validate(self):
         self.set_default_company()
+        self.set_default_valid_till()
         self.consolidate_amenities()
+
+    def set_default_valid_till(self):
+        """Default valid_till like ERPNext's Quotation: transaction_date plus
+        Butler Settings -> Default Quotation Validity Days, falling back to one
+        month. Done server-side (not just on the form) so the Facility Builder's
+        programmatic insert gets a valid_till too.
+        """
+        if self.valid_till or not self.transaction_date:
+            return
+
+        days = cint(frappe.db.get_single_value("Butler Settings", "default_valid_till"))
+        self.valid_till = (
+            add_days(self.transaction_date, days)
+            if days
+            else add_months(self.transaction_date, 1)
+        )
 
     def set_default_company(self):
         """Resolve Company the way ERPNext does when it isn't supplied (e.g. the
@@ -36,6 +54,75 @@ class ButlerQuotation(Document):
 
     def validate(self):
         self.calculate_totals()
+        self.validate_valid_till()
+
+    def on_submit(self):
+        self.set_status(update=True)
+
+    def on_cancel(self):
+        self.set_status(update=True)
+
+    # --- Sales Order status tracking (mirrors ERPNext's Quotation) ---------
+
+    def set_status(self, update=False):
+        """Recompute status like ERPNext's Quotation: Draft -> Open on submit,
+        then Partially Ordered / Ordered as Sales Orders are raised against it.
+        A manually set Lost/Expired is preserved while nothing is ordered.
+        """
+        if self.docstatus == 2:
+            status = "Cancelled"
+        elif self.docstatus == 1:
+            ordered_status = self.get_ordered_status()
+            if ordered_status != "Open":
+                status = ordered_status
+            elif self.status in ("Lost", "Expired"):
+                status = self.status
+            else:
+                status = "Open"
+        else:
+            status = "Draft"
+
+        if update:
+            self.db_set("status", status, update_modified=False)
+        else:
+            self.status = status
+
+    def get_ordered_items(self):
+        """qty ordered per Butler Quotation Item row, summed across submitted
+        Sales Order Items that link back via the butler_quotation_item field."""
+        ordered = frappe._dict()
+        rows = frappe.get_all(
+            "Sales Order Item",
+            filters={"butler_quotation": self.name, "docstatus": 1},
+            fields=["butler_quotation_item", "qty"],
+        )
+        for row in rows:
+            if row.butler_quotation_item:
+                ordered[row.butler_quotation_item] = ordered.get(row.butler_quotation_item, 0) + flt(row.qty)
+        return ordered
+
+    def get_ordered_status(self):
+        ordered = self.get_ordered_items()
+        if not ordered:
+            return "Open"
+        for row in self.amenities:
+            if row.name not in ordered or flt(row.qty) > flt(ordered.get(row.name)):
+                return "Partially Ordered"
+        return "Ordered"
+
+    def is_fully_ordered(self):
+        return self.get_ordered_status() == "Ordered"
+
+    def is_partially_ordered(self):
+        return self.get_ordered_status() == "Partially Ordered"
+
+    def validate_valid_till(self):
+        if (
+            self.valid_till
+            and self.transaction_date
+            and getdate(self.valid_till) < getdate(self.transaction_date)
+        ):
+            frappe.throw(_("Valid till date cannot be before transaction date"))
 
     def consolidate_amenities(self):
         """Merge duplicate amenity lines that share the same (amenity, floor_type),
@@ -210,3 +297,119 @@ def get_amenity_pricing(amenity, facility_type=None):
                 price = flt(r.amenity_price)
                 break
     return {"amenity_price": price, "depends_on_floor_count": cint(am.depends_on_floor_count)}
+
+
+@frappe.whitelist()
+def make_sales_order(source_name, target_doc=None):
+    return _make_sales_order(source_name, target_doc)
+
+
+def _make_sales_order(source_name, target_doc=None, ignore_permissions=False):
+    """Map a Butler Quotation to a Sales Order, mirroring ERPNext's Quotation:
+    each amenity line becomes a Sales Order Item (item_code = the Amenity's linked
+    Item), only the not-yet-ordered balance is mapped (partial ordering), and the
+    line keeps back-links to the quotation + row so status can be recomputed.
+    """
+    source = frappe.get_doc("Butler Quotation", source_name)
+
+    if source.order_type != "Amenities":
+        frappe.throw(_("Creating a Sales Order is currently supported only for Amenities quotations."))
+
+    if not frappe.db.get_single_value(
+        "Selling Settings", "allow_sales_order_creation_for_expired_quotation"
+    ):
+        if source.valid_till and (
+            getdate(source.valid_till) < getdate(source.transaction_date)
+            or getdate(source.valid_till) < getdate(nowdate())
+        ):
+            frappe.throw(_("Validity period of this quotation has ended."))
+
+    customer = _make_customer(source_name, ignore_permissions)
+    ordered_items = source.get_ordered_items()
+
+    def set_missing_values(src, target):
+        if customer:
+            target.customer = customer.name
+            target.customer_name = customer.customer_name
+        target.flags.ignore_permissions = ignore_permissions
+        target.run_method("set_missing_values")
+        target.run_method("calculate_taxes_and_totals")
+
+    def update_item(obj, target, source_parent):
+        item_code = frappe.db.get_value("Amenity", obj.amenity, "amenity_item")
+        if not item_code:
+            frappe.throw(
+                _("Amenity {0} has no linked Item, so it can't be added to a Sales Order.").format(
+                    frappe.bold(obj.amenity)
+                )
+            )
+        target.item_code = item_code
+        balance_qty = flt(obj.qty) - flt(ordered_items.get(obj.name, 0))
+        target.qty = balance_qty if balance_qty > 0 else 0
+        target.rate = obj.rate
+
+    def can_map_row(obj):
+        return flt(obj.qty) > flt(ordered_items.get(obj.name, 0))
+
+    doclist = get_mapped_doc(
+        "Butler Quotation",
+        source_name,
+        {
+            "Butler Quotation": {
+                "doctype": "Sales Order",
+                "validation": {"docstatus": ["=", 1]},
+            },
+            "Butler Quotation Item": {
+                "doctype": "Sales Order Item",
+                "field_map": {"parent": "butler_quotation", "name": "butler_quotation_item"},
+                "postprocess": update_item,
+                "condition": can_map_row,
+            },
+        },
+        target_doc,
+        set_missing_values,
+        ignore_permissions=ignore_permissions,
+    )
+
+    return doclist
+
+
+def _make_customer(source_name, ignore_permissions=False):
+    """Resolve the Sales Order customer from the quotation's Facility, mirroring
+    ERPNext's _make_customer: use the linked Customer; otherwise take the linked
+    Lead and convert it to a Customer (reusing one if it already exists)."""
+    facility = frappe.db.get_value("Butler Quotation", source_name, "facility")
+    if not facility:
+        return None
+
+    links = frappe.get_all(
+        "Dynamic Link",
+        filters={
+            "parenttype": "Facility",
+            "parent": facility,
+            "link_doctype": ["in", ["Customer", "Lead"]],
+        },
+        fields=["link_doctype", "link_name"],
+    )
+    customer = next((l.link_name for l in links if l.link_doctype == "Customer"), None)
+    if customer:
+        return frappe.get_doc("Customer", customer)
+
+    lead = next((l.link_name for l in links if l.link_doctype == "Lead"), None)
+    if not lead:
+        frappe.throw(
+            _("Link a Customer or Lead to Facility {0} before creating a Sales Order.").format(
+                frappe.bold(facility)
+            )
+        )
+
+    existing_customer = frappe.db.get_value("Customer", {"lead_name": lead})
+    if existing_customer:
+        return frappe.get_doc("Customer", existing_customer)
+
+    from erpnext.crm.doctype.lead.lead import _make_customer as create_customer_from_lead
+
+    new_customer = create_customer_from_lead(lead, ignore_permissions=ignore_permissions)
+    new_customer.flags.ignore_permissions = ignore_permissions
+    new_customer.insert(ignore_permissions=ignore_permissions)
+    return new_customer

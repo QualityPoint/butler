@@ -88,8 +88,14 @@ after_install = "butler.install.after_install"
 # Uninstallation
 # ------------
 
-# before_uninstall = "butler.uninstall.before_uninstall"
+before_uninstall = "butler.uninstall.before_uninstall"
 # after_uninstall = "butler.uninstall.after_uninstall"
+
+# Migration
+# ------------
+
+# before_migrate = "butler.install.before_install"
+after_migrate = "butler.install.after_install"
 
 # Integration Setup
 # ------------------
@@ -143,6 +149,10 @@ doc_events = {
     },
     "Address": {
         "validate": "butler.overrides.address.validate",
+    },
+    "Sales Order": {
+        "on_submit": "butler.overrides.sales_order.update_butler_quotation_status",
+        "on_cancel": "butler.overrides.sales_order.update_butler_quotation_status",
     },
 }
 

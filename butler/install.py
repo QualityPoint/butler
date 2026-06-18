@@ -1,32 +1,24 @@
 # Copyright (c) 2026, QP and contributors
 # For license information, please see license.txt
 
-import frappe
+import click
+
+from butler.setup import after_install as setup
 
 
 def after_install():
-    setup_butler_settings()
+    try:
+        print("Setting up Butler...")
+        setup()
 
+        click.secho("Thank you for installing Butler!", fg="green")
 
-def setup_butler_settings():
-    """Seed default values on the Butler Settings single doctype.
-
-    Field-level `default`s only apply when the Single is first opened, so we set them
-    explicitly on install. Idempotent: only fills values that aren't already set, so it
-    never clobbers a configured site (safe to also call from after_migrate / a patch).
-    """
-    defaults = {
-        "disable_amenity_consolidation": 0,
-        "maintain_standard_price_action": "Stop",
-    }
-
-    settings = frappe.get_single("Butler Settings")
-    changed = False
-    for fieldname, value in defaults.items():
-        if not settings.get(fieldname):
-            settings.set(fieldname, value)
-            changed = True
-
-    if changed:
-        settings.save(ignore_permissions=True)
-        frappe.db.commit()
+    except Exception as e:
+        BUG_REPORT_URL = "https://github.com/QualityPoint/butler/issues/new"
+        click.secho(
+            "Installation for Butler app failed due to an error."
+            " Please try re-installing the app or"
+            f" report the issue on {BUG_REPORT_URL} if not resolved.",
+            fg="bright_red",
+        )
+        raise e

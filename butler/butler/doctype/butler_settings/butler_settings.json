@@ -8,7 +8,10 @@
   "disable_amenity_consolidation",
   "column_break_aufy",
   "maintain_standard_price_action",
-  "role_to_override_stop_action"
+  "role_to_override_stop_action",
+  "quotation_section",
+  "default_valid_till",
+  "column_break_fjcs"
  ],
  "fields": [
   {
@@ -35,13 +38,28 @@
    "fieldtype": "Link",
    "label": " Role allowed to override stop action ",
    "options": "Role"
+  },
+  {
+   "fieldname": "quotation_section",
+   "fieldtype": "Section Break",
+   "label": "Quotation"
+  },
+  {
+   "fieldname": "default_valid_till",
+   "fieldtype": "Int",
+   "label": "Default Quotation Validity Days",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "column_break_fjcs",
+   "fieldtype": "Column Break"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-06-14 11:39:15.084614",
+ "modified": "2026-06-18 16:09:15.193967",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Butler Settings",
