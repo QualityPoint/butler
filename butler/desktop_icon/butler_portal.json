@@ -1,0 +1,22 @@
+{
+    "app": "butler",
+    "bg_color": "blue",
+    "creation": "2026-06-09 15:26:48.692535",
+    "docstatus": 0,
+    "doctype": "Desktop Icon",
+    "hidden": 0,
+    "icon_type": "App",
+    "idx": 2,
+    "label": "Butler Portal",
+    "link": "/butler",
+    "link_type": "External",
+    "logo_url": "/assets/butler/icons/desktop_icons/subtle/butler_portal.svg",
+    "modified": "2026-06-11 18:01:40.879548",
+    "modified_by": "Administrator",
+    "name": "Butler Portal",
+    "owner": "Administrator",
+    "parent_icon": "Butler",
+    "restrict_removal": 0,
+    "roles": [],
+    "standard": 1
+}

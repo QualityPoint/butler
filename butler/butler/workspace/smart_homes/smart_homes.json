@@ -1,4 +1,5 @@
 {
+ "app": "butler",
  "charts": [],
  "content": "[{\"id\":\"vFFyHFYMwh\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Smart Homes</span>\",\"col\":12}},{\"id\":\"oCS-zcMLA9\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Butler\",\"col\":3}},{\"id\":\"xjUInyLweG\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"GXT55nzEDs\",\"type\":\"card\",\"data\":{\"card_name\":\"Facilities\",\"col\":4}},{\"id\":\"Mt-5wfu0NQ\",\"type\":\"card\",\"data\":{\"card_name\":\"Amenity Configuration\",\"col\":4}},{\"id\":\"b75TD90vmz\",\"type\":\"card\",\"data\":{\"card_name\":\"Services\",\"col\":4}},{\"id\":\"tyeRuUgsu-\",\"type\":\"card\",\"data\":{\"card_name\":\"Butler Settings\",\"col\":4}}]",
  "creation": "2026-01-17 12:25:00.543044",
@@ -140,7 +141,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-02-04 15:37:34.042631",
+ "modified": "2026-06-09 15:31:10.687288",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Smart Homes",
@@ -160,5 +161,6 @@
    "url": "/butler"
   }
  ],
- "title": "Smart Homes"
+ "title": "Smart Homes",
+ "type": "Workspace"
 }

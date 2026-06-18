@@ -7,11 +7,11 @@
 			:class="{ active: floor.floor_type === store.active_floor_type.value }"
 			@click="store.active_floor_type.value = floor.floor_type"
 		>
-			{{ floor.floor_type }}
+			{{ __(floor.floor_type) }}
 			<span class="fb-tab-count">{{ floor.rooms.length }}</span>
-			<span class="fb-tab-remove" @click.stop="confirm_remove(floor.floor_type)">×</span>
+			<span v-if="!store.read_only.value" class="fb-tab-remove" @click.stop="confirm_remove(floor.floor_type)">×</span>
 		</button>
-		<button class="btn btn-xs btn-primary fb-tab-add" @click="add_floor">
+		<button v-if="!store.read_only.value" class="btn btn-xs btn-primary fb-tab-add" @click="add_floor">
 			<svg class="icon icon-sm"><use href="#icon-add"></use></svg>
 			{{ __("Add Floor") }}
 		</button>
@@ -47,7 +47,7 @@ function add_floor() {
 }
 
 function confirm_remove(floor_type) {
-	frappe.confirm(__("Remove floor {0} and all its rooms?", [floor_type]), () =>
+	frappe.confirm(__("Remove floor {0} and all its rooms?", [__(floor_type)]), () =>
 		store.remove_floor(floor_type)
 	);
 }

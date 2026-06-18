@@ -7,7 +7,8 @@
  "engine": "InnoDB",
  "field_order": [
   "facility_type",
-  "facility_price"
+  "amenity_price",
+  "column_break_zccp"
  ],
  "fields": [
   {
@@ -19,11 +20,16 @@
    "reqd": 1
   },
   {
-   "fieldname": "facility_price",
+   "fieldname": "column_break_zccp",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "amenity_price",
    "fieldtype": "Currency",
    "in_list_view": 1,
-   "label": "Facility Price",
+   "label": "Amenity Price",
    "non_negative": 1,
+   "options": "currency",
    "precision": "2",
    "reqd": 1
   }
@@ -32,10 +38,10 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-12-30 15:18:21.422507",
+ "modified": "2026-06-13 18:08:05.060767",
  "modified_by": "Administrator",
  "module": "Butler",
- "name": "Facility Prices",
+ "name": "Facility Type Price",
  "owner": "Administrator",
  "permissions": [],
  "row_format": "Dynamic",

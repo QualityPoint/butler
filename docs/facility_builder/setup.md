@@ -50,7 +50,7 @@ this.$component = app.mount(this.$wrapper.get(0));
 butler/
 ├── public/js/facility_builder/
 │   ├── facility_builder.bundle.js     ← entry: class that boots Vue (frappe.ui.FacilityBuilder)
-│   ├── store.js                       ← getStore(facility_name) + useStore()
+│   ├── store.js                       ← getStore(mode, name) + useStore()
 │   ├── utils.js                       ← blank_design, snap, area math, bbox helpers
 │   ├── colors.js                      ← colorFor palette + resolveColor
 │   ├── blueprint.js                   ← load_blueprint (image / PDF via pdf.js / CAD guard)
@@ -58,7 +58,7 @@ butler/
 │   └── components/                    ← all .vue components (import ../ for the JS modules)
 │       ├── FacilityBuilder.vue        ← root component
 │       ├── FloorTabs.vue
-│       ├── SpacePalette.vue
+│       ├── AmenityPalette.vue         ← Order Type / Bundle / Amenity-Category filters + amenity list
 │       ├── Toolbar.vue                ← layer selector + blueprint/drawing controls
 │       ├── Footer.vue                 ← Scale + Grid
 │       ├── Canvas.vue
@@ -66,13 +66,16 @@ butler/
 └── butler/
     ├── page/facility_builder/
     │   ├── facility_builder.js         ← page controller (frappe.require + instantiate)
-    │   └── facility_builder.json       ← Page doctype, role-gated
+    │   └── facility_builder.json       ← Page doctype, role-gated (Sales User/Manager)
     └── doctype/
-        ├── facility/facility.js        ← add "Open Facility Builder" custom button
-        └── space_type/space_type.json  ← add `color` (Color) field → run bench migrate
+        ├── facility/facility.js                     ← "Open Facility Builder" → facility mode
+        ├── butler_quotation/butler_quotation.js     ← "Open Facility Builder" → quotation mode
+        ├── butler_quotation/butler_quotation.json   ← `geometry` (Code/JSON, hidden, read-only, no-copy)
+        ├── butler_quotation_item/…json              ← `floor_type` (Link→Floor Type, reqd)
+        └── amenity_category/amenity_category.json   ← `color` (Color) field → run bench migrate
 ```
 
-> After adding the `color` field to the **Space Type** doctype, run `bench --site <site> migrate` so the column is created before the builder queries it.
+> After adding the `geometry` field (Butler Quotation) and `color` field (Amenity Category), run `bench --site <site> migrate` so the columns exist before the builder queries them.
 
 > **Not** registered in `app_include_js`. The bundle is discovered by `bench build` and pulled in lazily by `frappe.require` only when the page opens. See [architecture.md](architecture.md).
 
@@ -87,11 +90,11 @@ butler/
  "page_name": "Facility Builder",
  "module": "Butler",
  "standard": "Yes",
- "roles": [{ "role": "System Manager" }]
+ "roles": [{ "role": "Sales User" }, { "role": "Sales Manager" }]
 }
 ```
 
-Adjust `roles` to whoever may design facilities (e.g. a Facility Manager role).
+Adjust `roles` to whoever may lay out quotations.
 
 ---
 
@@ -110,9 +113,9 @@ bench clear-cache && bench restart      # if changes don't appear
 
 ## Smoke Test
 
-1. Open a saved Facility → click **Open Facility Builder** → page mounts.
-2. Add a floor, drag a Space Type onto the canvas, move/resize it.
-3. In the Toolbar, set the scale (`1 m = N px`) → room areas update.
-4. Select a room → **Convert to Polygon** → drag a vertex; double-click an edge to add one, double-click a vertex to remove one. Rotate via the Transformer handle (snaps to 45°).
-5. Set a **Color** on a Space Type record → reopen the builder: all rooms of that type use it.
-6. **Save** → reopen the page: the design reloads pixel-perfect (from `geometry`).
+1. **Facility mode:** open a **Facility** → **Open Facility Builder**. Add a floor; pick an **Order Type / Bundle / Amenity Categories** filter; drag **Amenities** from the list onto the canvas across two floors.
+2. Set the scale (`1 m = N px`) → room areas update. Convert a room to **Polygon**; edit vertices; rotate (snaps 45°).
+3. Click **Create Quotation** → a new draft **Butler Quotation** is inserted and the builder routes to it. Its `amenities` table holds distinct **(amenity + floor_type)** rows with `qty` = placement counts.
+4. **Quotation mode:** reopen that quotation in the builder → the layout reloads pixel-perfect (from `geometry`); edit and **Save**.
+5. Set a **Color** on an Amenity Category record → reopen: all rooms of that category use it.
+6. Submit the quotation → reopen the builder: it loads **read-only** (Save hidden, "Read only" indicator).

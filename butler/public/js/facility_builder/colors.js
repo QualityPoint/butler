@@ -21,7 +21,8 @@ export function colorFor(name) {
 	return PALETTE[hash % PALETTE.length];
 }
 
-// Prefer the Space Type's chosen color; fall back to the deterministic palette.
-export function resolveColor(space_type, colorMap) {
-	return (colorMap && colorMap[space_type]) || colorFor(space_type);
+// Prefer the chosen color for `key` (e.g. an Amenity Category); fall back to the
+// deterministic name-hash palette.
+export function resolveColor(key, colorMap) {
+	return (colorMap && colorMap[key]) || colorFor(key);
 }

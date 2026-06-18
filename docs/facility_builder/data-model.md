@@ -1,12 +1,14 @@
 # Data Model
 
-The entire design lives in **one field** — `Facility.geometry`. Two catalog doctypes (Floor Type, Space Type) feed it as inputs. There is no derived child table.
+The entire layout lives in **one field** — `Butler Quotation.geometry`. Catalog doctypes (Floor Type, Amenity, Amenity Category, Butler Bundle) feed it as inputs. On save, a **derived** flat rollup is written to the quotation's `amenities` child table.
 
 ---
 
-## 1. `Facility.geometry` — Source of Truth
+## 1. `Butler Quotation.geometry` — Source of Truth
 
-A hidden, read-only `Code` field (Options: `JSON`) on the **Facility** doctype. Holds the entire layout as one JSON string. This is the exact role `format_data` plays in Print Format.
+A hidden, read-only, no-copy `Code` field (Options: `JSON`) on the **Butler Quotation** doctype. Holds the entire layout as one JSON string. This is the exact role `format_data` plays in Print Format.
+
+> The builder is launched from a Butler Quotation; the facility is read from `quotation.facility` (used only for blueprint files). One facility can have many quotations, each with its own geometry.
 
 ### Envelope
 
@@ -26,8 +28,9 @@ A hidden, read-only `Code` field (Options: `JSON`) on the **Facility** doctype. 
       "rooms": [
         {
           "id": "a1b2c3",                // stable client-side uuid
-          "space_type": "Bedroom",       // Link → Space Type (record name)
-          "shape": "rect",               // "rect" (v1) | "polygon" (v2)
+          "amenity": "Rooftop Pool",     // Link → Amenity (record name)
+          "category": "Wellness",        // Link → Amenity Category (cached for color + bundle limits)
+          "shape": "rect",               // "rect" | "polygon"
           "x": 120, "y": 80,             // top-left (rect) / origin (polygon)
           "w": 200, "h": 150,            // rect only
           "rotation": 0,
@@ -40,26 +43,42 @@ A hidden, read-only `Code` field (Options: `JSON`) on the **Facility** doctype. 
 }
 ```
 
-### Polygon variant (v2, same field)
+### Shape variants (same field, `shape` discriminator)
+
+A room is one of four shapes. `x, y` is the top-left origin for `rect`/`ellipse`/`polygon`, and the **centre anchor** for `point`.
 
 ```jsonc
-{
-  "id": "d4e5f6",
-  "space_type": "Bathroom",
-  "shape": "polygon",
-  "points": [0,0, 200,0, 200,150, 100,150, 100,80, 0,80],  // [x0,y0,x1,y1,...] relative to x,y
-  "x": 330, "y": 80,
-  "rotation": 0,
-  "area": 3.4,
-  "remarks": ""
-}
+// polygon — freeform / triangle / pentagon / hexagon / freehand all use this
+{ "id":"d4e5f6", "amenity":"Sauna", "category":"Wellness", "shape":"polygon",
+  "points":[0,0, 200,0, 200,150, 0,150],  // [x0,y0,...] relative to x,y
+  "x":330, "y":80, "rotation":0, "area":3.4, "remarks":"" }
+
+// ellipse — area = π·rx·ry
+{ "id":"e7", "amenity":"Fountain", "category":"Outdoor", "shape":"ellipse",
+  "rx":60, "ry":50, "x":120, "y":300, "rotation":0, "area":7.5, "remarks":"" }
+
+// point — an icon marker; NO area (counts as qty only)
+{ "id":"p8", "amenity":"CCTV Camera", "category":"Security", "shape":"point",
+  "icon":"camera", "color":"#e24c4c", "size":24, "x":200, "y":140, "rotation":0,
+  "area":0, "remarks":"" }
 ```
+
+- **`rect`** — `w, h`; area `w·h`. **`ellipse`** — `rx, ry`; area `π·rx·ry`. **`polygon`** — `points[]`; shoelace area. **`point`** — `icon` (Frappe icon name, nullable → falls back to a category-colored dot), `color`, `size`; **area 0**.
+- The active **shape tool** decides what a dropped amenity becomes; selecting a room + a tool **converts** it (size/position preserved). Triangle/Pentagon/Hexagon are polygon generators; Freehand traces a polygon (RDP-simplified).
 
 ### Rules
 
 - **Always carry `version`.** It costs nothing and makes future migrations sane (Print Format omitted this and pays for it).
-- The field is `hidden=1`, `read_only=1` — it is a machine field, never hand-edited.
-- An empty/new facility has `geometry = null` → the builder starts from a blank `floors: []`.
+- The field is `hidden=1`, `read_only=1`, `no_copy=1` — a machine field, never hand-edited; not carried into amendments.
+- An empty/new quotation has `geometry = null` → the builder starts from a blank `floors: []`.
+
+---
+
+## 1b. `Butler Quotation.amenities` — Derived Rollup (written on save)
+
+On every save the builder consolidates placements into **distinct `(amenity + floor_type)` rows** of `Butler Quotation Item`: same amenity on the same floor merges into one row with `qty` = placement count; the same amenity on two floors makes two rows. Each row sets `amenity_name`, **`floor_type`** (reqd — the floor the room sits on), `qty`, `rate` = `Amenity.standard_price`, `amount` = `rate × qty`, `amenity_category`, `image`, and the mirrored flags (`is_dependant_amenity`, `has_varied_price` ← `has_changeable_price`, `requires_number_of_floors` ← `depends_on_number_of_floors`). It also writes back `order_type` / `bundle_type`. This table is **regenerated** from geometry each save — don't hand-edit it expecting the builder to preserve it.
+
+> **Facility mode** doesn't update an existing quotation — its Save **inserts a new draft Butler Quotation** (with this same rollup) and routes to it. See [persistence.md](persistence.md).
 
 ---
 
@@ -68,25 +87,33 @@ A hidden, read-only `Code` field (Options: `JSON`) on the **Facility** doctype. 
 | Doctype | Role in builder |
 |---|---|
 | **Floor Type** (`floor_name`) | Source of the floor **tabs**. Each tab = one Floor Type record. |
-| **Space Type** (`space_name`, **`color`**, `description`) | Source of the **palette** pieces dragged onto the canvas. |
-| **Facility Blueprint** (child table `Facility.blueprints`: `floor_type` + `blueprint` Attach + `page` Int) | The per-floor blueprint **source** (document + page). The builder matches a row to the active floor by `floor_type`. |
+| **Amenity** (`amenity_name`, `amenity_category`, `standard_price`, `image`, flags; `disabled=0` only) | Source of the **palette** pieces dragged onto the canvas. |
+| **Amenity Category** (`category_name`, **`color`**, `image`, `bundles` table) | Drives palette **filtering**, room **color**, and (via `bundles`) the per-category **bundle limit**. |
+| **Butler Bundle** (`bundle_name`) | Options for the **Bundle** filter when Order Type = Bundle. |
+| **Facility Blueprint** (child table `Facility.blueprints`: `floor_type` + `blueprint` Attach + `page` Int) | The per-floor blueprint **source** (document + page). Stays on the **Facility** (shared across quotations). |
+
+### Palette filters (Order Type / Bundle / Amenity Category)
+
+- **Order Type** (`Amenities` / `Bundle` / `Quotation`) and **Bundle** mirror the quotation's own `order_type` / `bundle_type` — read on open, written back on save.
+- When **Order Type = Bundle**, the available categories are those whose `Amenity Category.bundles` row matches the selected bundle, and each carries a `number_of_amenities` **limit** the builder enforces (blocks dropping past the cap; full categories are dimmed with a "Full" badge).
+- **Amenity Categories** is a `MultiSelectList` (as in a Frappe report filter) that further narrows the visible amenities. It is ephemeral palette state — not persisted.
 
 ### Blueprint: source vs placement
 
 A deliberate split by *what kind of data it is*:
 
 - **Source** → `Facility.blueprints` child table row: `(floor_type, blueprint file, page)`. Self-documenting reference data; `read_only` on the form, managed only from the builder. Can be an **image** or **PDF**; CAD is not web-renderable (see [canvas.md](canvas.md#two-layers-photoshop-style)).
-- **Placement** → `floor.blueprint` in `geometry` (`x, y, scaleX, scaleY, rotation, opacity`). Fluid canvas state, like room coords. `null` until aligned.
+- **Placement** → `floor.blueprint` in `geometry` (`x, y, scaleX, scaleY, rotation, opacity`). Fluid canvas state, like room coords. `null` until aligned. In **facility mode** there is no saved geometry, so the placement is in-memory only (auto-fit on load) until a quotation is spawned — which then bakes the current placement into the new quotation's geometry.
 
 **No multi-page redundancy:** several floors can reference the **same `blueprint` file** with a different `page` — the document is uploaded once and *reused* (the builder's Upload offers existing documents), and each row carries its own page. The file lives once on disk; only the URL string repeats.
 
-### Space Type `color` (implemented)
+### Amenity Category `color` (implemented)
 
-Space Type has a **`color`** field (fieldtype `Color`). It drives the fill of every room of that type, in both the palette swatch and the canvas.
+Amenity Category has a **`color`** field (fieldtype `Color`). It drives the fill of every amenity room of that category, in both the palette swatch and the canvas.
 
-- Rooms store **only** `space_type` in `geometry` — **not** a color. The fill is resolved at render time from the Space Type's color, so editing a Space Type's color **recolors all existing rooms** of that type on next load (no facility re-save needed).
-- When a Space Type's `color` is blank, the builder falls back to a deterministic name-hash pastel palette (`colorFor` in `colors.js`). See [canvas.md](canvas.md#colors).
+- Rooms cache `category` in `geometry` (for color + bundle-limit counting) but store **no color**. The fill is resolved at render time from the category's color, so editing a category's color **recolors all existing rooms** of that category on next load (no re-save needed).
+- When a category's `color` is blank, the builder falls back to a deterministic name-hash pastel palette (`colorFor` in `colors.js`). See [canvas.md](canvas.md#colors).
 
 ### Still optional (future)
 
-- `default_area` (Float) on Space Type — seed size for a freshly dropped piece (rooms currently default to 120×100 px). Roadmap "Later".
+- `default_area` on Amenity — seed size for a freshly dropped piece (rooms currently default to 120×100 px). Roadmap "Later".

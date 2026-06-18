@@ -1,0 +1,23 @@
+{
+    "app": "butler",
+    "bg_color": "blue",
+    "creation": "2026-06-09 16:24:12.214768",
+    "docstatus": 0,
+    "doctype": "Desktop Icon",
+    "hidden": 0,
+    "icon": "organization",
+    "icon_type": "Link",
+    "idx": 0,
+    "label": "Smart Homes",
+    "link_to": "Smart Homes",
+    "link_type": "Workspace Sidebar",
+    "logo_url": "/assets/butler/icons/desktop_icons/subtle/smart_homes.svg",
+    "modified": "2026-06-11 18:02:08.915901",
+    "modified_by": "Administrator",
+    "name": "Smart Homes",
+    "owner": "Administrator",
+    "parent_icon": "Butler",
+    "restrict_removal": 0,
+    "roles": [],
+    "standard": 1
+}

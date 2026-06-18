@@ -1,16 +1,15 @@
 {
  "actions": [],
- "allow_rename": 1,
- "autoname": "field:facility_name",
+ "autoname": "FLT-.#####",
  "creation": "2025-12-30 14:42:41.080056",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
   "facility_name",
   "facility_type",
+  "image",
   "column_break_xytd",
   "blueprints",
-  "geometry",
   "location_section",
   "location",
   "section_break_nfqh",
@@ -40,8 +39,7 @@
    "fieldtype": "Data",
    "label": "Facility Name",
    "no_copy": 1,
-   "reqd": 1,
-   "unique": 1
+   "reqd": 1
   },
   {
    "fieldname": "location",
@@ -79,7 +77,8 @@
   {
    "fieldname": "address_html",
    "fieldtype": "HTML",
-   "label": "Address HTML"
+   "label": "Address HTML",
+   "no_copy": 1
   },
   {
    "fieldname": "references_section",
@@ -94,31 +93,30 @@
    "reqd": 1
   },
   {
-   "fieldname": "geometry",
-   "fieldtype": "Code",
-   "hidden": 1,
-   "label": "Geometry",
-   "no_copy": 1,
-   "options": "JSON",
-   "read_only": 1
-  },
-  {
    "fieldname": "blueprints",
    "fieldtype": "Table",
    "label": "Blueprints",
    "no_copy": 1,
    "options": "Facility Blueprint",
    "read_only": 1
+  },
+  {
+   "fieldname": "image",
+   "fieldtype": "Attach Image",
+   "hidden": 1,
+   "label": "Image",
+   "no_copy": 1
   }
  ],
  "grid_page_length": 50,
+ "image_field": "image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-06-10 16:42:31.051459",
+ "modified": "2026-06-11 21:45:00.903286",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Facility",
- "naming_rule": "By fieldname",
+ "naming_rule": "Expression",
  "owner": "Administrator",
  "permissions": [
   {
@@ -136,8 +134,10 @@
  ],
  "row_format": "Dynamic",
  "rows_threshold_for_grid_search": 20,
+ "show_title_field_in_link": 1,
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],
+ "title_field": "facility_name",
  "track_changes": 1
 }

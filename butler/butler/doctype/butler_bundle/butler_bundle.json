@@ -67,14 +67,14 @@
    "fieldname": "max_discount",
    "fieldtype": "Percent",
    "label": "Max Discount (%)",
-   "precision": "1"
+   "precision": "2"
   }
  ],
  "grid_page_length": 50,
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-02-02 21:17:05.127806",
+ "modified": "2026-06-14 13:29:05.542597",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Butler Bundle",

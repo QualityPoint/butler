@@ -3,12 +3,18 @@
 		ref="containerRef"
 		class="fb-canvas"
 		tabindex="0"
-		@drop="onDrop"
-		@dragover.prevent
+		:style="{ cursor: cursorStyle }"
 		@mousedown.middle.prevent="startPan"
 		@keydown.delete="deleteSelected"
 		@keydown.backspace="deleteSelected"
 		@keydown.esc="onEsc"
+		@keydown.enter.prevent="onEnter"
+		@keydown.ctrl.a.prevent="onSelectAll"
+		@keydown.meta.a.prevent="onSelectAll"
+		@keydown.ctrl.c="onCopy"
+		@keydown.meta.c="onCopy"
+		@keydown.ctrl.v="onPaste"
+		@keydown.meta.v="onPaste"
 		@keydown.up.prevent="onNudge($event, 0, -1)"
 		@keydown.down.prevent="onNudge($event, 0, 1)"
 		@keydown.left.prevent="onNudge($event, -1, 0)"
@@ -19,6 +25,8 @@
 			:config="stageConfig"
 			@wheel="onWheel"
 			@mousedown="onStageMouseDown"
+			@mousemove="onStageMouseMove"
+			@dblclick="onStageDblClick"
 		>
 			<!-- white "paper" world bounds + background grid -->
 			<v-layer :config="{ listening: false }">
@@ -45,14 +53,19 @@
 				<v-transformer ref="transformerRef" :config="transformerConfig" />
 			</v-layer>
 
+			<!-- marquee (rubber-band) selection rectangle -->
+			<v-layer :config="{ listening: false }">
+				<v-rect v-if="marquee.active" :config="marqueeConfig" />
+			</v-layer>
+
 			<!-- blueprint transformer (blueprint layer, not while calibrating) -->
 			<v-layer :config="{ listening: isBlueprintLayer }">
 				<v-transformer ref="bpTransformerRef" :config="bpTransformerConfig" />
 			</v-layer>
 
-			<!-- calibration overlay -->
+			<!-- calibration overlay (dashed line follows the cursor after the first point) -->
 			<v-layer v-if="store.calibrating.value" :config="{ listening: false }">
-				<v-line v-if="calPoints.length === 2" :config="calLineConfig" />
+				<v-line v-if="calLinePoints" :config="calLineConfig" />
 				<v-circle v-for="(p, i) in calPoints" :key="i" :config="calPointConfig(p)" />
 			</v-layer>
 		</v-stage>
@@ -86,6 +99,33 @@ const isDrawingLayer = computed(() => store.active_layer.value === "drawing");
 
 const rooms = computed(() => store.active_floor.value?.rooms || []);
 
+// per-tool cursors (only meaningful once an amenity is picked)
+const PEN_CURSOR =
+	`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 24 24'%3E%3Cpath fill='%23222' stroke='white' stroke-width='1' d='M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.58z'/%3E%3C/svg%3E") 2 20, crosshair`;
+const POINT_CURSOR =
+	`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18'%3E%3Ccircle cx='9' cy='9' r='5' fill='%23222' stroke='white'/%3E%3C/svg%3E") 9 9, crosshair`;
+const cursorStyle = computed(() => {
+	if (panning.value) return "grabbing"; // middle-button pan, held for the whole drag
+	const t = store.active_tool.value;
+	if (!isDrawingLayer.value || t === "select" || !store.active_amenity.value) return "default";
+	if (t === "pen") return PEN_CURSOR;
+	if (t === "point") return POINT_CURSOR;
+	return "crosshair";
+});
+
+// marquee (rubber-band) selection rectangle, in world coords
+const marquee = reactive({ active: false, x1: 0, y1: 0, x2: 0, y2: 0 });
+const marqueeConfig = computed(() => ({
+	x: Math.min(marquee.x1, marquee.x2),
+	y: Math.min(marquee.y1, marquee.y2),
+	width: Math.abs(marquee.x2 - marquee.x1),
+	height: Math.abs(marquee.y2 - marquee.y1),
+	fill: "rgba(36,144,239,0.08)",
+	stroke: "#2490ef",
+	strokeWidth: 1 / scale.value,
+	dash: [4 / scale.value, 4 / scale.value],
+}));
+
 const stageConfig = computed(() => ({
 	width: viewport.w,
 	height: viewport.h,
@@ -106,19 +146,22 @@ const paperConfig = computed(() => ({
 	strokeWidth: 1,
 }));
 
-const transformerConfig = computed(() => ({
-	rotateEnabled: true,
-	rotationSnaps: [0, 45, 90, 135, 180, 225, 270, 315],
-	rotationSnapTolerance: 7,
-	keepRatio: false,
-	enabledAnchors:
-		store.selected_room.value?.shape === "polygon"
-			? []
-			: ["top-left", "top-right", "bottom-left", "bottom-right", "middle-left", "middle-right", "top-center", "bottom-center"],
-	borderStroke: "#2490ef",
-	anchorStroke: "#2490ef",
-	anchorSize: 8,
-}));
+const transformerConfig = computed(() => {
+	const shape = store.selected_room.value?.shape;
+	const resizable = shape === "rect" || shape === "ellipse"; // polygon/point: no resize
+	return {
+		rotateEnabled: shape !== "point",
+		rotationSnaps: [0, 45, 90, 135, 180, 225, 270, 315],
+		rotationSnapTolerance: 7,
+		keepRatio: false,
+		enabledAnchors: resizable
+			? ["top-left", "top-right", "bottom-left", "bottom-right", "middle-left", "middle-right", "top-center", "bottom-center"]
+			: [],
+		borderStroke: "#2490ef",
+		anchorStroke: "#2490ef",
+		anchorSize: 8,
+	};
+});
 
 // --- blueprint background ---
 const blueprintConfig = computed(() => {
@@ -225,15 +268,20 @@ watch(
 );
 
 // --- calibration ---
-const calLineConfig = computed(() => {
-	const [a, b] = calPoints.value;
-	return {
-		points: [a.x, a.y, b.x, b.y],
-		stroke: "#e6a23c",
-		strokeWidth: 2 / scale.value,
-		dash: [6 / scale.value, 4 / scale.value],
-	};
+const calCursor = ref(null); // live cursor position (world coords) after the first point
+// line endpoints: 1st point → 2nd point (or the cursor while choosing the 2nd)
+const calLinePoints = computed(() => {
+	const a = calPoints.value[0];
+	if (!a) return null;
+	const b = calPoints.value[1] || calCursor.value;
+	return b ? [a.x, a.y, b.x, b.y] : null;
 });
+const calLineConfig = computed(() => ({
+	points: calLinePoints.value || [],
+	stroke: "#e6a23c",
+	strokeWidth: 2 / scale.value,
+	dash: [6 / scale.value, 4 / scale.value],
+}));
 function calPointConfig(p) {
 	return { x: p.x, y: p.y, radius: 4 / scale.value, fill: "#e6a23c" };
 }
@@ -253,11 +301,16 @@ function promptCalibration() {
 }
 function onEsc() {
 	if (store.calibrating.value) store.cancel_calibration();
+	else if (store.pen_room_id.value) store.cancel_pen();
+	else store.clear_selection();
 }
 watch(
 	() => store.calibrating.value,
 	(on) => {
-		if (!on) calPoints.value = [];
+		if (!on) {
+			calPoints.value = [];
+			calCursor.value = null;
+		}
 	}
 );
 
@@ -290,6 +343,8 @@ onMounted(() => {
 onBeforeUnmount(() => {
 	ro?.disconnect();
 	endPan(); // drop any lingering pan listeners
+	endShapeDraw(); // and any shape-draw listeners
+	endMarquee(); // and any marquee listeners
 });
 
 function measure() {
@@ -358,9 +413,10 @@ function onWheel(e) {
 
 // --- pan with the MIDDLE mouse button (left stays for moving objects) ---
 let panStart = null;
+const panning = ref(false); // reactive so the cursor stays "grabbing" for the whole drag
 function startPan(e) {
 	panStart = { cx: e.clientX, cy: e.clientY, x: stagePos.x, y: stagePos.y };
-	if (containerRef.value) containerRef.value.style.cursor = "grabbing";
+	panning.value = true;
 	window.addEventListener("mousemove", onPanMove);
 	window.addEventListener("mouseup", endPan);
 }
@@ -371,28 +427,26 @@ function onPanMove(e) {
 }
 function endPan() {
 	panStart = null;
-	if (containerRef.value) containerRef.value.style.cursor = "";
+	panning.value = false;
 	window.removeEventListener("mousemove", onPanMove);
 	window.removeEventListener("mouseup", endPan);
 }
 
-// --- drop a space type (convert screen coords → world coords) ---
-function onDrop(e) {
-	e.preventDefault();
-	if (!isDrawingLayer.value) return;
-	const space_type = e.dataTransfer.getData("text/space-type");
-	if (!space_type) return;
-	const stage = stageRef.value.getStage();
-	const box = stage.container().getBoundingClientRect();
-	const worldX = (e.clientX - box.left - stagePos.x) / scale.value;
-	const worldY = (e.clientY - box.top - stagePos.y) / scale.value;
-	store.add_room({ space_type, x: store.snap_coord(worldX), y: store.snap_coord(worldY) });
+// world coords from a browser mouse event (for window-level move listeners)
+function worldFromEvent(e) {
+	const box = stageRef.value.getStage().container().getBoundingClientRect();
+	return {
+		x: (e.clientX - box.left - stagePos.x) / scale.value,
+		y: (e.clientY - box.top - stagePos.y) / scale.value,
+	};
 }
 
-// --- selection / calibration clicks ---
+// --- draw the active amenity / select existing shapes ---
 function onStageMouseDown(e) {
-	if (e.evt && e.evt.button === 1) return; // middle button = pan, handled separately
-	containerRef.value?.focus(); // so arrow/delete keys target the canvas
+	if (e.evt && e.evt.button === 1) return; // middle button = pan
+	containerRef.value?.focus();
+
+	// calibration runs on the blueprint layer too, so handle it before the drawing-layer guard
 	if (store.calibrating.value) {
 		const p = stageRef.value.getStage().getRelativePointerPosition();
 		if (calPoints.value.length >= 2) calPoints.value = [];
@@ -400,43 +454,144 @@ function onStageMouseDown(e) {
 		if (calPoints.value.length === 2) promptCalibration();
 		return;
 	}
-	if (isDrawingLayer.value && e.target === e.target.getStage()) {
-		store.selected_id.value = null;
+
+	if (!isDrawingLayer.value) return;
+
+	const tool = store.active_tool.value;
+
+	// select tool: no drawing. Empty-canvas drag = rubber-band select; a shape click selects it.
+	if (tool === "select") {
+		if (e.target === e.target.getStage()) {
+			const p = stageRef.value.getStage().getRelativePointerPosition();
+			marquee.active = true;
+			marquee.x1 = marquee.x2 = p.x;
+			marquee.y1 = marquee.y2 = p.y;
+			window.addEventListener("mousemove", onMarqueeMove);
+			window.addEventListener("mouseup", onMarqueeUp);
+		}
+		return;
+	}
+
+	// pen: every click drops a vertex (RoomShape doesn't intercept while pen is active)
+	if (tool === "pen") {
+		if (!store.active_amenity.value) return;
+		const p = stageRef.value.getStage().getRelativePointerPosition();
+		store.pen_click(p.x, p.y);
+		return;
+	}
+
+	// clicking an existing shape is selection (handled in RoomShape) — only draw on empty canvas
+	if (e.target !== e.target.getStage()) return;
+
+	if (!store.active_amenity.value) {
+		store.clear_selection();
+		return;
+	}
+
+	const p = stageRef.value.getStage().getRelativePointerPosition();
+	if (tool === "point") {
+		store.draw_point(p.x, p.y);
+		return;
+	}
+	// rect / ellipse / n-gon: click-drag to size
+	store.begin_draw(p.x, p.y);
+	window.addEventListener("mousemove", onShapeDrawMove);
+	window.addEventListener("mouseup", onShapeDrawUp);
+}
+
+// track the cursor so the calibration line rubber-bands after the first point
+function onStageMouseMove() {
+	if (store.calibrating.value && calPoints.value.length === 1) {
+		calCursor.value = stageRef.value.getStage().getRelativePointerPosition();
+	}
+}
+
+// --- click-drag shape sizing ---
+function onShapeDrawMove(e) {
+	const p = worldFromEvent(e);
+	store.update_draw(p.x, p.y);
+}
+function endShapeDraw() {
+	window.removeEventListener("mousemove", onShapeDrawMove);
+	window.removeEventListener("mouseup", onShapeDrawUp);
+}
+function onShapeDrawUp() {
+	endShapeDraw();
+	store.finish_draw();
+}
+
+// --- marquee (rubber-band) selection ---
+function onMarqueeMove(e) {
+	const p = worldFromEvent(e);
+	marquee.x2 = p.x;
+	marquee.y2 = p.y;
+}
+function endMarquee() {
+	window.removeEventListener("mousemove", onMarqueeMove);
+	window.removeEventListener("mouseup", onMarqueeUp);
+}
+function onMarqueeUp() {
+	endMarquee();
+	marquee.active = false;
+	// a tiny box = a plain click → clear; a real drag → select everything inside
+	if (Math.abs(marquee.x2 - marquee.x1) < 3 && Math.abs(marquee.y2 - marquee.y1) < 3) {
+		store.clear_selection();
+	} else {
+		store.select_within(marquee.x1, marquee.y1, marquee.x2, marquee.y2);
 	}
 }
 
 function deleteSelected() {
-	if (isDrawingLayer.value && store.selected_id.value) store.delete_room(store.selected_id.value);
+	if (!isDrawingLayer.value) return;
+	for (const id of [...store.selected_ids.value]) store.delete_room(id);
 }
 
-// nudge the selected room with the arrow keys
+function onEnter() {
+	if (store.pen_room_id.value) store.finish_pen();
+}
+// double-click closes a freehand polygon (in addition to clicking the first point / Enter)
+function onStageDblClick() {
+	if (store.active_tool.value === "pen" && store.pen_room_id.value) store.finish_pen();
+}
+function onSelectAll() {
+	if (isDrawingLayer.value) store.select_all();
+}
+function onCopy() {
+	store.copy_selection();
+}
+function onPaste() {
+	if (isDrawingLayer.value) store.paste();
+}
+
+// nudge all selected rooms with the arrow keys
 function onNudge(e, ux, uy) {
-	const room = store.selected_room.value;
-	if (!isDrawingLayer.value || !room) return;
-	const step = store.snap_enabled.value
-		? store.design.value.canvas.grid
-		: e.shiftKey
-			? 10
-			: 1;
-	store.update_room(room.id, { x: room.x + ux * step, y: room.y + uy * step });
+	const rooms = store.selected_rooms.value;
+	if (!isDrawingLayer.value || !rooms.length) return;
+	const step = e.shiftKey ? 10 : 1;
+	for (const r of rooms) store.update_room(r.id, { x: r.x + ux * step, y: r.y + uy * step });
 }
 
 // --- keep the room transformer attached to the selected node ---
 watch(
 	() => [
-		store.selected_id.value,
+		store.selected_ids.value.length,
+		store.selected_room.value?.id,
 		rooms.value.length,
 		store.active_floor_type.value,
 		store.selected_room.value?.shape,
 		store.active_layer.value,
+		store.pen_room_id.value,
 	],
 	() => {
 		nextTick(() => {
 			const tr = transformerRef.value?.getNode();
 			const layer = roomsLayerRef.value?.getNode();
 			if (!tr || !layer) return;
-			const id = isDrawingLayer.value ? store.selected_id.value : null;
-			const node = id ? layer.findOne(`#${id}`) : null;
+			// attach only to a single selected room (no transformer for multi-select / pen /
+			// points — points show a ring + centroid instead)
+			const single =
+				isDrawingLayer.value && !store.pen_room_id.value ? store.selected_room.value : null;
+			const node = single && single.shape !== "point" ? layer.findOne(`#${single.id}`) : null;
 			tr.nodes(node ? [node] : []);
 			tr.getLayer().batchDraw();
 		});

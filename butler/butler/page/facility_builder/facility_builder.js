@@ -31,16 +31,33 @@ frappe.pages["facility-builder"].on_page_hide = function () {
 };
 
 function load_facility_builder(wrapper) {
-	let route = frappe.get_route(); // ["facility-builder", "<facility-name>"]
+	// route: ["facility-builder", "<mode>", "<name>"]  (mode = "facility" | "quotation")
+	// back-compat: ["facility-builder", "<quotation-name>"] → quotation mode
+	let route = frappe.get_route();
 	let $parent = $(wrapper).find(".layout-main-section");
+
+	// tear down any previous builder session (sub-route changes don't fire on_page_hide)
+	frappe.facility_builder?.destroy?.();
+	frappe.facility_builder = null;
 	$parent.empty();
 
-	if (route.length > 1) {
+	let mode = null;
+	let name = null;
+	if (route.length > 2) {
+		mode = route[1] === "facility" ? "facility" : "quotation";
+		name = route[2];
+	} else if (route.length === 2) {
+		mode = "quotation";
+		name = route[1];
+	}
+
+	if (name) {
 		frappe.require("facility_builder.bundle.js").then(() => {
 			frappe.facility_builder = new frappe.ui.FacilityBuilder({
 				wrapper: $parent,
 				page: wrapper.page,
-				facility: route[1],
+				mode,
+				name,
 			});
 		});
 	} else {
@@ -48,8 +65,8 @@ function load_facility_builder(wrapper) {
 	}
 }
 
-// Inline start screen (no popup) — pick an existing Facility to edit.
-// New facilities are created through the Facility doctype, not from here.
+// Inline start screen (no popup) — pick a Facility (start a new layout) OR an existing
+// Butler Quotation (edit it). New facilities/quotations are created from their own doctypes.
 function show_start($parent, page) {
 	// reset any chrome a previous builder session left on the page
 	page.clear_primary_action();
@@ -60,28 +77,64 @@ function show_start($parent, page) {
 
 	$parent.html(`
 		<div style="padding: var(--padding-md); max-width: 300px;">
-			<div class="facility-selector"></div>
+			<div class="dt-field"></div>
+			<div class="dn-field" style="margin-top: var(--margin-sm);"></div>
 			<p style="margin-top: var(--margin-sm);">
-				<button class="btn btn-sm btn-default btn-edit-facility">${__("Edit")}</button>
+				<button class="btn btn-sm btn-default btn-open-target">${__("Open")}</button>
 			</p>
 		</div>
 	`);
 
-	let facility_input = frappe.ui.form.make_control({
-		parent: $parent.find(".facility-selector"),
+	const ALLOWED = ["Facility", "Butler Quotation"];
+
+	// Document Type → restricted to the two doctypes the builder understands
+	let dt_control = frappe.ui.form.make_control({
+		parent: $parent.find(".dt-field"),
 		df: {
 			fieldtype: "Link",
-			options: "Facility",
-			label: __("Facility"),
-			description: __("Select Facility to Edit"),
+			fieldname: "document_type",
+			options: "DocType",
+			label: __("Document Type"),
+			reqd: 1,
+			get_query: () => ({ filters: { name: ["in", ALLOWED] } }),
+			onchange: () => {
+				let dt = dt_control.get_value();
+				// the Dynamic Link's label adapts to the chosen doctype (Frappe pattern)
+				dn_control.set_label(dt ? __(dt) : __("Document"));
+				dn_control.set_value("");
+				dn_control.refresh();
+			},
+		},
+		render_input: true,
+	});
+
+	// Document Name → Dynamic Link whose target doctype is whatever document_type holds
+	let dn_control = frappe.ui.form.make_control({
+		parent: $parent.find(".dn-field"),
+		df: {
+			fieldtype: "Dynamic Link",
+			fieldname: "document_name",
+			options: "document_type",
+			label: __("Document"),
+			get_options: () => dt_control.get_value(),
 			only_select: true,
 		},
 		render_input: true,
 	});
 
-	$parent.find(".btn-edit-facility").on("click", () => {
-		let name = facility_input.get_value();
-		if (!name) return;
-		frappe.set_route("facility-builder", name);
+	// default to Butler Quotation (the common case: editing an existing quotation)
+	dt_control.set_value("Butler Quotation");
+	dn_control.set_label(__("Butler Quotation"));
+	dn_control.refresh();
+
+	$parent.find(".btn-open-target").on("click", () => {
+		let dt = dt_control.get_value();
+		let name = dn_control.get_value();
+		if (!dt || !name) {
+			frappe.msgprint(__("Select a Document Type and a Document."));
+			return;
+		}
+		let mode = dt === "Facility" ? "facility" : "quotation";
+		frappe.set_route("facility-builder", mode, name);
 	});
 }

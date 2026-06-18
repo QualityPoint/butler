@@ -32,61 +32,49 @@ Because the whole stage is scaled/panned, **screen↔world conversion** is neede
 
 ---
 
-## Palette → Canvas (drag-drop)
+## Pick an amenity, then draw it (no drag-drop)
 
-1. `SpacePalette` lists Space Type records as draggable chips.
-2. On drop onto the stage, read the pointer position and create a room:
+Creation is **draw-on-canvas**, not drag-drop:
 
-```javascript
-function onDrop(space_type, pointer) {
-    store.add_room({
-        id: frappe.utils.get_random(8),
-        space_type,
-        shape: "rect",
-        x: snap(pointer.x), y: snap(pointer.y),
-        w: 120, h: 100,            // or Space Type.default_area if added
-        rotation: 0,
-        area: 0, remarks: "",
-    });
-}
-```
+1. `AmenityPalette` is a **selector** — clicking an amenity sets `store.active_amenity` (highlighted; click again to clear). No dragging, no double-click anywhere.
+2. With an amenity active, you draw on the canvas using the **active tool**. The cursor reflects the tool (arrow / pen / dot / `crosshair`).
 
-`add_room` pushes onto `active_floor.rooms` and marks the store dirty.
+| Tool | Gesture | Store call |
+|---|---|---|
+| **Select** (default, arrow) | click to select, drag to move — **no drawing** | — |
+| Point | single click | `draw_point(x,y)` |
+| Rect / Ellipse / Triangle / Pentagon / Hexagon | click-drag to size | `begin_draw` → `update_draw` → `finish_draw` (a no-drag click gets the tool's default size) |
+| Freehand | click to drop vertices; **double-click** (or **Enter**) to close; **Esc** cancels | `pen_click(x,y)` → `finish_pen` / `cancel_pen` |
+
+All paths funnel through `add_room`, which enforces the bundle per-category limit, caches `room.category`, pushes onto `active_floor.rooms`, selects the new room, and marks dirty. The **active amenity stays selected** so you can draw several in a row.
 
 ---
 
-## Grid Snapping (the "puzzle" feel)
+## Selection, copy & snapping
 
-All snapping goes through **one** store helper, `store.snap_coord(v)`, used by every drag/resize/vertex/drop:
+- **Select:** click a shape (`select_only`); **Shift-click** toggles (`toggle_select`); **Ctrl/Cmd+A** selects all (`select_all`); **Esc** or empty-canvas click clears. State lives in `store.selected_ids[]`; `selected_room` is the lone selection (drives the toolbar), `selected_rooms` is all of them.
+- **Move a group:** dragging any selected shape moves the whole selection (RoomShape captures start positions on `dragstart` and applies the delta to the rest on `dragmove`/`dragend`).
+- **Copy/paste:** **Ctrl/Cmd+C** (`copy_selection` → JSON snapshots in `store.clipboard`) / **Ctrl/Cmd+V** (`paste`, offset +20px, respects bundle caps).
+- **Delete / nudge:** Delete/Backspace removes all selected; arrow keys nudge all selected (1px, 10px with Shift).
 
-```javascript
-function snap_coord(v) {
-    if (design.canvas.snap !== true) return v;           // off → free placement
-    const g = design.canvas.grid || 1;
-    return Math.round(v / g) * g;
-}
-```
+## Snap-to-shapes (move only)
 
-- **Snap toggle** — a Frappe switch (`label.switch > .slider.round`, same as the timeline's "Show all activity") wired to `store.toggle_snap`; `design.canvas.snap` persists in geometry. **On** = clean grid drawing; **off** = free movement/resize so you can **trace exactly onto a blueprint**. **Default off** (tracing-first).
-- On `transformend` (resize), the node's scale is folded into `w`/`h`, scale reset to 1, then `snap_coord`. With snap off, the minimum room size drops from one grid cell to 1px so you can size freely.
+`store.snap_room_position(id, x, y)` snaps a dragged room's **bounding-box edges** to nearby rooms' edges (within 8px) on `dragend`, so shapes can **touch/align**. It replaces the old grid snap (resizing and drawing are now free). The **Snap toggle** (a Frappe switch wired to `store.toggle_snap`; `design.canvas.snap` persists in geometry) gates it; **default off**.
 
 ---
 
-## Selection, Resize & Rotation
+## Resize & Rotation
 
-- Click a `RoomShape` → set `store.selected_id = room.id`.
-- A Konva `Transformer` (in the `ui` layer) attaches to the selected node. Its config is **reactive to the selected room's shape** (`Canvas.vue`):
-  - **Rectangle** → all 8 resize anchors + rotate handle.
-  - **Polygon** → `enabledAnchors: []` (no resize); rotate + move only — polygons reshape via their vertices.
-- **Rotation** is enabled with 45° snapping (`rotationSnaps`). `onTransformEnd` persists `rotation` (and, for rects, the new `w/h` folded out of the transform scale).
+A Konva `Transformer` (in the `ui` layer) attaches **only when exactly one room is selected** (no transformer for multi-select or while drawing). Its config is reactive to that room's shape (`Canvas.vue`):
 
-### Keyboard (Drawing layer, room selected)
+- **Rectangle / Ellipse** → all 8 resize anchors + rotate handle (`onTransformEnd` folds the scale back into `w/h` or `rx/ry`).
+- **Polygon** → `enabledAnchors: []` (no resize); rotate + move only — polygons reshape via their vertices.
+- **Point** → no anchors, no rotate; move only (style via the toolbar).
+- **Rotation** snaps to 45° for everything except points.
 
-The canvas div is focusable (`tabindex`, focused on click) so it receives keys:
+### Keyboard (Drawing layer)
 
-- **`Delete` / `Backspace`** → `store.delete_room(selected_id)`.
-- **Arrow keys** → nudge the selected room (`onNudge`). Step = one grid cell when Snap is on, else **1px** (or **10px with Shift**). Works for rects and polygons (shifts the origin).
-- **`Esc`** → cancel calibration.
+The canvas div is focusable (`tabindex`, focused on click) so it receives keys: **Delete/Backspace** (delete selection), **arrows** (nudge selection 1px / 10px+Shift), **Ctrl/Cmd+A** (select all), **Ctrl/Cmd+C/V** (copy/paste), **Enter** (finish freehand), **Esc** (cancel freehand / clear selection / cancel calibration).
 
 ### Drawing opacity
 
@@ -122,23 +110,36 @@ Recompute `room.area` on every move/resize/vertex-edit so it is always current a
 
 ---
 
-## Rectangles & Polygons (both implemented)
+## Shapes & drawing tools
 
-Both share one data model (`shape` discriminator). `RoomShape.vue` branches with `v-if="room.shape !== 'polygon'"` (a `v-rect`) vs `v-else` (a closed `v-line`):
+All shapes share one data model (`shape` discriminator); `RoomShape.vue` branches per shape:
 
-| | `rect` | `polygon` |
-|---|---|---|
-| Konva node | `Rect` | `Line` (`closed: true`) |
-| Geometry | `x, y, w, h` | `x, y, points[]` (relative to `x,y`) |
-| Area | `w*h / PPM²` | shoelace / PPM² |
-| Editing | move + resize + rotate | move + rotate + drag/add/delete vertices |
+| | `rect` | `ellipse` | `polygon` | `point` |
+|---|---|---|---|---|
+| Konva node | `Rect` | `Ellipse` | `Line` (`closed`) | `Image` (icon) / `Circle` fallback |
+| Geometry | `x,y,w,h` | `x,y,rx,ry` | `x,y,points[]` | `x,y,icon,color,size` (x,y = centre) |
+| Area | `w·h / PPM²` | `π·rx·ry / PPM²` | shoelace / PPM² | **0** |
+| Editing | move + resize + rotate | move + resize + rotate | move + rotate + vertices | move only |
 
-### Shape toggle (Rectangle ⇄ Polygon)
+### Shape-tool strip + conversion
 
-The Toolbar shows a **Rectangle | Polygon** pill for the selected room:
+The Toolbar (drawing layer) shows a row of **icon tool buttons** — Rectangle, Ellipse, Triangle, Pentagon, Hexagon, Freehand, Point (custom inline SVG glyphs, tooltip = name). `store.active_tool` is the highlighted one.
 
-- **→ Polygon:** `store.convert_to_polygon(id)` replaces `w/h` with the 4 corner points (`rect_to_polygon_points`).
-- **→ Rectangle:** `store.convert_to_rectangle(id)` collapses the polygon back to its **bounding rectangle** (`room_bbox` — the longest horizontal/vertical extent), shifts the origin to the bbox corner, restores `w/h`, and drops `points`.
+- **Placing:** dropping/double-clicking an amenity calls `store.place_amenity(amenity, x, y)`, which builds the room from `tool_geometry(active_tool)` (triangle/pentagon/hexagon → polygon via `ngon_points`).
+- **Converting:** with a room selected, clicking a tool runs `store.convert_room_shape(id, tool)` — it reads the current `shape_extent`, normalises the origin, and rebuilds as the new shape **preserving size + position**.
+
+### Freehand pen
+
+Freehand can't convert instantly (it needs a drawn outline), so it has two entry points, both ending in a canvas drag — `mousedown` → `start_pen`, `mousemove` → `pen_add_point`, `mouseup` → `finish_pen` (RDP-simplifies to ~a dozen vertices; `Esc` cancels):
+
+- **Redraw a selected room** — select a room, click the **Freehand** tool → `set_active_tool("pen")` arms `pen_redraw_id` with that room; the next drag replaces its outline (keeping its amenity/category).
+- **New** — with the Freehand tool active, drag/double-click an amenity → `arm_pen(amenity)`; the next drag creates a fresh polygon room.
+
+`pen_new` tracks which path: a too-small stroke discards a brand-new room but reverts an existing one to a rect (so an amenity is never lost). The result is a normal editable polygon. The Toolbar shows a contextual hint while the pen tool is active.
+
+### Points & Frappe icons
+
+A **point** renders its Frappe icon via `load_icon_image(name, color)` (`icons.js`): it reads the in-page `<symbol id="icon-NAME">`, inlines it into a tinted standalone SVG, encodes a `data:` URL, and loads it as a `Konva.Image` (cached by name+color). With no icon it falls back to a category-colored dot. The Toolbar offers an **Icon** picker (`frappe.prompt` with `fieldtype: "Icon"`), a colour swatch, and a size input → `store.set_point_style`.
 
 ### Vertex editing (polygons)
 
@@ -187,9 +188,9 @@ Sets real-world scale from the blueprint so room areas are accurate:
 
 ## Colors
 
-Room fills come from `resolveColor(space_type, store.space_colors.value)` (`colors.js`):
+Room fills come from `resolveColor(room.category, store.category_colors.value)` (`colors.js`):
 
-1. If the room's **Space Type** has a `color`, use it.
+1. If the room's **Amenity Category** has a `color`, use it.
 2. Otherwise fall back to `colorFor(name)` — a deterministic name-hash pastel.
 
-`store.space_colors` is a reactive `{ space_type → color }` map built from the loaded Space Type catalog, so rooms never store a color of their own (see [data-model.md](data-model.md#space-type-color-implemented)).
+`store.category_colors` is a reactive `{ category → color }` map built from the loaded Amenity Category catalog, so rooms never store a color of their own (see [data-model.md](data-model.md#amenity-category-color-implemented)).

@@ -8,7 +8,7 @@
  "field_order": [
   "bundle_name",
   "column_break_tbyx",
-  "number_of_amenities"
+  "amenity_qty"
  ],
  "fields": [
   {
@@ -24,7 +24,7 @@
    "fieldtype": "Column Break"
   },
   {
-   "fieldname": "number_of_amenities",
+   "fieldname": "amenity_qty",
    "fieldtype": "Int",
    "in_list_view": 1,
    "label": "Number of Amenities",
@@ -36,7 +36,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-02-02 20:39:38.363945",
+ "modified": "2026-06-11 21:48:30.421155",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Amenity Category Bundle",

@@ -15,7 +15,7 @@ frappe.ui.form.on("Facility", {
         if (!frm.doc.__islocal) {
             frappe.contacts.render_address_and_contact(frm);
             frm.add_custom_button(__("Open Facility Builder"), () => {
-                frappe.set_route("facility-builder", frm.doc.name);
+                frappe.set_route("facility-builder", "facility", frm.doc.name);
             });
         } else {
             frappe.contacts.clear_address_and_contact(frm);

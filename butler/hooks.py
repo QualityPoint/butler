@@ -83,7 +83,7 @@ home_page = "home"
 # ------------
 
 # before_install = "butler.install.before_install"
-# after_install = "butler.install.after_install"
+after_install = "butler.install.after_install"
 
 # Uninstallation
 # ------------
@@ -137,13 +137,11 @@ home_page = "home"
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+doc_events = {
+    "Customer": {
+        "after_insert": "butler.overrides.customer.link_facility_on_customer_create",
+    }
+}
 
 # Scheduled Tasks
 # ---------------

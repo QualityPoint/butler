@@ -8,10 +8,13 @@
   "section_break_qscy",
   "naming_series",
   "facility",
+  "facility_name",
   "facility_type",
   "column_break_vopn",
-  "order_date",
+  "transaction_date",
+  "valid_till",
   "column_break_wldh",
+  "company",
   "order_type",
   "bundle_type",
   "amended_from",
@@ -23,10 +26,28 @@
   "amenities",
   "section_break_bmtu",
   "amenity_count",
-  "discount",
+  "floor_count",
   "column_break_bjfc",
   "total",
-  "net_total"
+  "net_total",
+  "additional_discount_section",
+  "apply_discount_by",
+  "column_break_lmrf",
+  "additional_discount_percentage",
+  "discount_amount",
+  "payment_tab",
+  "installment_payment_section",
+  "due_start_date",
+  "create_schedule",
+  "column_break_gaxy",
+  "payment_periodicity",
+  "installment_count",
+  "more_info_tab",
+  "additional_info_section",
+  "status",
+  "column_break_evzx",
+  "section_break_agvg",
+  "geometry"
  ],
  "fields": [
   {
@@ -38,7 +59,7 @@
    "fieldtype": "Link",
    "label": "Amended From",
    "no_copy": 1,
-   "options": "Service Order",
+   "options": "Butler Quotation",
    "print_hide": 1,
    "read_only": 1,
    "search_index": 1
@@ -49,7 +70,7 @@
    "in_list_view": 1,
    "label": "Series",
    "no_copy": 1,
-   "options": "SRV-ORD-.YYYY.-",
+   "options": "BTLR-QTN-.YYYY.-",
    "reqd": 1,
    "set_only_once": 1
   },
@@ -76,7 +97,7 @@
    "fieldname": "amenities",
    "fieldtype": "Table",
    "label": "Amenities",
-   "options": "Facility Amenities",
+   "options": "Butler Quotation Item",
    "reqd": 1
   },
   {
@@ -108,20 +129,12 @@
    "fieldname": "amenity_categories",
    "fieldtype": "Table",
    "label": "Amenity Categories",
-   "options": "Bundle Specifications",
+   "options": "Bundle Item",
    "read_only": 1
   },
   {
    "fieldname": "column_break_vopn",
    "fieldtype": "Column Break"
-  },
-  {
-   "default": "Today",
-   "fieldname": "order_date",
-   "fieldtype": "Date",
-   "in_standard_filter": 1,
-   "label": "Order Date",
-   "reqd": 1
   },
   {
    "default": "Bundle",
@@ -156,12 +169,7 @@
    "read_only": 1
   },
   {
-   "fieldname": "discount",
-   "fieldtype": "Percent",
-   "label": "Discount (%)",
-   "precision": "1"
-  },
-  {
+   "fetch_from": "facility.facility_type",
    "fieldname": "facility_type",
    "fieldtype": "Link",
    "in_standard_filter": 1,
@@ -177,13 +185,168 @@
    "label": "Net Total",
    "non_negative": 1,
    "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "additional_discount_section",
+   "fieldtype": "Section Break",
+   "label": "Additional Discount"
+  },
+  {
+   "fieldname": "apply_discount_by",
+   "fieldtype": "Select",
+   "label": "Apply Additional Discount By",
+   "options": "\nPercentage\nAmount",
+   "print_hide": 1
+  },
+  {
+   "fieldname": "column_break_lmrf",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.apply_discount_by==\"Percentage\"",
+   "fieldname": "additional_discount_percentage",
+   "fieldtype": "Percent",
+   "label": "Additional Discount Percentage",
+   "mandatory_depends_on": "eval:doc.apply_discount_by==\"Percentage\"",
+   "non_negative": 1,
+   "precision": "2",
+   "print_hide": 1
+  },
+  {
+   "depends_on": "eval:doc.apply_discount_by==\"Amount\"",
+   "fieldname": "discount_amount",
+   "fieldtype": "Currency",
+   "label": "Additional Discount Amount",
+   "mandatory_depends_on": "eval:doc.apply_discount_by==\"Amount\"",
+   "non_negative": 1,
+   "options": "currency",
+   "print_hide": 1
+  },
+  {
+   "fieldname": "valid_till",
+   "fieldtype": "Date",
+   "label": "Valid Till"
+  },
+  {
+   "default": "Today",
+   "fieldname": "transaction_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Date",
+   "no_copy": 1,
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "installment_payment_section",
+   "fieldtype": "Section Break",
+   "label": "Installment Payment"
+  },
+  {
+   "fieldname": "due_start_date",
+   "fieldtype": "Date",
+   "label": "Due Start Date",
+   "print_hide": 1
+  },
+  {
+   "fieldname": "create_schedule",
+   "fieldtype": "Button",
+   "label": "Create Schedule",
+   "print_hide": 1
+  },
+  {
+   "fieldname": "column_break_gaxy",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "payment_periodicity",
+   "fieldtype": "Select",
+   "label": "Payment Periodicity",
+   "options": "\nMonthly\nQuarterly\nHalf-Yearly\nYearly",
+   "print_hide": 1
+  },
+  {
+   "fieldname": "installment_count",
+   "fieldtype": "Int",
+   "label": "Installment Count",
+   "non_negative": 1,
+   "print_hide": 1
+  },
+  {
+   "fieldname": "payment_tab",
+   "fieldtype": "Tab Break",
+   "label": "Payment"
+  },
+  {
+   "fieldname": "geometry",
+   "fieldtype": "JSON",
+   "hidden": 1,
+   "label": "Geometry",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "facility.facility_name",
+   "fieldname": "facility_name",
+   "fieldtype": "Data",
+   "label": "Facility Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "floor_count",
+   "fieldtype": "Int",
+   "label": "Floor Count",
+   "non_negative": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Company",
+   "options": "Company",
+   "print_hide": 1,
+   "remember_last_selected_value": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "more_info_tab",
+   "fieldtype": "Tab Break",
+   "label": "More Info"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "additional_info_section",
+   "fieldtype": "Section Break",
+   "label": "Additional Info"
+  },
+  {
+   "default": "Draft",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "no_copy": 1,
+   "options": "Draft\nOpen\nReplied\nPartially Ordered\nOrdered\nLost\nCancelled\nExpired",
+   "print_hide": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_evzx",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_agvg",
+   "fieldtype": "Section Break"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-06-11 12:55:57.372594",
+ "modified": "2026-06-15 10:02:52.588477",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Butler Quotation",
@@ -198,7 +361,22 @@
    "print": 1,
    "read": 1,
    "report": 1,
-   "role": "System Manager",
+   "role": "Sales User",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "amend": 1,
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales Manager",
    "share": 1,
    "submit": 1,
    "write": 1
@@ -206,10 +384,10 @@
  ],
  "row_format": "Dynamic",
  "rows_threshold_for_grid_search": 20,
+ "show_title_field_in_link": 1,
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],
- "title_field": "facility",
- "track_changes": 1,
- "translated_doctype": 1
+ "title_field": "facility_name",
+ "track_changes": 1
 }

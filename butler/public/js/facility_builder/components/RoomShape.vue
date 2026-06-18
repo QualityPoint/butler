@@ -1,12 +1,38 @@
 <template>
-	<v-group :config="groupConfig" @dragend="onDragEnd" @transformend="onTransformEnd">
+	<v-group
+		:config="groupConfig"
+		@dragstart="onDragStart"
+		@dragmove="onDragMove"
+		@dragend="onDragEnd"
+		@transformend="onTransformEnd"
+	>
 		<!-- rectangle -->
 		<v-rect
-			v-if="room.shape !== 'polygon'"
+			v-if="room.shape === 'rect'"
 			:config="rectConfig"
 			@mousedown="select"
 			@tap="select"
 		/>
+		<!-- ellipse -->
+		<v-ellipse
+			v-else-if="room.shape === 'ellipse'"
+			:config="ellipseConfig"
+			@mousedown="select"
+			@tap="select"
+		/>
+		<!-- point marker: icon image, or a filled circle fallback -->
+		<template v-else-if="room.shape === 'point'">
+			<!-- selection ring + centroid dot so a selected point is visible/locatable -->
+			<v-circle v-if="isSelected" :config="pointSelectRingConfig" :listening="false" />
+			<v-image
+				v-if="iconImage"
+				:config="pointImageConfig"
+				@mousedown="select"
+				@tap="select"
+			/>
+			<v-circle v-else :config="pointCircleConfig" @mousedown="select" @tap="select" />
+			<v-circle v-if="isSelected" :config="pointCentroidConfig" :listening="false" />
+		</template>
 		<!-- polygon -->
 		<v-line
 			v-else
@@ -18,8 +44,8 @@
 
 		<v-text :config="labelConfig" :listening="false" />
 
-		<!-- edge midpoint "add" handles (selected polygon only) — click to insert a node -->
-		<template v-if="room.shape === 'polygon' && isSelected">
+		<!-- edge midpoint "add" handles (selected polygon only; not while drawing it) -->
+		<template v-if="room.shape === 'polygon' && isSelected && !isPenRoom">
 			<v-circle
 				v-for="m in midpointList"
 				:key="'mid-' + m.index"
@@ -29,8 +55,8 @@
 			/>
 		</template>
 
-		<!-- corner vertex handles (selected polygon only) — drag to reshape, dbl-click to remove -->
-		<template v-if="room.shape === 'polygon' && isSelected">
+		<!-- corner vertex handles (selected polygon only; not while drawing it) -->
+		<template v-if="room.shape === 'polygon' && isSelected && !isPenRoom">
 			<v-circle
 				v-for="v in vertexList"
 				:key="v.index"
@@ -44,17 +70,21 @@
 </template>
 
 <script setup>
-import { inject, computed } from "vue";
+import { inject, computed, ref, watchEffect } from "vue";
 import { resolveColor } from "../colors";
 import { room_bbox, dist_to_segment } from "../utils";
+import { load_icon_image } from "../icons";
 
 const props = defineProps(["room"]);
 const store = inject("$store");
 
-const isSelected = computed(() => store.selected_id.value === props.room.id);
+const isSelected = computed(() => store.is_selected(props.room.id));
+const isPenRoom = computed(() => store.pen_room_id.value === props.room.id); // being drawn
 const fillColor = computed(() =>
-	resolveColor(props.room.space_type, store.space_colors.value)
+	resolveColor(props.room.category, store.category_colors.value)
 );
+// points may carry their own colour; otherwise fall back to the category colour
+const pointColor = computed(() => props.room.color || fillColor.value);
 
 const groupConfig = computed(() => ({
 	id: props.room.id,
@@ -62,7 +92,10 @@ const groupConfig = computed(() => ({
 	y: props.room.y,
 	rotation: props.room.rotation || 0,
 	opacity: store.rooms_opacity.value,
-	draggable: true,
+	draggable:
+		!store.read_only.value &&
+		store.active_tool.value !== "pen" &&
+		store.pen_room_id.value !== props.room.id,
 }));
 
 const strokeColor = computed(() => (isSelected.value ? "#2490ef" : "#9aa0ac"));
@@ -76,6 +109,16 @@ const rectConfig = computed(() => ({
 	strokeWidth: strokeWidth.value,
 }));
 
+const ellipseConfig = computed(() => ({
+	x: props.room.rx,
+	y: props.room.ry,
+	radiusX: props.room.rx,
+	radiusY: props.room.ry,
+	fill: fillColor.value,
+	stroke: strokeColor.value,
+	strokeWidth: strokeWidth.value,
+}));
+
 const lineConfig = computed(() => ({
 	points: props.room.points || [],
 	closed: true,
@@ -84,14 +127,66 @@ const lineConfig = computed(() => ({
 	strokeWidth: strokeWidth.value,
 }));
 
+// --- point marker ---
+const iconImage = ref(null);
+watchEffect(async () => {
+	if (props.room.shape !== "point" || !props.room.icon) {
+		iconImage.value = null;
+		return;
+	}
+	iconImage.value = await load_icon_image(props.room.icon, pointColor.value);
+});
+
+const pointImageConfig = computed(() => {
+	const s = props.room.size || 24;
+	return { image: iconImage.value, x: -s / 2, y: -s / 2, width: s, height: s };
+});
+const pointCircleConfig = computed(() => {
+	const s = props.room.size || 24;
+	return {
+		x: 0,
+		y: 0,
+		radius: s / 2,
+		fill: pointColor.value,
+		stroke: strokeColor.value,
+		strokeWidth: strokeWidth.value,
+	};
+});
+// when a point is selected: a dashed ring around it + a centroid dot at its location
+const pointSelectRingConfig = computed(() => {
+	const s = props.room.size || 24;
+	return {
+		x: 0,
+		y: 0,
+		radius: s / 2 + 5,
+		stroke: "#2490ef",
+		strokeWidth: 1.5,
+		dash: [4, 3],
+		fillEnabled: false,
+	};
+});
+const pointCentroidConfig = { x: 0, y: 0, radius: 2.5, fill: "#2490ef" };
+
 const labelConfig = computed(() => {
+	if (props.room.shape === "point") {
+		const s = props.room.size || 24;
+		return {
+			x: -40,
+			y: s / 2 + 2,
+			width: 80,
+			text: __(props.room.amenity),
+			align: "center",
+			fontSize: 12,
+			fill: "#1f272e",
+		};
+	}
 	const b = room_bbox(props.room);
 	return {
 		x: b.x,
 		y: b.y,
 		width: b.w,
 		height: b.h,
-		text: `${props.room.space_type}\n${props.room.area.toFixed(1)} m²`,
+		text: `${__(props.room.amenity)}\n${props.room.area.toFixed(1)} m²`,
 		align: "center",
 		verticalAlign: "middle",
 		fontSize: 12,
@@ -100,7 +195,7 @@ const labelConfig = computed(() => {
 	};
 });
 
-// --- vertex handles ---
+// --- vertex handles (polygons) ---
 const vertexList = computed(() => {
 	const pts = props.room.points || [];
 	const out = [];
@@ -123,7 +218,6 @@ function vertexConfig(v) {
 	};
 }
 
-// --- edge midpoints (the "+" add handles) ---
 const midpointList = computed(() => {
 	const pts = props.room.points || [];
 	const n = pts.length;
@@ -149,60 +243,83 @@ function midpointConfig(m) {
 	};
 }
 
-// insert a new vertex at the midpoint of edge `edgeIndex` (between vertex i and i+1)
 function onInsertMidpoint(e, edgeIndex) {
-	e.cancelBubble = true; // don't start a group drag
+	e.cancelBubble = true;
 	const pts = props.room.points.slice();
 	const n = pts.length;
 	const ax = pts[edgeIndex * 2], ay = pts[edgeIndex * 2 + 1];
 	const bx = pts[(edgeIndex * 2 + 2) % n], by = pts[(edgeIndex * 2 + 3) % n];
-	const mx = store.snap_coord((ax + bx) / 2);
-	const my = store.snap_coord((ay + by) / 2);
-	pts.splice(edgeIndex * 2 + 2, 0, mx, my);
+	pts.splice(edgeIndex * 2 + 2, 0, (ax + bx) / 2, (ay + by) / 2);
 	store.update_room(props.room.id, { points: pts });
-	store.selected_id.value = props.room.id;
+	store.select_only(props.room.id);
 }
 
 function select(e) {
+	if (store.active_tool.value === "pen") return; // pen clicks belong to the canvas
 	if (e?.cancelBubble !== undefined) e.cancelBubble = true;
-	store.selected_id.value = props.room.id;
+	const id = props.room.id;
+	if (e?.evt?.shiftKey) {
+		store.toggle_select(id);
+	} else if (!store.is_selected(id)) {
+		store.select_only(id); // keep an existing multi-selection so it can be dragged as a group
+	}
 }
 
-// --- whole-room move ---
+// --- whole-room move (group-aware) ---
+let dragGroup = null; // [{ id, x, y }] start positions of everything moving with this room
+function group_ids() {
+	return store.is_selected(props.room.id) && store.selected_ids.value.length > 1
+		? [...store.selected_ids.value]
+		: [props.room.id];
+}
+function onDragStart(e) {
+	if (e.target !== e.currentTarget) return;
+	const all = store.active_floor.value?.rooms || [];
+	dragGroup = group_ids().map((id) => {
+		const r = all.find((x) => x.id === id);
+		return r ? { id, x: r.x, y: r.y } : null;
+	}).filter(Boolean);
+}
+function onDragMove(e) {
+	if (e.target !== e.currentTarget || !dragGroup) return;
+	const dx = e.target.x() - props.room.x;
+	const dy = e.target.y() - props.room.y;
+	for (const g of dragGroup) {
+		if (g.id === props.room.id) continue; // moved by Konva itself
+		store.update_room(g.id, { x: g.x + dx, y: g.y + dy });
+	}
+}
 function onDragEnd(e) {
 	if (e.target !== e.currentTarget) return; // ignore child (vertex) drags
 	const node = e.target;
-	const x = store.snap_coord(node.x());
-	const y = store.snap_coord(node.y());
-	node.position({ x, y });
-	store.update_room(props.room.id, { x, y });
+	const snapped = store.snap_room_position(props.room.id, node.x(), node.y()); // object snap
+	node.position(snapped);
+	const start = (dragGroup || []).find((g) => g.id === props.room.id) || { x: props.room.x, y: props.room.y };
+	const dx = snapped.x - start.x;
+	const dy = snapped.y - start.y;
+	for (const g of dragGroup || [{ id: props.room.id, x: props.room.x, y: props.room.y }]) {
+		store.update_room(g.id, { x: g.x + dx, y: g.y + dy });
+	}
+	dragGroup = null;
 }
 
-// --- resize (rect) / rotate (both) ---
+// --- resize (rect/ellipse) / rotate (all) ---
 function onTransformEnd(e) {
 	const node = e.target; // the group
-	if (props.room.shape === "polygon") {
-		node.scaleX(1);
-		node.scaleY(1);
-		store.update_room(props.room.id, {
-			x: store.snap_coord(node.x()),
-			y: store.snap_coord(node.y()),
-			rotation: node.rotation(),
-		});
-		return;
-	}
-	const minSize = store.snap_enabled.value ? store.design.value.canvas.grid : 1;
-	const w = Math.max(minSize, store.snap_coord(props.room.w * node.scaleX()));
-	const h = Math.max(minSize, store.snap_coord(props.room.h * node.scaleY()));
+	const sx = node.scaleX();
+	const sy = node.scaleY();
 	node.scaleX(1);
 	node.scaleY(1);
-	store.update_room(props.room.id, {
-		x: store.snap_coord(node.x()),
-		y: store.snap_coord(node.y()),
-		w,
-		h,
-		rotation: node.rotation(),
-	});
+	const patch = { x: node.x(), y: node.y(), rotation: node.rotation() };
+	if (props.room.shape === "ellipse") {
+		patch.rx = Math.max(2, props.room.rx * sx);
+		patch.ry = Math.max(2, props.room.ry * sy);
+	} else if (props.room.shape === "rect") {
+		patch.w = Math.max(1, props.room.w * sx);
+		patch.h = Math.max(1, props.room.h * sy);
+	}
+	// polygon + point: move/rotate only (no size change)
+	store.update_room(props.room.id, patch);
 }
 
 // --- vertex editing ---
@@ -214,21 +331,22 @@ function onVertexDrag(e, index) {
 }
 
 function onVertexDragEnd(e, index) {
-	const x = store.snap_coord(e.target.x());
-	const y = store.snap_coord(e.target.y());
-	e.target.position({ x, y });
 	const pts = props.room.points.slice();
-	pts[index * 2] = x;
-	pts[index * 2 + 1] = y;
+	pts[index * 2] = e.target.x();
+	pts[index * 2 + 1] = e.target.y();
 	store.update_room(props.room.id, { points: pts });
 }
 
 function onAddVertex(e) {
 	e.cancelBubble = true;
+	// while drawing freehand, a double-click closes the polygon instead of adding a vertex
+	if (store.active_tool.value === "pen") {
+		store.finish_pen();
+		return;
+	}
 	const group = e.target.getParent();
 	const p = group.getRelativePointerPosition();
 	const pts = props.room.points;
-	// find the nearest edge and insert the click point after its start vertex
 	let bestStart = 0;
 	let bestDist = Infinity;
 	for (let i = 0; i < pts.length; i += 2) {
@@ -241,7 +359,7 @@ function onAddVertex(e) {
 		}
 	}
 	const np = pts.slice();
-	np.splice(bestStart + 2, 0, store.snap_coord(p.x), store.snap_coord(p.y));
+	np.splice(bestStart + 2, 0, p.x, p.y);
 	store.update_room(props.room.id, { points: np });
 }
 

@@ -5,40 +5,43 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "allow_zero_qty_in_service_order",
-  "allow_amenity_zero_qty",
-  "editable_amenity_price",
-  "column_break_aufy"
+  "disable_amenity_consolidation",
+  "column_break_aufy",
+  "maintain_standard_price_action",
+  "role_to_override_stop_action"
  ],
  "fields": [
   {
-   "default": "0",
-   "fieldname": "allow_zero_qty_in_service_order",
-   "fieldtype": "Check",
-   "label": "Allow Service Order with Zero Quantity"
-  },
-  {
-   "default": "0",
-   "fieldname": "allow_amenity_zero_qty",
-   "fieldtype": "Check",
-   "label": "Allow Amenity with Zero Quantity in Service Order"
-  },
-  {
-   "default": "0",
-   "fieldname": "editable_amenity_price",
-   "fieldtype": "Check",
-   "label": "Allow User to Edit Amenity Price in Service Order"
-  },
-  {
    "fieldname": "column_break_aufy",
    "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "description": "If checked, the consolidation of amenities by the same floor type will be disabled, and every similar amenity will be on a separate row",
+   "fieldname": "disable_amenity_consolidation",
+   "fieldtype": "Check",
+   "label": "Disable Amenity Consolidation"
+  },
+  {
+   "default": "Stop",
+   "fieldname": "maintain_standard_price_action",
+   "fieldtype": "Select",
+   "label": "Action if amenity standard price is not maintained",
+   "options": "Ignore\nWarn\nStop"
+  },
+  {
+   "depends_on": "eval:doc.maintain_standard_price_action==\"Stop\"",
+   "fieldname": "role_to_override_stop_action",
+   "fieldtype": "Link",
+   "label": " Role allowed to override stop action ",
+   "options": "Role"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-02-03 17:56:14.172275",
+ "modified": "2026-06-14 11:39:15.084614",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Butler Settings",

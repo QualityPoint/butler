@@ -1,7 +1,7 @@
 <template>
 	<div v-if="ready" ref="rootEl" class="facility-builder" :style="rootStyle">
 		<div class="fb-sidebar">
-			<SpacePalette />
+			<AmenityPalette />
 		</div>
 		<div class="fb-main">
 			<FloorTabs />
@@ -20,19 +20,19 @@
 <script setup>
 import { computed, ref, onMounted, onBeforeUnmount, nextTick, provide } from "vue";
 import { getStore } from "../store";
-import SpacePalette from "./SpacePalette.vue";
+import AmenityPalette from "./AmenityPalette.vue";
 import FloorTabs from "./FloorTabs.vue";
 import Toolbar from "./Toolbar.vue";
 import Canvas from "./Canvas.vue";
 import Footer from "./Footer.vue";
 
-const props = defineProps(["facility_name"]);
+const props = defineProps(["mode", "name"]);
 
 let ready = ref(false);
 const rootEl = ref(null);
 const builderHeight = ref(null);
 
-let $store = computed(() => getStore(props.facility_name));
+let $store = computed(() => getStore(props.mode, props.name));
 
 // fill exactly from the builder's top down to the viewport bottom (no guessed offset)
 const rootStyle = computed(() =>
@@ -65,11 +65,15 @@ defineExpose({ $store });
 	height: calc(100vh - 95px);
 }
 .fb-sidebar {
-	width: 220px;
+	width: 240px;
 	flex-shrink: 0;
 	border-right: 1px solid var(--border-color);
 	padding: var(--padding-md);
-	overflow-y: auto;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	/* visible so the category dropdown isn't clipped; the amenity list scrolls itself */
+	overflow: visible;
 }
 .fb-main {
 	flex: 1;

@@ -1,0 +1,21 @@
+{
+    "app": "butler",
+    "bg_color": "blue",
+    "creation": "2026-06-09 16:24:12.211925",
+    "docstatus": 0,
+    "doctype": "Desktop Icon",
+    "hidden": 0,
+    "icon_type": "App",
+    "idx": 0,
+    "label": "Butler",
+    "link": "",
+    "link_type": "Workspace Sidebar",
+    "logo_url": "/assets/butler/icons/desktop_icons/subtle/butler.svg",
+    "modified": "2026-06-11 18:01:32.285755",
+    "modified_by": "Administrator",
+    "name": "Butler",
+    "owner": "Administrator",
+    "restrict_removal": 0,
+    "roles": [],
+    "standard": 1
+}

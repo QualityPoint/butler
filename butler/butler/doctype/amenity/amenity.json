@@ -1,5 +1,6 @@
 {
  "actions": [],
+ "allow_import": 1,
  "allow_rename": 1,
  "autoname": "field:amenity_name",
  "creation": "2026-02-02 18:24:19.258634",
@@ -16,11 +17,11 @@
   "image",
   "amenity_specifications_section",
   "lines",
-  "requires_number_of_floors",
+  "standard_price",
   "column_break_fvih",
-  "amenity_price",
-  "has_varied_price",
-  "facility_prices",
+  "depends_on_floor_count",
+  "has_changeable_price",
+  "facility_type_prices",
   "amenity_bundle_section",
   "annexes"
  ],
@@ -63,11 +64,11 @@
    "no_copy": 1
   },
   {
-   "depends_on": "is_dependant_amenity",
+   "depends_on": "eval:doc.is_dependant_amenity",
    "fieldname": "depends_on",
    "fieldtype": "Table",
    "label": "Primary Amenities",
-   "mandatory_depends_on": "is_dependant_amenity",
+   "mandatory_depends_on": "eval:doc.is_dependant_amenity",
    "options": "Amenity Depends On"
   },
   {
@@ -84,37 +85,8 @@
    "reqd": 1
   },
   {
-   "default": "0",
-   "fieldname": "requires_number_of_floors",
-   "fieldtype": "Check",
-   "label": "Requires Number of Floors"
-  },
-  {
    "fieldname": "column_break_fvih",
    "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "amenity_price",
-   "fieldtype": "Currency",
-   "label": "Amenity Price",
-   "non_negative": 1,
-   "reqd": 1
-  },
-  {
-   "default": "0",
-   "fieldname": "has_varied_price",
-   "fieldtype": "Check",
-   "label": "Has Varied Price",
-   "no_copy": 1
-  },
-  {
-   "depends_on": "has_varied_price",
-   "fieldname": "facility_prices",
-   "fieldtype": "Table",
-   "label": "Facility Prices",
-   "mandatory_depends_on": "has_varied_price",
-   "no_copy": 1,
-   "options": "Facility Prices"
   },
   {
    "fieldname": "amenity_bundle_section",
@@ -125,7 +97,7 @@
    "fieldname": "annexes",
    "fieldtype": "Table",
    "label": "Annexes",
-   "options": "Annexes"
+   "options": "Amenity Annex"
   },
   {
    "default": "0",
@@ -143,13 +115,43 @@
    "options": "Item",
    "reqd": 1,
    "unique": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "has_changeable_price",
+   "fieldtype": "Check",
+   "label": "Has Changeable Price",
+   "no_copy": 1
+  },
+  {
+   "depends_on": "eval:doc.has_changeable_price",
+   "description": "Changeable Price By Facility Type",
+   "fieldname": "facility_type_prices",
+   "fieldtype": "Table",
+   "label": "Facility Type Prices",
+   "mandatory_depends_on": "eval:doc.has_changeable_price",
+   "no_copy": 1,
+   "options": "Facility Type Price"
+  },
+  {
+   "fieldname": "standard_price",
+   "fieldtype": "Currency",
+   "label": "Standard Price",
+   "non_negative": 1,
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "depends_on_floor_count",
+   "fieldtype": "Check",
+   "label": "Depends On Floor Count"
   }
  ],
  "grid_page_length": 50,
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-02-03 12:07:56.410862",
+ "modified": "2026-06-14 12:02:28.762567",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Amenity",
@@ -161,12 +163,23 @@
    "delete": 1,
    "email": 1,
    "export": 1,
+   "import": 1,
    "print": 1,
    "read": 1,
    "report": 1,
-   "role": "System Manager",
+   "role": "Sales Master Manager",
    "share": 1,
    "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Sales User"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Sales Manager"
   }
  ],
  "row_format": "Dynamic",

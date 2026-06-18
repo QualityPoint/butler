@@ -1,0 +1,152 @@
+{
+ "app": "butler",
+ "creation": "2026-06-09 17:35:35.354120",
+ "docstatus": 0,
+ "doctype": "Workspace Sidebar",
+ "header_icon": "settings",
+ "idx": 0,
+ "items": [
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "boxes",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Butler Bundle",
+   "link_to": "Butler Bundle",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "receipt-text",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Amenity Quotation",
+   "link_to": "Amenity Quotation",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "building-2",
+   "indent": 1,
+   "keep_closed": 0,
+   "label": "Facility Setup",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Section Break"
+  },
+  {
+   "child": 1,
+   "collapsible": 1,
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Facility Type",
+   "link_to": "Facility Type",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 1,
+   "collapsible": 1,
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Floor Type",
+   "link_to": "Floor Type",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "customization",
+   "indent": 1,
+   "keep_closed": 0,
+   "label": "Amenity Setup",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Section Break"
+  },
+  {
+   "child": 1,
+   "collapsible": 1,
+   "icon": "",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Amenity",
+   "link_to": "Amenity",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 1,
+   "collapsible": 1,
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Amenity Category",
+   "link_to": "Amenity Category",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 1,
+   "collapsible": 1,
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Annex",
+   "link_to": "Annex",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "settings",
+   "indent": 1,
+   "keep_closed": 0,
+   "label": "Settings",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Section Break"
+  },
+  {
+   "child": 1,
+   "collapsible": 1,
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Butler Settings",
+   "link_to": "Butler Settings",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 1,
+   "collapsible": 1,
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Address Settings",
+   "link_to": "Address Settings",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-06-15 11:01:30.841016",
+ "modified_by": "Administrator",
+ "module": "Butler",
+ "name": "Butler Setup",
+ "owner": "Administrator",
+ "standard": 1,
+ "title": "Butler Setup"
+}
