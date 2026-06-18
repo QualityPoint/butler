@@ -13,3 +13,16 @@ class Facility(Document):
 
     def validate(self):
         set_link_title(self)
+        self.validate_single_party_per_type()
+
+    def validate_single_party_per_type(self):
+        """A Facility may be linked to at most one Customer and one Lead."""
+        counts = {}
+        for link in self.links:
+            counts[link.link_doctype] = counts.get(link.link_doctype, 0) + 1
+
+        for party_type in ("Customer", "Lead"):
+            if counts.get(party_type, 0) > 1:
+                frappe.throw(
+                    _("A Facility can be linked to only one {0}.").format(_(party_type))
+                )

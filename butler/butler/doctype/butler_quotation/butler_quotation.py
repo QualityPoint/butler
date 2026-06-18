@@ -1,6 +1,7 @@
 # Copyright (c) 2026, QP and contributors
 # For license information, please see license.txt
 
+import erpnext
 import frappe
 from frappe import _
 from frappe.model.document import Document
@@ -9,7 +10,29 @@ from frappe.utils import cint, flt, fmt_money
 
 class ButlerQuotation(Document):
     def before_validate(self):
+        self.set_default_company()
         self.consolidate_amenities()
+
+    def set_default_company(self):
+        """Resolve Company the way ERPNext does when it isn't supplied (e.g. the
+        Facility Builder creates quotations programmatically via frappe.client.insert,
+        which never fills it). Order:
+          1. user/session default company  (erpnext.get_default_company step 1)
+          2. Global Defaults -> Default Company  (erpnext.get_default_company step 2)
+          3. the only company the user is permitted to see
+        If it's still ambiguous (multiple permitted companies and no default), leave it
+        empty so the reqd field makes the user pick one they're allowed to use.
+        """
+        if self.company:
+            return
+
+        self.company = erpnext.get_default_company()
+        if self.company:
+            return
+
+        permitted = frappe.get_list("Company", pluck="name", limit=2)
+        if len(permitted) == 1:
+            self.company = permitted[0]
 
     def validate(self):
         self.calculate_totals()

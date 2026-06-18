@@ -140,7 +140,10 @@ after_install = "butler.install.after_install"
 doc_events = {
     "Customer": {
         "after_insert": "butler.overrides.customer.link_facility_on_customer_create",
-    }
+    },
+    "Address": {
+        "validate": "butler.overrides.address.validate",
+    },
 }
 
 # Scheduled Tasks
