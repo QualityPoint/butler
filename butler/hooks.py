@@ -57,7 +57,7 @@ app_include_js = "butler.bundle.js"
 # ----------
 
 # application home page (will override Website Settings)
-# home_page = "login"
+home_page = "home"
 
 # website user home page (by Role)
 # role_home_page = {

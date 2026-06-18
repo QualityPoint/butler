@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- tailwindcss CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- google fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Anton&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap"
+      rel="stylesheet"
+    />
+
+    <title>Free Consultations</title>
+
+    <style type="text/tailwindcss">
+      @font-face {
+        font-family: "Segment A";
+        src: url("/assets/butler/website/fonts/SegmentAKeyTrial-Bold.otf")
+          format("opentype");
+        font-weight: bold;
+      }
+
+      @theme {
+        --color-primary: #f4eada;
+        --color-secondary: #cec2ae;
+        --color-light: #edf0f2;
+        --color-text: #f8edd9;
+        --color-brawn: #433835;
+        --font-courier: "Courier Prime", monospace;
+        --font-segment-a: "Segment A", sans-serif;
+        --font-anton: "Anton", sans-serif;
+        --font-playfair: "Playfair Display", serif;
+      }
+
+      main .outlined-text {
+        -webkit-text-fill-color: #222;
+        -webkit-text-stroke-width: 0.1px;
+        -webkit-text-stroke-color: #fff;
+      }
+
+      body {
+        font-family: "Courier Prime", monospace;
+      }
+
+      /* Hide default footer and navbar */
+      footer.web-footer,
+      body > nav.navbar {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header class="bg-slate-950 sticky top-0 z-50 relative">
+        <div
+          class="mx-auto flex h-16 max-w-screen-xl items-center gap-8 px-4 sm:px-6 lg:px-8"
+        >
+          <a class="block" href="/">
+            <span class="sr-only">Home</span>
+            <img
+              src="/assets/butler/website/images/butler_logo-white.png"
+              alt="butler logo"
+              class="h-8 w-auto md:h-10"
+            />
+          </a>
+
+          <div class="flex flex-1 items-center justify-end md:justify-between">
+            <nav
+              class="hidden absolute md:static top-full md:top-0 start-0 w-screen md:w-auto bg-slate-950 md:block"
+            >
+              <ul
+                class="flex items-center flex-col md:flex-row py-4 md:py-0 gap-6 text-sm"
+              >
+                <li>
+                  <a
+                    class="text-white transition font-bold hover:text-secondary"
+                    href="/"
+                  >
+                    Home
+                  </a>
+                </li>
+                <li>
+                  <a
+                    class="text-white transition font-bold hover:text-secondary"
+                    href="/products"
+                  >
+                    Products
+                  </a>
+                </li>
+                <li>
+                  <a
+                    class="text-white transition font-bold hover:text-secondary"
+                    href="/show-room"
+                  >
+                    Butler Showroom
+                  </a>
+                </li>
+                <li>
+                  <a
+                    class="text-secondary transition font-bold hover:text-secondary"
+                    href="/free-consultation"
+                  >
+                    Free Consultation
+                  </a>
+                </li>
+                <li>
+                  <a
+                    class="text-white transition font-bold hover:text-secondary"
+                    href="/contact-us"
+                  >
+                    Contact Us
+                  </a>
+                </li>
+              </ul>
+            </nav>
+
+            <div class="flex items-center gap-4">
+              <div class="sm:flex sm:gap-4 relative">
+                {% if is_logged_in %}
+                <input
+                  type="checkbox"
+                  id="avatar-menu-toggle"
+                  class="hidden peer"
+                />
+
+                <!-- label (your avatar) -->
+                <label for="avatar-menu-toggle" class="cursor-pointer">
+                  <img
+                    src="{{ user_image_url }}"
+                    alt="Avatar"
+                    class="w-10 h-10 rounded-full border-2 border-white shadow-md"
+                  />
+                </label>
+
+                <!-- dropdown menu in a div, shown only when peer (checkbox) is checked -->
+                <div
+                  class="hidden peer-checked:block absolute start-0 top-full mt-2 w-48 bg-slate-950 rounded-lg shadow-lg py-2 ring-1 ring-white ring-opacity-5"
+                >
+                  <a href="/app" class="block px-4 py-2 text-white">Profile</a>
+
+                  <div class="border-t border-gray-200 my-1"></div>
+                  <a
+                    href="#"
+                    class="block px-4 py-2 text-red-600 hover:bg-red-50 logout"
+                    >Logout</a
+                  >
+                </div>
+                {% else %}
+                <a
+                  class="block rounded-md bg-secondary px-5 py-2.5 text-sm font-medium text-black font-bold transition hover:bg-secondary/50"
+                  href="/login"
+                >
+                  Login
+                </a>
+                {% endif %}
+              </div>
+
+              <button
+                class="block rounded-sm bg-gray-100 p-2.5 text-gray-600 transition hover:text-gray-600/75 md:hidden cursor-pointer toggle-navbar"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="size-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <section class="bg-brawn py-7 lg:py-20 min-h-[calc(100vh-4rem)]">
+        <div class="container mx-auto px-3 md:px-6">
+          <div class="grid grid-cols-1 xl:grid-cols-2 gap-10">
+            <div>
+              <video
+                src="/assets/butler/website/video/free-consultation.mp4"
+                class="border-2 border-white h-full w-full object-cover"
+                loop
+                muted
+                autoplay
+              ></video>
+            </div>
+            <div
+              class="border-2 border-white rounded-lg p-4 bg-[url('/assets/butler/website/images/free-consultation.png')] bg-cover bg-center bg-no-repeat relative z-1"
+            >
+              <div
+                class="absolute inset-0 bg-brawn opacity-80 rounded-lg z-2"
+              ></div>
+              <img
+                class="w-10 h-10 md:w-16 md:h-16 absolute top-4 end-4 z-3"
+                src="/assets/butler/website/images/butler_logo-white.png"
+                alt="butler logo"
+              />
+              <div class="text-primary relative text-sm z-4">
+                <div>
+                  <p>Not sure what your home needs?</p>
+                  <hr class="w-22 md:w-46 border-2 mt-2" />
+                  <h1
+                    class="font-bold font-anton text-5xl md:text-[100px] md:leading-30 tracking-wide uppercase"
+                  >
+                    Free <br />
+                    Consultation
+                  </h1>
+                </div>
+                <div
+                  class="border-primary border-b-3 border-t-3 text-white py-2 px-3 bg-black/20 space-y-3 text-sm"
+                >
+                  <p class="leading-relaxed">
+                    Whether you’re building, renovating, or exploring smart home
+                    systems our expert team will walk you through:
+                  </p>
+                  <ul class="list-disc list-inside space-y-3">
+                    <li>What’s possible with smart home management.</li>
+                    <li>What suits your family lifestyle.</li>
+                    <li>What to avoid (even if it looks smart).</li>
+                    <li>Translate the technical language for you.</li>
+                  </ul>
+                </div>
+                <p
+                  class="font-bold font-anton text-black text-center py-2 text-xl outlined-text"
+                >
+                  FREE 30 - 60 minutes - Online or in Butler Riyadh showroom
+                </p>
+                <div
+                  class="flex flex-col md:flex-row justify-between items-center gap-4 mt-3"
+                >
+                  <a
+                    class="md:w-1/2 block rounded-md bg-secondary px-5 py-2.5 text-lg font-bold text-black font-bold transition hover:bg-secondary/50 text-center font-anton tracking-wide underline underline-offset-2"
+                    href="https://api.whatsapp.com/send/?phone=966920012813&text=Hello%2C+I%E2%80%99m+interested+in+a+Free+Smart+Home+Consultation+with+Butler.%2APlease+let+me+know+the+next+steps+to+schedule+my+session&type=phone_number&app_absent=0"
+                  >
+                    Request My Free Consultation
+                  </a>
+                  <p
+                    class="text-center text-sm md:text-[8px] text-white md:w-1/2"
+                  >
+                    → You’ll get a WhatsApp confirmation and a few simple
+                    questions to tailor the session
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <footer
+            class="text-primary flex flex-col justify-center items-center py-10 mt-3"
+          >
+            <div class="flex gap-1 items-center">
+              <img
+                src="/assets/butler/website/images/butler_logo-white.png"
+                alt="butler logo"
+                class="w-5 h-5"
+              />
+              <span>Copyright @2025 Butler Co.</span>
+            </div>
+          </footer>
+        </div>
+      </section>
+    </main>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const btn = document.querySelector(".toggle-navbar");
+        const nav = document.querySelector("nav");
+        const logout = document.querySelector(".logout");
+
+        if (logout) {
+          logout.addEventListener("click", function (e) {
+            e.preventDefault();
+            fetch("/?cmd=logout", {
+              method: "GET",
+              credentials: "same-origin",
+            }).finally(function () {
+              window.location.reload();
+            });
+          });
+        }
+
+        // Add transition classes for animation
+        nav.classList.add("transition-all", "duration-300", "ease-in-out");
+
+        btn.addEventListener("click", () => {
+          if (nav.classList.contains("hidden")) {
+            nav.classList.remove("hidden");
+            nav.classList.add("opacity-0");
+            setTimeout(() => {
+              nav.classList.remove("opacity-0");
+              nav.classList.add("opacity-100");
+            }, 10);
+          } else {
+            nav.classList.remove("opacity-100");
+            nav.classList.add("opacity-0");
+            setTimeout(() => {
+              nav.classList.add("hidden");
+            }, 300);
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

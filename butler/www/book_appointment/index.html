@@ -1,0 +1,152 @@
+{% extends "templates/web.html" %} {% block title %}{{ _("Book Appointment")
+}}{% endblock %} {% block script %}
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Anton&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&display=swap"
+  rel="stylesheet"
+/>
+<link
+  rel="stylesheet"
+  href="/assets/butler/website/vendor/air-datepicker/datepicker.min.css"
+/>
+<script src="assets/js/moment-bundle.min.js"></script>
+<script src="/assets/butler/website/vendor/air-datepicker/datepicker.min.js"></script>
+<script src="book_appointment/index.js"></script>
+{% endblock %} {% block page_content %}
+<div class="container mt-custom">
+  <!-- title: Book an appointment -->
+  <div id="select-date-time">
+    <div class="text-center mt-5 title">
+      <!-- <h3>{{ _("Make appointment") }}</h3> -->
+      <!-- <p class="lead text-muted" id="lead-text">{{ _("Select the date and your timezone") }}</p> -->
+    </div>
+    <div class="row justify-content-center mt-3">
+      <div class="col-md-6 align-self-center">
+        <div class="row">
+          <input
+            type="text"
+            readonly
+            placeholder="{{ _('Select a date') }}"
+            name="appointment-date"
+            id="appointment-date"
+            class="form-control mt-3 col-md m-3"
+          />
+          <select
+            hidden
+            name="appointment-timezone"
+            oninput="on_date_or_timezone_select()"
+            id="appointment-timezone"
+            class="form-control m-3 col-md"
+          ></select>
+        </div>
+      </div>
+    </div>
+    <div class="mb-5" id="timeslot-container"></div>
+    <div class="row justify-content-center mt-3">
+      <div class="col-md-6 mb-3">
+        <button class="btn btn-primary form-control" id="next-button">
+          {{ _("Next") }}
+        </button>
+      </div>
+    </div>
+  </div>
+  <!--Enter Details-->
+  <div id="enter-details" class="mb-5">
+    <div class="text-center mt-5 title">
+      <h3>{{ _("Add details") }}</h3>
+      <p class="lead">
+        {{ _("Selected date is") }} <span class="date-span"></span> {{ _("at")
+        }}
+        <span class="time-span"></span>
+      </p>
+    </div>
+    <div class="row justify-content-center mt-3">
+      <div class="col-12">
+        <form id="customer-form" action="#">
+          <div class="row">
+            <div class="col-12 col-md-6">
+              <label for="customer_name"
+                >Your Name <span class="text-danger">*</span></label
+              >
+              <input
+                class="form-control mb-3"
+                type="text"
+                name="customer_name"
+                id="customer_name"
+                required
+              />
+            </div>
+            <div class="col-12 col-md-6">
+              <label for="company_name"
+                >Company Name <span class="text-danger">*</span></label
+              >
+              <input
+                class="form-control mb-3"
+                type="text"
+                name="company_name"
+                id="customer_company"
+                required
+              />
+            </div>
+            <div class="col-12 col-md-6">
+              <label for="customer_number"
+                >phone number <span class="text-danger">*</span></label
+              >
+              <input
+                class="form-control mb-3"
+                type="tel"
+                name="customer_number"
+                id="customer_number"
+                required
+              />
+            </div>
+            <!-- <input class="form-control mt-3" type="text" name="customer_skype" id="customer_skype" placeholder="Skype"> -->
+            <div class="col-12 col-md-6">
+              <label for="customer_email"
+                >Email Address <span class="text-danger">*</span></label
+              >
+              <input
+                class="form-control mb-3"
+                type="email"
+                name="customer_email"
+                id="customer_email"
+                required
+              />
+            </div>
+            <div class="col-12">
+              <label for="customer_notes">Notes</label>
+              <textarea
+                class="form-control mb-3"
+                name="customer_notes"
+                id="customer_notes"
+                cols="30"
+                rows="10"
+              ></textarea>
+            </div>
+          </div>
+        </form>
+        <div class="row mt-3" id="submit-button-area">
+          <div class="col-6 mt-3" style="grid-area: back">
+            <button
+              class="btn btn-dark form-control"
+              onclick="initialise_select_date()"
+            >
+              {{ _("Go back") }}
+            </button>
+          </div>
+          <div class="col-6 mt-3" style="grid-area: submit">
+            <button
+              class="btn btn-primary form-control"
+              onclick="submit()"
+              id="submit-button"
+            >
+              {{ _("Submit") }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,178 @@
+html,
+body {
+  min-height: 100%;
+  height: auto;
+}
+
+body {
+  background-image: url("/assets/butler/website/images/booking_appoinment-bg_mobile.png");
+  background-size: cover;
+  background-position: top center;
+}
+
+.mt-custom {
+  margin-top: 100px !important;
+}
+
+@media (min-width: 440px) {
+  body {
+    background-image: url("/assets/butler/website/images/booking_appoinment-bg.png");
+  }
+}
+
+@media (min-width: 769px) {
+  .mt-custom {
+    margin-top: 235px !important;
+  }
+}
+
+#page-index {
+  background-color: rgba(255, 255, 255, 0.7);
+  min-height: 100vh;
+  min-height: 100svh;
+  min-height: 100dvh;
+  height: auto;
+}
+
+.time-slot {
+  border-radius: 5px;
+  cursor: pointer;
+  border: 0.5px solid #cccccc;
+  min-height: 75px;
+  padding: 0.5em 1em;
+  transition: 0.3s all linear;
+}
+
+#customer-form {
+  border-color: black;
+}
+#customer-form ::placeholder {
+  color: #ddd;
+}
+
+input,
+textarea {
+  background-color: transparent !important;
+  border-radius: 4px !important;
+  border: 2px solid #805e24 !important;
+}
+
+input {
+  height: 40px !important;
+}
+
+button.btn {
+  height: 36px !important;
+  font-weight: bold !important;
+  background-color: #805e24 !important;
+}
+
+#timeslot-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.time-slot:hover {
+  color: white;
+  background: #805e24;
+}
+
+.time-slot.unavailable {
+  background: #cbd5e0;
+  cursor: not-allowed;
+  color: #f5f5f5;
+  border: 1px solid #805e24;
+}
+
+.time-slot.unavailable .text-muted {
+  color: #718096;
+}
+
+.time-slot.selected {
+  color: white;
+  background: #805e24;
+}
+
+.time-slot.selected .text-muted {
+  color: #f5f5f5 !important;
+}
+
+/* Match the website's font system: Courier Prime for body text, Anton for the
+   big display headings (same as the home page). */
+#select-date-time,
+#enter-details {
+  font-family: "Courier Prime", monospace;
+}
+
+#select-date-time .title h3,
+#enter-details .title h3 {
+  font-family: "Anton", sans-serif;
+  font-size: 30px;
+  text-transform: uppercase;
+  margin-bottom: 17px;
+}
+
+@media (min-width: 560px) {
+  #select-date-time .title h3,
+  #enter-details .title h3 {
+    font-size: 70px;
+  }
+}
+
+#select-date-time .title p,
+#enter-details .title p {
+  color: #777;
+}
+
+.date-span,
+.time-span {
+  font-weight: bold !important;
+  color: black;
+}
+
+/* Hide default footer and navbar */
+footer.web-footer,
+body > nav.navbar {
+  display: none !important;
+}
+
+/* Date picker (Frappe air-datepicker) — recolor accent from blue to gold.
+   Prefixed with .datepicker so these win over the library defaults regardless
+   of stylesheet load order. */
+.datepicker .datepicker--cell.-focus- {
+  background: #f0e9dc;
+}
+/* Today — bold text only, no background fill (like Frappe). The gold background
+   is reserved for the selected date; when today IS selected, the selected rule
+   below (higher specificity) takes over. */
+.datepicker .datepicker--cell.-current- {
+  color: #4a4a4a;
+}
+.datepicker .datepicker--cell.-current-:not(.-selected-):not(.-in-range-) {
+  font-weight: 700;
+}
+/* Selected day */
+.datepicker .datepicker--cell.-selected-,
+.datepicker .datepicker--cell.-selected-.-current-,
+.datepicker .datepicker--cell.-selected-.-focus- {
+  color: #fff;
+  background: #805e24;
+  border-color: #805e24;
+}
+.datepicker .datepicker--cell.-in-range- {
+  background: rgba(128, 94, 36, 0.1);
+}
+/* Weekday name abbreviations (Su, Mo, Tu, ...) */
+.datepicker .datepicker--day-name {
+  color: #805e24;
+}
+/* Today / Clear buttons */
+.datepicker .datepicker--button {
+  color: #805e24;
+}
+.datepicker .datepicker--nav-action:hover,
+.datepicker .datepicker--nav-title:hover {
+  background: #f0e9dc;
+}

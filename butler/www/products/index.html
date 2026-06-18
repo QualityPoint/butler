@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- tailwindcss CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- google fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Anton&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap"
+      rel="stylesheet"
+    />
+
+    <title>Products</title>
+
+    <style type="text/tailwindcss">
+      @font-face {
+        font-family: "Segment A";
+        src: url("/assets/butler/website/fonts/SegmentAKeyTrial-Bold.otf")
+          format("opentype");
+        font-weight: bold;
+      }
+
+      @theme {
+        --color-primary: #f4eada;
+        --color-secondary: #cec2ae;
+        --color-light: #edf0f2;
+        --color-text: #f8edd9;
+        --color-brawn: #433835;
+        --font-courier: "Courier Prime", monospace;
+        --font-segment-a: "Segment A", sans-serif;
+        --font-anton: "Anton", sans-serif;
+        --font-playfair: "Playfair Display", serif;
+      }
+
+      body {
+        font-family: "Courier Prime", monospace;
+      }
+
+      /* Hide default footer and navbar */
+      footer.web-footer,
+      body > nav.navbar {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header class="bg-slate-950 sticky top-0 z-50 relative">
+        <div
+          class="mx-auto flex h-16 max-w-screen-xl items-center gap-8 px-4 sm:px-6 lg:px-8"
+        >
+          <a class="block" href="/">
+            <span class="sr-only">Home</span>
+            <img
+              src="/assets/butler/website/images/butler_logo-white.png"
+              alt="butler logo"
+              class="h-8 w-auto md:h-10"
+            />
+          </a>
+
+          <div class="flex flex-1 items-center justify-end md:justify-between">
+            <nav
+              class="hidden absolute md:static top-full md:top-0 start-0 w-screen md:w-auto bg-slate-950 md:block"
+            >
+              <ul
+                class="flex items-center flex-col md:flex-row py-4 md:py-0 gap-6 text-sm"
+              >
+                <li>
+                  <a
+                    class="text-white transition font-bold hover:text-secondary"
+                    href="/"
+                  >
+                    Home
+                  </a>
+                </li>
+                <li>
+                  <a
+                    class="text-secondary transition font-bold hover:text-secondary"
+                    href="/products"
+                  >
+                    Products
+                  </a>
+                </li>
+                <li>
+                  <a
+                    class="text-white transition font-bold hover:text-secondary"
+                    href="/show-room"
+                  >
+                    Butler Showroom
+                  </a>
+                </li>
+                <li>
+                  <a
+                    class="text-white transition font-bold hover:text-secondary"
+                    href="/free-consultation"
+                  >
+                    Free Consultation
+                  </a>
+                </li>
+                <li>
+                  <a
+                    class="text-white transition font-bold hover:text-secondary"
+                    href="/contact-us"
+                  >
+                    Contact Us
+                  </a>
+                </li>
+              </ul>
+            </nav>
+
+            <div class="flex items-center gap-4">
+              <div class="sm:flex sm:gap-4 relative">
+                {% if is_logged_in %}
+                <input
+                  type="checkbox"
+                  id="avatar-menu-toggle"
+                  class="hidden peer"
+                />
+
+                <!-- label (your avatar) -->
+                <label for="avatar-menu-toggle" class="cursor-pointer">
+                  <img
+                    src="{{ user_image_url }}"
+                    alt="Avatar"
+                    class="w-10 h-10 rounded-full border-2 border-white shadow-md"
+                  />
+                </label>
+
+                <!-- dropdown menu in a div, shown only when peer (checkbox) is checked -->
+                <div
+                  class="hidden peer-checked:block absolute start-0 top-full mt-2 w-48 bg-slate-950 rounded-lg shadow-lg py-2 ring-1 ring-white ring-opacity-5"
+                >
+                  <a href="/app" class="block px-4 py-2 text-white">Profile</a>
+
+                  <div class="border-t border-gray-200 my-1"></div>
+                  <a
+                    href="#"
+                    class="block px-4 py-2 text-red-600 hover:bg-red-50 logout"
+                    >Logout</a
+                  >
+                </div>
+                {% else %}
+                <a
+                  class="block rounded-md bg-secondary px-5 py-2.5 text-sm font-medium text-black font-bold transition hover:bg-secondary/50"
+                  href="/login"
+                >
+                  Login
+                </a>
+                {% endif %}
+              </div>
+
+              <button
+                class="block rounded-sm bg-gray-100 p-2.5 text-gray-600 transition hover:text-gray-600/75 md:hidden cursor-pointer toggle-navbar"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="size-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <section
+        class="bg-[url('/assets/butler/website/images/hero_section-bg-2.png')] bg-cover bg-center bg-no-repeat py-7 lg:py-20"
+      >
+        <div class="container mx-auto px-3 md:px-6">
+          <header class="flex justify-between items-center">
+            <div class="w-fit mb-2 text-black">
+              <h5 class="font-segment-a uppercase text-8xl">Butler Products</h5>
+              <p class="font-playfair border-b-4 border-black">
+                Family Home Experience Managers
+              </p>
+            </div>
+            <img
+              src="/assets/butler/website/images/butler_logo-isolated.png"
+              alt="Butler logo"
+              class="w-14 lg:w-20 h-14 lg:h-20"
+            />
+          </header>
+          <p class="text-sm">
+            Butler introduces a group of experience managers, each one designed
+            to serve a specific purpose.
+          </p>
+          <p class="lg:leading-8 text-sm">
+            <span class="underline underline-offset-2"
+              >based on what are the</span
+            >
+            “Family Home Living Values” [Comfort, Efficiency, Security,
+            Entertainment, & Hospitality.
+          </p>
+          <img
+            src="/assets/butler/website/images/hero_section-img.png"
+            alt="butler family"
+            class="w-full border-2 border-black my-4"
+          />
+          <div class="flex flex-col lg:flex-row text-sm lg:text-base gap-4">
+            <span class="font-bold font-playfair italic"
+              >Pictured from left, their names are :</span
+            >
+            <ul class="space-y-2">
+              <li>
+                <span class="font-bold">Mr.Security:</span>Complicate home
+                access for thief & simplify home access for family.
+              </li>
+              <li>
+                <span class="font-bold">Mr.Efficient:</span> Optimizes lighting
+                and energy used in high-use home areas.
+              </li>
+              <li>
+                <span class="font-bold">Mr.Alfred:</span> Ensures bedrooms areas
+                always feel comfort.
+              </li>
+              <li>
+                <span class="font-bold">Mrs.Hospitality:</span> Prepares guest
+                area and welcomes visitors with elegance.
+              </li>
+              <li>
+                <span class="font-bold">Mr.Entertainment: </span> Manages
+                leisure areas like cinemas, gyms, and swimming pools.
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+      <section class="bg-black">
+        <div
+          class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-9 2xl:grid-cols-7"
+        >
+          <div
+            class="xl:col-span-2 2xl:col-span-1 flex justify-center items-center"
+          >
+            <img
+              src="/assets/butler/website/images/18.jpg"
+              alt="mrs.hospitality"
+              class="h-[450px] lg:h-[750px] xl:h-full object-cover"
+            />
+          </div>
+          <div
+            class="lg:order-3 xl:order-2 col-span-2 xl:col-span-4 p-5 bg-[url('/assets/butler/website/images/background_bg.jpg')] bg-cover bg-center bg-no-repeat"
+          >
+            <header class="flex justify-between items-center w-full">
+              <div class="w-fit mb-2 text-black">
+                <h5
+                  class="font-segment-a uppercase text-8xl md:text-9xl 2xl:text-[140px]"
+                >
+                  mrs.hospitality
+                </h5>
+                <p class="font-playfair border-b-4 border-black">
+                  “One Chance to make First Impression”
+                </p>
+              </div>
+              <img
+                src="/assets/butler/website/images/butler_logo-isolated.png"
+                alt="Butler logo"
+                class="w-16 lg:w-20 h-16 lg:h-20"
+              />
+            </header>
+            <div class="my-5 space-y-6 md:space-y-16">
+              <div class="space-y-2 md:text-xl 2xl:text-2xl">
+                <h6
+                  class="text-2xl 2xl:text-3xl font-bold tracking-wide font-anton text-shadow-[0_2px_4px_rgba(0,0,0,0.5)]"
+                >
+                  Hospitality with <span class="text-primary">Normal Home</span>
+                </h6>
+                <p>
+                  You will go to
+                  <span class="underline underline-offset-3">Guest Areas</span>
+                  for:
+                </p>
+                <ul class="list-disc list-inside">
+                  <li>
+                    <span class="font-bold">Manually</span> Lights and Cools
+                    Guest Area, hopefully in the
+                    <span class="underline underline-offset-3"
+                      >Right time!</span
+                    >
+                  </li>
+                </ul>
+              </div>
+              <div class="space-y-2 md:text-xl 2xl:text-2xl">
+                <h6
+                  class="text-2xl 2xl:text-3xl font-bold tracking-wide font-anton text-shadow-[0_2px_4px_rgba(0,0,0,0.5)]"
+                >
+                  Hospitality with <span class="text-primary">Smart Home</span>
+                </h6>
+                <p>
+                  You Will from
+                  <span class="underline underline-offset-3">Mobile App</span>
+                  :
+                </p>
+                <ul class="list-disc list-inside">
+                  <li>
+                    <span class="font-bold underline underline-offset-3"
+                      >Manually</span
+                    >
+                    Lights and Cools Guest Area, hopefully in the
+                    <span class="underline underline-offset-3"
+                      >Right time!</span
+                    >
+                  </li>
+                </ul>
+              </div>
+              <div class="space-y-2 md:text-xl 2xl:text-2xl">
+                <h6
+                  class="text-2xl 2xl:text-3xl font-bold tracking-wide font-anton text-shadow-[0_2px_4px_rgba(0,0,0,0.5)]"
+                >
+                  Hospitality with
+                  <span class="text-primary">Butler Smart Home</span>
+                </h6>
+                <p>Mrs. Hospitality Will Make it:</p>
+                <ul class="list-disc list-inside">
+                  <li>
+                    Perfectly
+                    <span class="font-bold underline underline-offset-3"
+                      >Auto & In the Right time!</span
+                    >
+                    <span class="underline underline-offset-3">
+                      Once She Knows</span
+                    >
+                    Guest incoming.
+                  </li>
+                </ul>
+              </div>
+              <div class="text-center">
+                <a
+                  href="/show-room"
+                  class="text-primary font-bold underline underline-offset-2 uppercase bg-black px-16 py-2 rounded-full font-anton text-xl tracking-wider"
+                  >meet Mrs.hospitality</a
+                >
+              </div>
+            </div>
+          </div>
+          <div
+            class="lg:order-2 xl:order-3 col-span-1 xl:col-span-3 2xl:col-span-2 flex justify-center items-center"
+          >
+            <video
+              muted
+              loop
+              autoplay
+              src="/assets/butler/website/video/1.mp4"
+              class="object-cover h-full w-full"
+            ></video>
+          </div>
+        </div>
+      </section>
+      <section class="bg-black">
+        <div
+          class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-9 2xl:grid-cols-7"
+        >
+          <div
+            class="xl:col-span-2 2xl:col-span-1 flex justify-center items-center"
+          >
+            <img
+              src="/assets/butler/website/images/20.jpg"
+              alt="mrs.hospitality"
+              class="h-[450px] lg:h-[750px] xl:h-full object-cover"
+            />
+          </div>
+          <div
+            class="lg:order-3 xl:order-2 col-span-2 xl:col-span-4 p-5 bg-[url('/assets/butler/website/images/background_bg.jpg')] bg-cover bg-center bg-no-repeat"
+          >
+            <header class="flex justify-between items-center w-full">
+              <div class="w-fit mb-2 text-black">
+                <h5
+                  class="font-segment-a uppercase text-8xl md:text-9xl 2xl:text-[140px]"
+                >
+                  Mr.efficient
+                </h5>
+                <p class="font-playfair border-b-4 border-black">
+                  “Efficiency is doing things right”
+                </p>
+              </div>
+              <img
+                src="/assets/butler/website/images/butler_logo-isolated.png"
+                alt="Butler logo"
+                class="w-16 lg:w-20 h-16 lg:h-20"
+              />
+            </header>
+            <div class="my-5 space-y-6 md:space-y-16">
+              <div class="space-y-2 md:text-xl 2xl:text-2xl">
+                <h6
+                  class="text-2xl 2xl:text-3xl font-bold tracking-wide font-anton text-shadow-[0_2px_4px_rgba(0,0,0,0.5)]"
+                >
+                  Efficiency with <span class="text-primary">Normal Home</span>
+                </h6>
+                <p>
+                  You will take
+                  <span class="underline underline-offset-3">Home Tour</span>
+                  to:
+                </p>
+                <ul class="list-disc list-inside">
+                  <li>
+                    Manage Lights
+                    <span class="font-bold">Manually</span>when it’s
+                    <span class="underline underline-offset-3"
+                      >Night or Bed time</span
+                    >to [turn off] all home lights.
+                  </li>
+                </ul>
+              </div>
+              <div class="space-y-2 md:text-xl 2xl:text-2xl">
+                <h6
+                  class="text-2xl 2xl:text-3xl font-bold tracking-wide font-anton text-shadow-[0_2px_4px_rgba(0,0,0,0.5)]"
+                >
+                  Efficiency with <span class="text-primary">Smart Home</span>
+                </h6>
+                <p>
+                  You will take
+                  <span class="underline underline-offset-3">Home Tour</span>
+                  but from Smart
+                  <span class="underline underline-offset-3">Mobile App</span>
+                  to:
+                </p>
+                <ul class="list-disc list-inside">
+                  <li>
+                    Manage Lights
+                    <span class="font-bold">Manually </span>
+                    when it’s
+                    <span class="underline underline-offset-3"
+                      >Night or Bed time</span
+                    >
+                    to [turn off] all home lights.
+                  </li>
+                </ul>
+              </div>
+              <div class="space-y-2 md:text-xl 2xl:text-2xl">
+                <h6
+                  class="text-2xl 2xl:text-3xl font-bold tracking-wide font-anton text-shadow-[0_2px_4px_rgba(0,0,0,0.5)]"
+                >
+                  Efficiency with
+                  <span class="text-primary">Butler Smart Home</span>
+                </h6>
+                <p>Mr. Efficient Will Make it:</p>
+                <ul class="list-disc list-inside">
+                  <li>
+                    <span class="font-bold">Auto & In the Right time!</span>
+                    <br />
+                    As he knows when it’s
+                    <span class="underline underline-offest-3"
+                      >night, bed time or it’s morning.
+                    </span>
+                  </li>
+                </ul>
+              </div>
+              <div class="text-center">
+                <a
+                  href="/show-room"
+                  class="text-primary font-bold underline underline-offset-2 uppercase bg-black px-16 py-2 rounded-full font-anton text-xl tracking-wider"
+                  >meet Mr.efficient</a
+                >
+              </div>
+            </div>
+          </div>
+          <div
+            class="lg:order-2 xl:order-3 col-span-1 xl:col-span-3 2xl:col-span-2 flex justify-center items-center"
+          >
+            <video
+              muted
+              loop
+              autoplay
+              src="/assets/butler/website/video/0804.mp4"
+              class="object-cover h-full w-full"
+            ></video>
+          </div>
+        </div>
+      </section>
+      <section class="bg-black">
+        <div
+          class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-9 2xl:grid-cols-7"
+        >
+          <div
+            class="xl:col-span-2 2xl:col-span-1 flex justify-center items-center"
+          >
+            <img
+              src="/assets/butler/website/images/22.png"
+              alt="mrs.hospitality"
+              class="h-[450px] lg:h-[750px] xl:h-full object-cover"
+            />
+          </div>
+          <div
+            class="lg:order-3 xl:order-2 col-span-2 xl:col-span-4 p-5 bg-[url('/assets/butler/website/images/background_bg.jpg')] bg-cover bg-center bg-no-repeat"
+          >
+            <header class="flex justify-between items-center w-full">
+              <div class="w-fit mb-2 text-black">
+                <h5
+                  class="font-segment-a uppercase text-8xl md:text-9xl 2xl:text-[140px]"
+                >
+                  Mr.comfort
+                </h5>
+                <p class="font-playfair border-b-4 border-black">
+                  “ a good night, a good day “
+                </p>
+              </div>
+              <img
+                src="/assets/butler/website/images/butler_logo-isolated.png"
+                alt="Butler logo"
+                class="w-16 lg:w-20 h-16 lg:h-20"
+              />
+            </header>
+            <div class="my-5 space-y-6 md:space-y-16">
+              <div class="space-y-2 md:text-xl 2xl:text-2xl">
+                <h6
+                  class="text-2xl 2xl:text-3xl font-bold tracking-wide font-anton text-shadow-[0_2px_4px_rgba(0,0,0,0.5)]"
+                >
+                  Comfort with <span class="text-primary">Normal Home</span>
+                </h6>
+                <p>
+                  You Will go to
+                  <span class="underline underline-offset-3">Bed Rooms</span>
+                  for:
+                </p>
+                <ul class="list-disc list-inside">
+                  <li>
+                    <span class="font-bold">Manually </span> Lights and Cools
+                    Bed Rooms, hopefully
+                    <span class="underline underline-offset-3"
+                      >in the Right time!</span
+                    >
+                  </li>
+                </ul>
+              </div>
+              <div class="space-y-2 md:text-xl 2xl:text-2xl">
+                <h6
+                  class="text-2xl 2xl:text-3xl font-bold tracking-wide font-anton text-shadow-[0_2px_4px_rgba(0,0,0,0.5)]"
+                >
+                  Comfort with <span class="text-primary">Smart Home</span>
+                </h6>
+                <p>You Will from Mobile App:</p>
+                <ul class="list-disc list-inside">
+                  <li>
+                    <span class="font-bold">Manually </span>
+                    Lights and Cools Bed Rooms, hopefully
+                    <span class="underline underline-offset-3"
+                      >in the Right time!</span
+                    >
+                  </li>
+                </ul>
+              </div>
+              <div class="space-y-2 md:text-xl 2xl:text-2xl">
+                <h6
+                  class="text-2xl 2xl:text-3xl font-bold tracking-wide font-anton text-shadow-[0_2px_4px_rgba(0,0,0,0.5)]"
+                >
+                  Comfort with
+                  <span class="text-primary">Butler Smart Home</span>
+                </h6>
+                <p>Mr.Comfort Will Make it:</p>
+                <ul class="list-disc list-inside">
+                  <li>
+                    <span class="font-bold">Auto & In the Right time! </span>
+                    <br />
+                    As he knows when it’s
+                    <span class="underline underline-offest-3"
+                      >night, bed time or it’s morning.
+                    </span>
+                  </li>
+                </ul>
+              </div>
+              <div class="text-center">
+                <a
+                  href="/show-room"
+                  class="text-primary font-bold underline underline-offset-2 uppercase bg-black px-16 py-2 rounded-full font-anton text-xl tracking-wider"
+                  >meet Mr.comfort</a
+                >
+              </div>
+            </div>
+          </div>
+          <div
+            class="lg:order-2 xl:order-3 col-span-1 xl:col-span-3 2xl:col-span-2 flex justify-center items-center"
+          >
+            <video
+              muted
+              loop
+              autoplay
+              src="/assets/butler/website/video/0804(2).mp4"
+              class="object-cover h-full w-full"
+            ></video>
+          </div>
+        </div>
+      </section>
+      <section class="bg-black">
+        <div
+          class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-9 2xl:grid-cols-7"
+        >
+          <div
+            class="xl:col-span-2 2xl:col-span-1 flex justify-center items-center"
+          >
+            <img
+              src="/assets/butler/website/images/24.jpg"
+              alt="mrs.hospitality"
+              class="h-[450px] lg:h-[750px] xl:h-full object-cover"
+            />
+          </div>
+          <div
+            class="lg:order-3 xl:order-2 col-span-2 xl:col-span-4 p-5 bg-[url('/assets/butler/website/images/background_bg.jpg')] bg-cover bg-center bg-no-repeat"
+          >
+            <header class="flex justify-between items-center w-full">
+              <div class="w-fit mb-2 text-black">
+                <h5
+                  class="font-segment-a uppercase text-8xl md:text-9xl 2xl:text-[140px]"
+                >
+                  Mr.Entertainment
+                </h5>
+                <p class="font-playfair border-b-4 border-black">
+                  “ a relaxed mind is a creative mind. “
+                </p>
+              </div>
+              <img
+                src="/assets/butler/website/images/butler_logo-isolated.png"
+                alt="Butler logo"
+                class="w-16 lg:w-20 h-16 lg:h-20"
+              />
+            </header>
+            <div class="my-5 space-y-6 md:space-y-16">
+              <div class="space-y-2 md:text-xl 2xl:text-2xl">
+                <h6
+                  class="text-2xl 2xl:text-3xl font-bold tracking-wide font-anton text-shadow-[0_2px_4px_rgba(0,0,0,0.5)]"
+                >
+                  Entertainment with
+                  <span class="text-primary">Normal Home</span>
+                </h6>
+                <p>
+                  You Will go to
+                  <span class="underline underline-offset-3">Home GYM </span>
+                  and:
+                </p>
+                <ul class="list-disc list-inside">
+                  <li>
+                    <span class="font-bold">Manually </span> Lights & Cools
+                    Home’s GYM, then Play proper training Music.
+                  </li>
+                </ul>
+              </div>
+              <div class="space-y-2 md:text-xl 2xl:text-2xl">
+                <h6
+                  class="text-2xl 2xl:text-3xl font-bold tracking-wide font-anton text-shadow-[0_2px_4px_rgba(0,0,0,0.5)]"
+                >
+                  Entertainment with
+                  <span class="text-primary">Smart Home</span>
+                </h6>
+                <p>You Will from Mobile App :</p>
+                <ul class="list-disc list-inside">
+                  <li>
+                    <span class="font-bold">Manually </span>
+                    Lights & Cools Home’s GYM, then Play proper training Music.
+                  </li>
+                </ul>
+              </div>
+              <div class="space-y-2 md:text-xl 2xl:text-2xl">
+                <h6
+                  class="text-2xl 2xl:text-3xl font-bold tracking-wide font-anton text-shadow-[0_2px_4px_rgba(0,0,0,0.5)]"
+                >
+                  Entertainment with
+                  <span class="text-primary">Butler Smart Home</span>
+                </h6>
+                <p>Butler System Will Make it:</p>
+                <ul class="list-disc list-inside">
+                  <li>
+                    <span class="font-bold">Ready & In the Right time! </span>
+                    <br />
+                    Once he knows what
+                    <span class="underline underline-offest-3">
+                      type of workout
+                    </span>
+                    you want to do
+                    <span class="underline underline-offset-3"> and More…</span>
+                  </li>
+                </ul>
+              </div>
+              <div class="text-center">
+                <a
+                  href="/show-room"
+                  class="text-primary font-bold underline underline-offset-2 uppercase bg-black px-16 py-2 rounded-full font-anton md:text-xl tracking-wider"
+                  >meet Mr.Entertainment</a
+                >
+              </div>
+            </div>
+          </div>
+          <div
+            class="lg:order-2 xl:order-3 col-span-1 xl:col-span-3 2xl:col-span-2 flex justify-center items-center"
+          >
+            <video
+              muted
+              loop
+              autoplay
+              src="/assets/butler/website/video/0804(23).mp4"
+              class="object-cover h-full w-full"
+            ></video>
+          </div>
+        </div>
+      </section>
+      <section class="bg-black">
+        <div
+          class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-9 2xl:grid-cols-7"
+        >
+          <div
+            class="xl:col-span-2 2xl:col-span-1 flex justify-center items-center"
+          >
+            <img
+              src="/assets/butler/website/images/26.jpg"
+              alt="mrs.hospitality"
+              class="h-[450px] lg:h-[750px] xl:h-full object-cover"
+            />
+          </div>
+          <div
+            class="lg:order-3 xl:order-2 col-span-2 xl:col-span-4 p-5 bg-[url('/assets/butler/website/images/background_bg.jpg')] bg-cover bg-center bg-no-repeat"
+          >
+            <header class="flex justify-between items-center w-full">
+              <div class="w-fit mb-2 text-black">
+                <h5
+                  class="font-segment-a uppercase text-8xl md:text-9xl 2xl:text-[140px]"
+                >
+                  mr.security
+                </h5>
+                <p class="font-playfair border-b-4 border-black">
+                  “ Security is a process, not a product”
+                </p>
+              </div>
+              <img
+                src="/assets/butler/website/images/butler_logo-isolated.png"
+                alt="Butler logo"
+                class="w-16 lg:w-20 h-16 lg:h-20"
+              />
+            </header>
+            <div class="my-5 space-y-6 md:space-y-16 relative z-2">
+              <div class="space-y-2 md:text-xl 2xl:text-2xl relative z-2">
+                <h6
+                  class="text-2xl 2xl:text-3xl font-bold tracking-wide font-anton text-shadow-[0_2px_4px_rgba(0,0,0,0.5)]"
+                >
+                  Security with
+                  <span class="text-primary">Normal Home</span>
+                </h6>
+                <p>You Will go to Cameras App for :</p>
+                <ul class="list-disc list-inside">
+                  <li>
+                    <span class="font-bold">Monitor or Watch </span> Home
+                    Record’s, in the
+                    <span class="underline underline-offset-3"
+                      >Right time!</span
+                    >
+                  </li>
+                </ul>
+              </div>
+              <div class="space-y-2 md:text-xl 2xl:text-2xl relative z-2">
+                <h6
+                  class="text-2xl 2xl:text-3xl font-bold tracking-wide font-anton text-shadow-[0_2px_4px_rgba(0,0,0,0.5)]"
+                >
+                  Security with
+                  <span class="text-primary">Smart Home</span>
+                </h6>
+                <p>You Will Use Electronic lock to :</p>
+                <ul class="list-disc list-inside">
+                  <li>
+                    <span class="font-bold">Unlock </span>
+                    Door with Finger Print, without keys.
+                  </li>
+                </ul>
+              </div>
+              <div class="space-y-2 md:text-xl 2xl:text-2xl relative z-2">
+                <h6
+                  class="text-2xl 2xl:text-3xl font-bold tracking-wide font-anton text-shadow-[0_2px_4px_rgba(0,0,0,0.5)]"
+                >
+                  Security with
+                  <span class="text-primary">Butler Smart Home</span>
+                </h6>
+                <p>
+                  hhhhhh..
+                  <span class="font-bold">I Can’t Tell on public</span> What’s
+                  is he capable to do for Security Purposes.
+                </p>
+              </div>
+              <div class="text-center relative z-2">
+                <a
+                  href="/show-room"
+                  class="text-primary font-bold underline underline-offset-2 uppercase bg-black px-16 py-2 rounded-full font-anton text-xl tracking-wider"
+                  >meet Mr.Security</a
+                >
+              </div>
+              <img
+                src="/assets/butler/website/images/confidential-image.png"
+                alt="Butler Security"
+                class="w-96 max-w-62 absolute bottom-40 -start-20 z-1 -rotate-40 translate-x-1/2 translate-y-1/2"
+              />
+            </div>
+          </div>
+          <div
+            class="lg:order-2 xl:order-3 col-span-1 xl:col-span-3 2xl:col-span-2 flex justify-center items-center"
+          >
+            <video
+              muted
+              loop
+              autoplay
+              src="/assets/butler/website/video/0804(1).mp4"
+              class="object-cover h-full w-full"
+            ></video>
+          </div>
+        </div>
+      </section>
+
+      <section class="bg-primary">
+        <div class="container mx-auto px-3 md:px-6">
+          <div class="w-fit mb-2 text-black">
+            <h5
+              class="font-segment-a uppercase pb-3 text-8xl md:text-9xl 2xl:text-[140px] border-b-4 border-black"
+            >
+              Butler Blog
+            </h5>
+          </div>
+
+          <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mt-7">
+            <div class="col-span-1">
+              <img src="https://placehold.co/600x400" alt="blog one" />
+              <div class="mt-4 space-y-3">
+                <h6 class="text-xl font-bold">
+                  The New Era of Smart Home .. Real Smart
+                </h6>
+                <span class="text-sm text-gray-700"
+                  >Move beyond gadgets. Discover the evolution of smart
+                  homes—from convenience to thoughtful, humanized living.</span
+                >
+                <a
+                  href="#"
+                  class="px-5 py-2 border-3 border-gray-400 font-bold underline underline-offset-2 block w-fit"
+                  >Read more</a
+                >
+              </div>
+            </div>
+            <div class="col-span-1">
+              <img src="https://placehold.co/600x400" alt="blog one" />
+              <div class="mt-4 space-y-3">
+                <h6 class="text-xl font-bold">
+                  The New Era of Smart Home .. Real Smart
+                </h6>
+                <span class="text-sm text-gray-700"
+                  >Move beyond gadgets. Discover the evolution of smart
+                  homes—from convenience to thoughtful, humanized living.</span
+                >
+                <a
+                  href="#"
+                  class="px-5 py-2 border-3 border-gray-400 font-bold underline underline-offset-2 block w-fit"
+                  >Read more</a
+                >
+              </div>
+            </div>
+            <div class="col-span-1">
+              <img src="https://placehold.co/600x400" alt="blog one" />
+              <div class="mt-4 space-y-3">
+                <h6 class="text-xl font-bold">
+                  The New Era of Smart Home .. Real Smart
+                </h6>
+                <span class="text-sm text-gray-700"
+                  >Move beyond gadgets. Discover the evolution of smart
+                  homes—from convenience to thoughtful, humanized living.</span
+                >
+                <a
+                  href="#"
+                  class="px-5 py-2 border-3 border-gray-400 font-bold underline underline-offset-2 block w-fit"
+                  >Read more</a
+                >
+              </div>
+            </div>
+          </div>
+
+          <footer
+            class="bg-text flex flex-col justify-center items-center py-10"
+          >
+            <div
+              class="border-1 border-black px-6 rounded-lg py-1 flex items-center align-end gap-6"
+            >
+              <a
+                target="_blank"
+                href="https://api.whatsapp.com/send/?phone=966920012813"
+              >
+                <img
+                  src="/assets/butler/website/images/whats_app.png"
+                  alt="whats app"
+                  class="w-9"
+                />
+              </a>
+              <a target="_blank" href="mailto:Hello@Butler.com.sa">
+                <img
+                  src="/assets/butler/website/images/mail-logo.png"
+                  alt="mail logo"
+                  class="w-9"
+                />
+              </a>
+              <a
+                target="_blank"
+                href="https://api.whatsapp.com/send/?phone=966920012813"
+              >
+                <img
+                  src="/assets/butler/website/images/phone-logo.png"
+                  alt="phone logo"
+                  class="w-9"
+                />
+              </a>
+              <a
+                target="_blank"
+                href="https://www.google.com/maps/place/Butler/@24.8322835,46.6237311,17z/data=!3m1!4b1!4m6!3m5!1s0x3e2ee5740b939235:0xe69eff5b832c260f!8m2!3d24.8322835!4d46.6263114!16s%2Fg%2F11vpqtqx56?entry=ttu&g_ep=EgoyMDI1MDcwNy4wIKXMDSoASAFQAw%3D%3D"
+              >
+                <img
+                  src="/assets/butler/website/images/google-maps-logo.png"
+                  alt="google maps logo"
+                  class="w-8"
+                />
+              </a>
+              <a
+                target="_blank"
+                href="https://www.linkedin.com/company/butler-smart-sa"
+              >
+                <img
+                  src="/assets/butler/website/images/linkedin-logo.png"
+                  alt="linkedin logo"
+                  class="w-10"
+                />
+              </a>
+              <a target="_blank" href="https://x.com/Butler_Saudi">
+                <img
+                  src="/assets/butler/website/images/x.jpg"
+                  alt="x logo"
+                  class="w-7"
+                />
+              </a>
+              <a target="_blank" href="https://www.instagram.com/butler_sa">
+                <img
+                  src="/assets/butler/website/images/Instagram-logo.png"
+                  alt="Instagram logo"
+                  class="w-10"
+                />
+              </a>
+            </div>
+            <div class="mt-3">
+              <div class="flex gap-1 items-center">
+                <img
+                  src="/assets/butler/website/images/butler_logo-isolated.png"
+                  alt="butler logo"
+                  class="w-5 h-5"
+                />
+                <span>Copyright @2025 Butler Co.</span>
+              </div>
+            </div>
+          </footer>
+        </div>
+      </section>
+    </main>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const btn = document.querySelector(".toggle-navbar");
+        const nav = document.querySelector("nav");
+        const logout = document.querySelector(".logout");
+
+        if (logout) {
+          logout.addEventListener("click", function (e) {
+            e.preventDefault();
+            fetch("/?cmd=logout", {
+              method: "GET",
+              credentials: "same-origin",
+            }).finally(function () {
+              window.location.reload();
+            });
+          });
+        }
+
+        // Add transition classes for animation
+        nav.classList.add("transition-all", "duration-300", "ease-in-out");
+
+        btn.addEventListener("click", () => {
+          if (nav.classList.contains("hidden")) {
+            nav.classList.remove("hidden");
+            nav.classList.add("opacity-0");
+            setTimeout(() => {
+              nav.classList.remove("opacity-0");
+              nav.classList.add("opacity-100");
+            }, 10);
+          } else {
+            nav.classList.remove("opacity-100");
+            nav.classList.add("opacity-0");
+            setTimeout(() => {
+              nav.classList.add("hidden");
+            }, 300);
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
