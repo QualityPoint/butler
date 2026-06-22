@@ -3,7 +3,20 @@
 
 frappe.ui.form.on("Amenity", {
     setup(frm) {
-        butler.filters.non_stock_item_filter(frm, "amenity_item");
+        // Restrict Amenity Item to non-stock Items not already used by an active
+        // Butler Bundle, the reciprocal of Butler Bundle's bundle_item query, so
+        // Bundle and Amenity items stay mutually exclusive.
+        frm.set_query("amenity_item", () => ({
+            query: "butler.utils.queries.get_amenity_item",
+        }));
+
+        frm.set_query("annex_name", "annexes", () => {
+            return {
+                filters: {
+                    disabled: 0
+                },
+            };
+        });
     },
 
     amenity_item(frm) {

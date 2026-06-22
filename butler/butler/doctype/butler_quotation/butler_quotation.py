@@ -24,7 +24,8 @@ class ButlerQuotation(Document):
         if self.valid_till or not self.transaction_date:
             return
 
-        days = cint(frappe.db.get_single_value("Butler Settings", "default_valid_till"))
+        days = cint(frappe.db.get_single_value(
+            "Butler Settings", "default_valid_till"))
         self.valid_till = (
             add_days(self.transaction_date, days)
             if days
@@ -53,8 +54,30 @@ class ButlerQuotation(Document):
             self.company = permitted[0]
 
     def validate(self):
+        self.validate_quotation_to()
+        self.set_customer_name()
+        self.set_facility_address()
         self.calculate_totals()
         self.validate_valid_till()
+
+    def set_facility_address(self):
+        """Render the Facility's default linked Address into facility_address.
+        Facility links to Address via Dynamic Link (same pattern as Customer /
+        Company), so this works just like customer_address_display. Done
+        server-side so the Facility Builder's programmatic inserts get it too."""
+        self.facility_address = get_facility_address_display(self.facility)
+
+    def validate_quotation_to(self):
+        """Ensure quotation_to is one of the allowed options. The field's options are
+        static (Customer, Lead, Prospect) so this is just a sanity check."""
+        if self.quotation_to not in ("Customer", "Lead"):
+            frappe.throw(_("quotation_to must be Customer or Lead"))
+
+    def set_customer_name(self):
+        """Resolve the party's display name into customer_name, mirroring ERPNext's
+        Quotation.set_customer_name. Runs server-side so it is correct regardless of
+        the entry point (form, Facility Builder, or a programmatic insert)."""
+        self.customer_name = get_party_name(self.quotation_to, self.party_name)
 
     def on_submit(self):
         self.set_status(update=True)
@@ -98,7 +121,8 @@ class ButlerQuotation(Document):
         )
         for row in rows:
             if row.butler_quotation_item:
-                ordered[row.butler_quotation_item] = ordered.get(row.butler_quotation_item, 0) + flt(row.qty)
+                ordered[row.butler_quotation_item] = ordered.get(
+                    row.butler_quotation_item, 0) + flt(row.qty)
         return ordered
 
     def get_ordered_status(self):
@@ -122,7 +146,8 @@ class ButlerQuotation(Document):
             and self.transaction_date
             and getdate(self.valid_till) < getdate(self.transaction_date)
         ):
-            frappe.throw(_("Valid till date cannot be before transaction date"))
+            frappe.throw(
+                _("Valid till date cannot be before transaction date"))
 
     def consolidate_amenities(self):
         """Merge duplicate amenity lines that share the same (amenity, floor_type),
@@ -158,7 +183,8 @@ class ButlerQuotation(Document):
         dependant amenities at once, then check them against the present amenities in memory.
         """
         present = {r.amenity for r in self.amenities if r.amenity}
-        dependants = {r.amenity for r in self.amenities if r.is_dependant_amenity and r.amenity}
+        dependants = {
+            r.amenity for r in self.amenities if r.is_dependant_amenity and r.amenity}
         if not dependants:
             return
 
@@ -179,7 +205,8 @@ class ButlerQuotation(Document):
 
         if missing:
             lines = "".join(
-                "<li>{0} &rarr; {1}</li>".format(frappe.bold(a), ", ".join(sorted(m)))
+                "<li>{0} &rarr; {1}</li>".format(frappe.bold(a),
+                                                 ", ".join(sorted(m)))
                 for a, m in missing.items()
             )
             frappe.throw(
@@ -196,10 +223,12 @@ class ButlerQuotation(Document):
         """
         # --- per-line price (server-authoritative) + amount + amenity count ---
         facility_type = self.facility_type or (
-            self.facility and frappe.db.get_value("Facility", self.facility, "facility_type")
+            self.facility and frappe.db.get_value(
+                "Facility", self.facility, "facility_type")
         )
         # floor_count = number of DISTINCT floor types used across the amenity lines
-        self.floor_count = len({r.floor_type for r in self.amenities if r.floor_type})
+        self.floor_count = len(
+            {r.floor_type for r in self.amenities if r.floor_type})
 
         amenity_count = 0
         items_total = 0.0
@@ -214,7 +243,8 @@ class ButlerQuotation(Document):
             if abs(flt(row.rate) - resolved) > 0.005:
                 deviations.append(row)  # standard price not maintained
             # floor-dependent amenities are priced across every distinct floor
-            floors = self.floor_count if (info["depends_on_floor_count"] and self.floor_count) else 1
+            floors = self.floor_count if (
+                info["depends_on_floor_count"] and self.floor_count) else 1
             row.amount = flt(floors) * flt(row.rate) * flt(row.qty)
             amenity_count += row.qty
             items_total += flt(row.amount)
@@ -224,7 +254,8 @@ class ButlerQuotation(Document):
         # --- bundle price (the bundle is sold at its own flat price) ---
         if self.order_type == "Bundle" and self.bundle_type:
             self.bundle_price = flt(
-                frappe.db.get_value("Butler Bundle", self.bundle_type, "bundle_price")
+                frappe.db.get_value(
+                    "Butler Bundle", self.bundle_type, "bundle_price")
             )
         else:
             self.bundle_price = 0
@@ -234,10 +265,12 @@ class ButlerQuotation(Document):
 
         # --- additional discount → net total ---
         if self.apply_discount_by == "Percentage":
-            self.discount_amount = flt(self.total) * flt(self.additional_discount_percentage) / 100.0
+            self.discount_amount = flt(
+                self.total) * flt(self.additional_discount_percentage) / 100.0
         elif self.apply_discount_by == "Amount":
             self.additional_discount_percentage = (
-                flt(self.discount_amount) / flt(self.total) * 100.0 if self.total else 0
+                flt(self.discount_amount) / flt(self.total) *
+                100.0 if self.total else 0
             )
         else:
             self.additional_discount_percentage = 0
@@ -253,27 +286,34 @@ class ButlerQuotation(Document):
         """
         if not deviations:
             return
-        action = frappe.db.get_single_value("Butler Settings", "maintain_standard_price_action") or "Stop"
+        action = frappe.db.get_single_value(
+            "Butler Settings", "maintain_standard_price_action") or "Stop"
         if action == "Ignore":
             return
 
         lines = "".join(
             "<li>{0} — {1} (standard {2})</li>".format(
-                frappe.bold(r.amenity), fmt_money(r.rate), fmt_money(r.amenity_price)
+                frappe.bold(r.amenity), fmt_money(
+                    r.rate), fmt_money(r.amenity_price)
             )
             for r in deviations
         )
-        msg = _("These amenities don't keep the standard price:") + f"<ul>{lines}</ul>"
+        msg = _("These amenities don't keep the standard price:") + \
+            f"<ul>{lines}</ul>"
 
         if action == "Warn":
-            frappe.msgprint(msg, title=_("Standard price not maintained"), indicator="orange")
+            frappe.msgprint(msg, title=_(
+                "Standard price not maintained"), indicator="orange")
             return
 
         # Stop: block, unless the current user holds the override role (then warn + allow)
-        override_role = frappe.db.get_single_value("Butler Settings", "role_to_override_stop_action")
+        override_role = frappe.db.get_single_value(
+            "Butler Settings", "role_to_override_stop_action")
         if override_role and override_role in frappe.get_roles():
             frappe.msgprint(
-                msg + "<br>" + _("Overridden by your role: {0}").format(frappe.bold(override_role)),
+                msg + "<br>" +
+                _("Overridden by your role: {0}").format(
+                    frappe.bold(override_role)),
                 title=_("Standard price overridden"),
                 indicator="orange",
             )
@@ -299,6 +339,75 @@ def get_amenity_pricing(amenity, facility_type=None):
     return {"amenity_price": price, "depends_on_floor_count": cint(am.depends_on_floor_count)}
 
 
+def get_party_name(quotation_to, party_name):
+    """Display name for a Customer / Lead / Prospect party, mirroring ERPNext's
+    Quotation.set_customer_name. Returns None when there's nothing to resolve."""
+    if not (quotation_to and party_name):
+        return None
+
+    if quotation_to == "Customer":
+        return frappe.db.get_value("Customer", party_name, "customer_name")
+    if quotation_to == "Lead":
+        lead_name, company_name = frappe.db.get_value(
+            "Lead", party_name, ["lead_name", "company_name"]
+        )
+        return company_name or lead_name
+    if quotation_to == "Prospect":
+        return party_name
+    return None
+
+
+@frappe.whitelist()
+def get_party_details(party_name, quotation_to):
+    """Fetch a Butler Quotation's party details, mirroring ERPNext's
+    `erpnext.accounts.party.get_party_details` for the subset Butler needs:
+    the party's display name, its default billing Address (+ rendered display),
+    and its default Contact (+ display / mobile / email).
+
+    Called from the form's `party_name` trigger; the company address is resolved
+    separately on the `company` trigger, exactly like ERPNext.
+    """
+    from frappe.contacts.doctype.address.address import get_address_display, get_default_address
+    from frappe.contacts.doctype.contact.contact import get_contact_details, get_default_contact
+
+    out = frappe._dict()
+    if not (party_name and quotation_to):
+        return out
+
+    out.customer_name = get_party_name(quotation_to, party_name)
+
+    # default billing address for the party (via its Dynamic Links)
+    address = get_default_address(quotation_to, party_name)
+    out.customer_address = address
+    out.customer_address_display = get_address_display(
+        address) if address else ""
+
+    # default contact for the party
+    contact = get_default_contact(quotation_to, party_name)
+    out.contact_person = contact
+    if contact:
+        out.update(get_contact_details(contact))
+    else:
+        out.update(
+            {"contact_display": "", "contact_email": "", "contact_mobile": ""})
+
+    return out
+
+
+@frappe.whitelist()
+def get_facility_address_display(facility):
+    """Rendered default Address linked to a Facility, for the read-only
+    facility_address display. Facility links to Address via Dynamic Link, so
+    this mirrors how customer_address_display / company_address_display are
+    resolved. Returns "" when the Facility has no (or no linked) Address."""
+    from frappe.contacts.doctype.address.address import get_address_display, get_default_address
+
+    if not facility:
+        return ""
+    address = get_default_address("Facility", facility)
+    return get_address_display(address) if address else ""
+
+
 @frappe.whitelist()
 def make_sales_order(source_name, target_doc=None):
     return _make_sales_order(source_name, target_doc)
@@ -313,7 +422,8 @@ def _make_sales_order(source_name, target_doc=None, ignore_permissions=False):
     source = frappe.get_doc("Butler Quotation", source_name)
 
     if source.order_type != "Amenities":
-        frappe.throw(_("Creating a Sales Order is currently supported only for Amenities quotations."))
+        frappe.throw(
+            _("Creating a Sales Order is currently supported only for Amenities quotations."))
 
     if not frappe.db.get_single_value(
         "Selling Settings", "allow_sales_order_creation_for_expired_quotation"
@@ -391,7 +501,8 @@ def _make_customer(source_name, ignore_permissions=False):
         },
         fields=["link_doctype", "link_name"],
     )
-    customer = next((l.link_name for l in links if l.link_doctype == "Customer"), None)
+    customer = next(
+        (l.link_name for l in links if l.link_doctype == "Customer"), None)
     if customer:
         return frappe.get_doc("Customer", customer)
 
@@ -409,7 +520,8 @@ def _make_customer(source_name, ignore_permissions=False):
 
     from erpnext.crm.doctype.lead.lead import _make_customer as create_customer_from_lead
 
-    new_customer = create_customer_from_lead(lead, ignore_permissions=ignore_permissions)
+    new_customer = create_customer_from_lead(
+        lead, ignore_permissions=ignore_permissions)
     new_customer.flags.ignore_permissions = ignore_permissions
     new_customer.insert(ignore_permissions=ignore_permissions)
     return new_customer

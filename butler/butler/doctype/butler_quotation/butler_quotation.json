@@ -1,15 +1,18 @@
 {
  "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_import": 1,
  "autoname": "naming_series:",
  "creation": "2026-02-02 19:47:12.648692",
  "doctype": "DocType",
+ "document_type": "Document",
  "engine": "InnoDB",
  "field_order": [
   "section_break_qscy",
   "naming_series",
-  "facility",
-  "facility_name",
-  "facility_type",
+  "quotation_to",
+  "party_name",
+  "customer_name",
   "column_break_vopn",
   "transaction_date",
   "valid_till",
@@ -17,8 +20,13 @@
   "company",
   "order_type",
   "bundle_type",
-  "amended_from",
-  "bundle_specifications_section",
+  "facility_section",
+  "facility",
+  "project_name",
+  "column_break_ciev",
+  "facility_type",
+  "facility_address",
+  "bundle_section",
   "bundle_price",
   "column_break_htvt",
   "amenity_categories",
@@ -35,6 +43,19 @@
   "column_break_lmrf",
   "additional_discount_percentage",
   "discount_amount",
+  "address_and_contact_tab",
+  "billing_address_section",
+  "customer_address",
+  "customer_address_display",
+  "column_break_fskt",
+  "contact_person",
+  "contact_display",
+  "contact_mobile",
+  "contact_email",
+  "company_address_section",
+  "company_address",
+  "company_address_display",
+  "column_break_oslg",
   "payment_tab",
   "installment_payment_section",
   "due_start_date",
@@ -46,6 +67,7 @@
   "additional_info_section",
   "status",
   "column_break_evzx",
+  "amended_from",
   "section_break_agvg",
   "geometry"
  ],
@@ -107,13 +129,6 @@
    "label": "Bundle Type",
    "mandatory_depends_on": "eval:doc.order_type===\"Bundle\";",
    "options": "Butler Bundle"
-  },
-  {
-   "collapsible": 1,
-   "depends_on": "eval:doc.order_type===\"Bundle\";",
-   "fieldname": "bundle_specifications_section",
-   "fieldtype": "Section Break",
-   "label": "Bundle Specifications"
   },
   {
    "fieldname": "bundle_price",
@@ -277,6 +292,7 @@
   {
    "fieldname": "payment_tab",
    "fieldtype": "Tab Break",
+   "hidden": 1,
    "label": "Payment"
   },
   {
@@ -284,13 +300,6 @@
    "fieldtype": "JSON",
    "hidden": 1,
    "label": "Geometry",
-   "read_only": 1
-  },
-  {
-   "fetch_from": "facility.facility_name",
-   "fieldname": "facility_name",
-   "fieldtype": "Data",
-   "label": "Facility Name",
    "read_only": 1
   },
   {
@@ -340,13 +349,154 @@
   {
    "fieldname": "section_break_agvg",
    "fieldtype": "Section Break"
+  },
+  {
+   "default": "Customer",
+   "fieldname": "quotation_to",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Quotation To",
+   "options": "DocType",
+   "print_hide": 1,
+   "reqd": 1
+  },
+  {
+   "bold": 1,
+   "fieldname": "party_name",
+   "fieldtype": "Dynamic Link",
+   "in_global_search": 1,
+   "in_standard_filter": 1,
+   "label": "Party",
+   "options": "quotation_to",
+   "print_hide": 1,
+   "search_index": 1
+  },
+  {
+   "bold": 1,
+   "fieldname": "customer_name",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "label": "Customer Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "facility_section",
+   "fieldtype": "Section Break",
+   "label": "Facility"
+  },
+  {
+   "allow_on_submit": 1,
+   "fetch_from": "facility.facility_name",
+   "fetch_if_empty": 1,
+   "fieldname": "project_name",
+   "fieldtype": "Data",
+   "label": "Project Name"
+  },
+  {
+   "fieldname": "column_break_ciev",
+   "fieldtype": "Column Break"
+  },
+  {
+   "collapsible": 1,
+   "depends_on": "eval:doc.order_type===\"Bundle\";",
+   "fieldname": "bundle_section",
+   "fieldtype": "Section Break",
+   "label": "Bundle"
+  },
+  {
+   "fieldname": "facility_address",
+   "fieldtype": "Text Editor",
+   "label": "Facility Address",
+   "read_only": 1
+  },
+  {
+   "fieldname": "address_and_contact_tab",
+   "fieldtype": "Tab Break",
+   "label": "Address & Contact"
+  },
+  {
+   "fieldname": "billing_address_section",
+   "fieldtype": "Section Break",
+   "label": "Billing Address",
+   "options": "fa fa-bullhorn"
+  },
+  {
+   "fieldname": "customer_address",
+   "fieldtype": "Link",
+   "label": "Customer Address",
+   "options": "Address",
+   "print_hide": 1
+  },
+  {
+   "fieldname": "customer_address_display",
+   "fieldtype": "Text Editor",
+   "label": "Address",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_fskt",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "contact_person",
+   "fieldtype": "Link",
+   "label": "Contact Person",
+   "options": "Contact",
+   "print_hide": 1
+  },
+  {
+   "fieldname": "contact_display",
+   "fieldtype": "Small Text",
+   "in_global_search": 1,
+   "label": "Contact",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "contact_person.mobile_no",
+   "fieldname": "contact_mobile",
+   "fieldtype": "Data",
+   "label": "Mobile No",
+   "options": "Phone",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "contact_person.email_id",
+   "fieldname": "contact_email",
+   "fieldtype": "Data",
+   "label": "Contact Email",
+   "options": "Email",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "company_address_section",
+   "fieldtype": "Section Break",
+   "label": "Company Address"
+  },
+  {
+   "fieldname": "company_address",
+   "fieldtype": "Link",
+   "label": "Company Address",
+   "options": "Address",
+   "print_hide": 1
+  },
+  {
+   "fieldname": "company_address_display",
+   "fieldtype": "Text Editor",
+   "label": "Address",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_oslg",
+   "fieldtype": "Column Break"
   }
  ],
  "grid_page_length": 50,
+ "icon": "fa fa-shopping-cart",
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-06-15 10:02:52.588477",
+ "modified": "2026-06-22 14:00:52.189087",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Butler Quotation",
@@ -384,10 +534,11 @@
  ],
  "row_format": "Dynamic",
  "rows_threshold_for_grid_search": 20,
+ "search_fields": "status,transaction_date,party_name,order_type",
+ "show_name_in_global_search": 1,
  "show_title_field_in_link": 1,
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],
- "title_field": "facility_name",
- "track_changes": 1
+ "title_field": "project_name"
 }

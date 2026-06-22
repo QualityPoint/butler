@@ -1,5 +1,6 @@
 {
  "actions": [],
+ "allow_bulk_edit": 1,
  "allow_import": 1,
  "allow_rename": 1,
  "autoname": "field:amenity_name",
@@ -18,6 +19,7 @@
   "amenity_specifications_section",
   "lines",
   "standard_price",
+  "currency",
   "column_break_fvih",
   "depends_on_floor_count",
   "has_changeable_price",
@@ -145,13 +147,20 @@
    "fieldname": "depends_on_floor_count",
    "fieldtype": "Check",
    "label": "Depends On Floor Count"
+  },
+  {
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency",
+   "reqd": 1
   }
  ],
  "grid_page_length": 50,
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-06-14 12:02:28.762567",
+ "modified": "2026-06-22 13:55:07.919327",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Amenity",

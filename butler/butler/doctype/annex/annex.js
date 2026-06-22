@@ -3,7 +3,12 @@
 
 frappe.ui.form.on("Annex", {
     setup(frm) {
-        butler.filters.non_stock_item_filter(frm, "annex_item");
+        // Restrict Annex Item to non-stock Items not already used by an active
+        // Butler Bundle or Amenity, so Bundle / Amenity / Annex items stay
+        // mutually exclusive.
+        frm.set_query("annex_item", () => ({
+            query: "butler.utils.queries.get_annex_item",
+        }));
     },
 
     annex_item(frm) {

@@ -1,5 +1,6 @@
 {
  "actions": [],
+ "allow_bulk_edit": 1,
  "allow_rename": 1,
  "autoname": "field:bundle_name",
  "creation": "2026-02-02 18:59:30.754906",
@@ -8,8 +9,10 @@
  "field_order": [
   "bundle_item",
   "bundle_name",
+  "disabled",
   "column_break_ahzk",
   "bundle_price",
+  "currency",
   "max_discount",
   "image",
   "section_break_guiu",
@@ -64,17 +67,38 @@
    "unique": 1
   },
   {
+   "bold": 1,
+   "default": "0",
    "fieldname": "max_discount",
    "fieldtype": "Percent",
    "label": "Max Discount (%)",
+   "non_negative": 1,
    "precision": "2"
+  },
+  {
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Currency",
+   "options": "Currency",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "description": "A disabled Bundle cannot be selected in transactions.",
+   "fieldname": "disabled",
+   "fieldtype": "Check",
+   "in_standard_filter": 1,
+   "label": "Disabled",
+   "no_copy": 1
   }
  ],
  "grid_page_length": 50,
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-06-14 13:29:05.542597",
+ "modified": "2026-06-22 14:05:25.584316",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Butler Bundle",
