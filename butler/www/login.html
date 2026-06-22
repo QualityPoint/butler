@@ -1,0 +1,405 @@
+{% extends "templates/web.html" %}
+
+{#
+  Butler custom login page.
+  Re-skins Frappe's core login (frappe/www/login.html) with the marketing-site
+  look while preserving EVERY behavioural hook: the section classes
+  (.for-login/.for-signup/.for-forgot/.for-login-with-email-link), the field IDs
+  (#login_email, #login_password, #forgot_email, #login_with_email_link_email,
+  signup fields, #login_token), .toggle-password, .btn-ldap-login, .indicator,
+  the provider/LDAP/signup/email-link context loops, and the shared login.js.
+#}
+
+{% block navbar %}{% endblock %}
+{% block sidebar %}{% endblock %}
+
+{% macro email_login_body() -%}
+{% if not disable_user_pass_login or (ldap_settings and ldap_settings.enabled) %}
+<div class="page-card-body">
+	<div class="form-group">
+		<label class="form-label sr-only" for="login_email">{{ login_label or _("Email") }}</label>
+		<div class="email-field">
+			<input type="text" id="login_email" class="form-control"
+				placeholder="{% if login_name_placeholder %}{{ login_name_placeholder }}{% else %}{{ _('jane@example.com') }}{% endif %}"
+				required autofocus autocomplete="username">
+		</div>
+	</div>
+
+	<div class="form-group">
+		<label class="form-label sr-only" for="login_password">{{ _("Password") }}</label>
+		<div class="password-field">
+			<input type="password" id="login_password" class="form-control" placeholder="•••••"
+				autocomplete="current-password" required>
+			<span toggle="#login_password" class="toggle-password">{{ _('Show') }}</span>
+		</div>
+	</div>
+
+	{% if not disable_user_pass_login %}
+	<p class="forgot-password-message">
+		<a href="#forgot">{{ _("Forgot Password?") }}</a>
+	</p>
+	{% endif %}
+</div>
+{% endif %}
+<div class="page-card-actions">
+	{% if not disable_user_pass_login %}
+	<button class="btn btn-sm btn-primary btn-block btn-login" type="submit">{{ _("Login") }}</button>
+	{% endif %}
+	{% if ldap_settings and ldap_settings.enabled %}
+	<button class="btn btn-sm {{ "btn-primary" if disable_user_pass_login else "btn-default" }} btn-block btn-login btn-ldap-login">{{ _("Login with LDAP") }}</button>
+	{% endif %}
+</div>
+{% endmacro %}
+
+{% macro logo_section(title=null) %}
+<div class="page-card-head">
+	<img class="app-logo" src="/assets/butler/website/images/butler_logo-isolated.png" alt="{{ app_name }}">
+	{% if title %}
+	<h4>{{ _(title) }}</h4>
+	{% else %}
+	<h4>{{ _('Login to {0}').format(app_name or _("Butler")) }}</h4>
+	{% endif %}
+</div>
+{% endmacro %}
+
+{% block head_include %}
+<link rel="icon" type="image/png" href="/assets/butler/website/icons/favicon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+	href="https://fonts.googleapis.com/css2?family=Anton&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&display=swap"
+	rel="stylesheet" />
+<style>
+	:root {
+		--butler-gold: #805e24;
+		--butler-gold-dark: #6b4f1e;
+		--butler-cream: #f8edd9;
+		--butler-tan: #cec2ae;
+	}
+
+	body {
+		font-family: "Courier Prime", monospace;
+	}
+
+	/* full-bleed background image — same style as the marketing sections
+	   (bg-cover bg-center bg-no-repeat, py-7 lg:py-20) */
+	.butler-login {
+		position: relative;
+		min-height: 100vh;
+		min-height: 100dvh;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 1.75rem 1rem;            /* py-7 */
+		background-image: url("/assets/butler/website/images/isolated_one.jpg");
+		background-size: cover;
+		background-position: center;
+		background-repeat: no-repeat;
+		color: var(--butler-cream);
+	}
+
+	@media (min-width: 1024px) {
+		.butler-login { padding-top: 5rem; padding-bottom: 5rem; }  /* lg:py-20 */
+	}
+
+	/* hidden by default; login.js reveals the footer inline when
+	   show_footer_on_login is enabled (inline style overrides this rule) */
+	.web-footer,
+	body > nav.navbar { display: none; }
+
+	/* fluid card: grows with the panel up to a cap, never overflows small screens */
+	.butler-login section { 
+		width: 100%; 
+		max-width: min(100%, clamp(20rem, 80%, 28rem)); 
+	}
+	.butler-login .page-card-head { 
+		text-align: center; 
+		margin-bottom: 1.5rem; 
+	}
+	.butler-login .app-logo { 
+		height: clamp(72px, 10vw, 90px); 
+		width: auto; 
+		margin-bottom: 1rem; 
+	}
+	.butler-login .page-card-head h4 {
+		font-family: "Anton", sans-serif;
+		text-transform: uppercase;
+		letter-spacing: 1px;
+		color: var(--butler-gold);
+		font-size: clamp(1.5rem, 1rem + 2.5vw, 2.1rem);
+		margin: 0;
+	}
+	.butler-login .page-card {
+		background: rgba(2, 6, 23, 0.85);
+		border: 1px solid rgba(173, 129, 52, 0.22);
+		border-radius: 12px;
+		padding: clamp(1.25rem, 1rem + 2vw, 2rem);
+		box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+	}
+
+	.butler-login .form-group { margin-bottom: 1rem; }
+	.butler-login .email-field,
+	.butler-login .password-field { position: relative; }
+
+	.butler-login .form-control {
+		height: 46px;
+		background: rgba(255, 255, 255, 0.04);
+		border: 1.5px solid rgba(206, 194, 174, 0.25);
+		border-radius: 8px;
+		color: var(--butler-cream);
+		padding: 0 0.9rem;
+		width: 100%;
+	}
+	.butler-login .form-control::placeholder { color: rgba(248, 237, 217, 0.4); }
+	.butler-login .form-control:focus {
+		outline: none;
+		border-color: var(--butler-gold);
+		box-shadow: 0 0 0 3px rgba(128, 94, 36, 0.25);
+	}
+
+	.butler-login .toggle-password {
+		position: absolute;
+		right: 0.8rem;
+		top: 50%;
+		transform: translateY(-50%);
+		cursor: pointer;
+		font-size: 0.8rem;
+		color: var(--butler-tan);
+		user-select: none;
+	}
+
+	.butler-login .btn {
+		height: 44px;
+		border-radius: 8px;
+		font-weight: 700;
+		border: 1.5px solid transparent;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.4rem;
+	}
+	.butler-login .btn-block { display: flex; width: 100%; }
+	.butler-login .btn-primary {
+		background: var(--butler-gold);
+		border-color: var(--butler-gold);
+		color: #fff;
+	}
+	.butler-login .btn-primary:hover { background: var(--butler-gold-dark); border-color: var(--butler-gold-dark); }
+	.butler-login .btn-default,
+	.butler-login .btn-login-option {
+		background: transparent;
+		border-color: rgba(206, 194, 174, 0.35);
+		color: var(--butler-cream);
+		margin-top: 0.6rem;
+	}
+	.butler-login .btn-default:hover,
+	.butler-login .btn-login-option:hover { border-color: var(--butler-gold); }
+
+	.butler-login a { color: var(--butler-tan); }
+	.butler-login a:hover { color: #fff; }
+	.butler-login .forgot-password-message { text-align: right; margin: 0.25rem 0 0; font-size: 0.85rem; }
+	.butler-login .sign-up-message { text-align: center; margin-top: 1rem; color: rgba(248, 237, 217, 0.7); }
+	.butler-login .login-divider {
+		text-align: center;
+		margin: 1.1rem 0 0.6rem;
+		color: rgba(248, 237, 217, 0.45);
+		font-size: 0.85rem;
+	}
+
+	.butler-login .indicator {
+		display: inline-block;
+		font-size: 0.8rem;
+		color: var(--butler-tan);
+	}
+
+	/* error states driven by login.js (set_status / set_invalid) */
+	.butler-login .page-card-body.invalid .form-control { border-color: #e24c4c; }
+	.butler-login .page-card.invalid-login { animation: butler-shake 0.4s; }
+	@keyframes butler-shake {
+		0%, 100% { transform: translateX(0); }
+		25% { transform: translateX(-8px); }
+		75% { transform: translateX(8px); }
+	}
+
+	/* top navbar overlay (same links as the marketing site) so users can go back */
+	.butler-nav {
+		position: absolute;
+		top: 0; left: 0; right: 0;
+		z-index: 10;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-wrap: wrap;
+		gap: 2rem;
+		background: rgba(2, 6, 23, 0.92);
+		padding: 0.75rem clamp(1rem, 4vw, 2.5rem);
+	}
+	.butler-nav-logo img { height: 34px; width: auto; display: block; }
+	.butler-nav-links {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 1.25rem 1.5rem;
+	}
+	.butler-nav-links a { color: #fff; font-weight: 700; font-size: 0.9rem; text-decoration: none; }
+	.butler-nav-links a:hover { color: var(--butler-tan); }
+</style>
+{% endblock %}
+
+{% block page_content %}
+<!-- {{ for_test }} -->
+<div class="butler-login">
+	<header class="butler-nav">
+		<a class="butler-nav-logo" href="/"><img src="/assets/butler/website/images/butler_logo-white.png" alt="{{ app_name }}"></a>
+		<nav class="butler-nav-links">
+			<a href="/">{{ _("Home") }}</a>
+			<a href="/products">{{ _("Products") }}</a>
+			<a href="/show-room">{{ _("Butler Showroom") }}</a>
+			<a href="/free-consultation">{{ _("Free Consultation") }}</a>
+			<a href="/contact-us">{{ _("Contact Us") }}</a>
+		</nav>
+	</header>
+
+	<noscript>
+		<div class="text-center my-5">
+			<h4>{{ _("Javascript is disabled on your browser") }}</h4>
+			<p class="text-muted">
+				{{ _("You need to enable JavaScript for your app to work.") }}<br>{{ _("To enable it follow the instructions in the following link: {0}").format("<a href='https://enable-javascript.com/'>enable-javascript.com</a></p>") }}
+		</div>
+	</noscript>
+
+	<section class="for-login">
+		{{ logo_section() }}
+		<div class="login-content page-card">
+			<form class="form-signin form-login" role="form">
+				{%- if social_login or login_with_email_link -%}
+				<div class="page-card-body">
+					<form class="form-signin form-login" role="form">
+						{{ email_login_body() }}
+					</form>
+					<div class="social-logins text-center">
+						{% if not disable_user_pass_login or (ldap_settings and ldap_settings.enabled) %}
+						<p class="login-divider">{{ _("or") }}</p>
+						{% endif %}
+						<div class="social-login-buttons">
+							{% for provider in provider_logins %}
+							<div class="login-button-wrapper">
+								<a href="{{ provider.auth_url }}"
+									class="btn btn-block btn-default btn-sm btn-login-option btn-{{ provider.name }}">
+									{% if provider.icon %}{{ provider.icon }}{% endif %}
+									{{ _("Login with {0}").format(provider.provider_name) }}</a>
+							</div>
+							{% endfor %}
+						</div>
+
+						{% if login_with_frappe_cloud_url %}
+						<div class="social-login-buttons">
+							<div class="login-button-wrapper">
+								<a href="{{ login_with_frappe_cloud_url }}"
+									class="btn btn-block btn-default btn-sm btn-login-option btn-login-with-frappe-cloud">
+									{{ _("Login with Frappe Cloud") }}</a>
+							</div>
+						</div>
+						{% endif %}
+
+						{% if login_with_email_link %}
+						<div class="login-with-email-link social-login-buttons">
+							<div class="login-button-wrapper">
+								<a href="#login-with-email-link"
+									class="btn btn-block btn-default btn-sm btn-login-option btn-login-with-email-link">
+									{{ _("Login with Email Link") }}</a>
+							</div>
+						</div>
+						{% endif %}
+					</div>
+				</div>
+				{% else %}
+					{{ email_login_body() }}
+				{%- endif -%}
+			</form>
+		</div>
+		{%- if not disable_signup and not disable_user_pass_login -%}
+		<div class="text-center sign-up-message">
+			{{ _("Don't have an account?") }}
+			<a href="#signup">{{ _("Sign up") }}</a>
+		</div>
+		{%- endif -%}
+	</section>
+
+	{%- if social_login -%}
+	<section class="for-email-login">
+		{{ logo_section() }}
+		<div class="login-content page-card">
+			<form class="form-signin form-login" role="form">
+				{{ email_login_body() }}
+			</form>
+		</div>
+		{%- if not disable_signup and not disable_user_pass_login -%}
+		<div class="text-center sign-up-message">
+			{{ _("Don't have an account?") }}
+			<a href="#signup">{{ _("Sign up") }}</a>
+		</div>
+		{%- endif -%}
+	</section>
+	{%- endif -%}
+
+	<section class="for-signup {{ 'signup-disabled' if disable_signup else '' }}">
+		{{ logo_section(_('Create a {0} Account').format(app_name or _("Butler"))) }}
+		<div class="login-content page-card">
+			{%- if not disable_signup -%}
+			{{ signup_form_template }}
+			{%- else -%}
+			<div class="page-card-head mb-2">
+				<span class="indicator gray">{{ _("Signup Disabled") }}</span>
+				<p class="text-muted sign-up-message mt-1 mb-8">{{ _("Signups have been disabled for this website.") }}</p>
+				<div><a href="/" class="btn btn-primary btn-md">{{ _("Home") }}</a></div>
+			</div>
+			{%- endif -%}
+		</div>
+	</section>
+
+	<section class="for-forgot">
+		{{ logo_section('Forgot Password') }}
+		<div class="login-content page-card">
+			<form class="form-signin form-forgot hide" role="form">
+				<div class="page-card-body">
+					<div class="email-field">
+						<input type="email" id="forgot_email" class="form-control"
+							placeholder="{{ _('Email Address') }}" required autofocus autocomplete="username">
+					</div>
+				</div>
+				<div class="page-card-actions">
+					<button class="btn btn-sm btn-primary btn-block btn-forgot" type="submit">{{ _("Reset Password") }}</button>
+					<p class="text-center sign-up-message">
+						<a href="#login">{{ _("Back to Login") }}</a>
+					</p>
+				</div>
+			</form>
+		</div>
+	</section>
+
+	<section class="for-login-with-email-link">
+		{{ logo_section(_('Login with Email Link')) }}
+		<div class="login-content page-card">
+			<form class="form-signin form-login-with-email-link hide" role="form">
+				<div class="page-card-body">
+					<div class="email-field">
+						<input type="email" id="login_with_email_link_email" class="form-control"
+							placeholder="{{ _('Email Address') }}" required autofocus autocomplete="username">
+					</div>
+				</div>
+				<div class="page-card-actions">
+					<button class="btn btn-sm btn-primary btn-block btn-login-with-email-link" type="submit">{{ _("Send login link") }}</button>
+					<p class="text-center sign-up-message">
+						<a href="#login">{{ _("Back to Login") }}</a>
+					</p>
+				</div>
+			</form>
+		</div>
+	</section>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>{% include "templates/includes/login/login.js" %}</script>
+{% endblock %}

@@ -3,6 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/assets/butler/website/icons/favicon.png" />
+    <!-- minimal frappe global so the injected csrf_token script below has a target -->
+    <script>
+      window.frappe = window.frappe || {};
+    </script>
+    <!-- csrf_token -->
     <!-- tailwindcss CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <!-- google fonts -->
@@ -276,11 +282,15 @@
         if (logout) {
           logout.addEventListener("click", function (e) {
             e.preventDefault();
-            fetch("/?cmd=logout", {
-              method: "GET",
+            // Frappe's logout endpoint is POST-only and CSRF-protected.
+            fetch("/api/method/logout", {
+              method: "POST",
+              headers: {
+                "X-Frappe-CSRF-Token": (window.frappe && frappe.csrf_token) || "",
+              },
               credentials: "same-origin",
             }).finally(function () {
-              window.location.reload();
+              window.location.href = "/";
             });
           });
         }
