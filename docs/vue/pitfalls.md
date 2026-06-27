@@ -81,3 +81,16 @@ Import `tailwind.output.css` (the compiled file), never the source.
 </style>
 ```
 The unique prefix (`[your-app]-`) prevents conflicts with Frappe's Bootstrap classes.
+
+---
+
+## 6. Sidebar / breadcrumb don't sync on a custom Page
+
+**Symptom:** Opening a custom desk Page leaves the wrong Workspace Sidebar shown
+(or no item highlighted, or no breadcrumb), while DocType routes always sync.
+
+**Root cause:** Frappe's route→sidebar resolver maps DocType routes cleanly but
+not custom Pages (especially Pages with sub-route arguments).
+
+**Fix:** Pin the chrome from the page controller — full steps in
+[page-chrome-sync.md](page-chrome-sync.md).

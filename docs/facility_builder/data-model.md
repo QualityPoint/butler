@@ -6,7 +6,7 @@ The entire layout lives in **one field** — `Butler Quotation.geometry`. Catalo
 
 ## 1. `Butler Quotation.geometry` — Source of Truth
 
-A hidden, read-only, no-copy `Code` field (Options: `JSON`) on the **Butler Quotation** doctype. Holds the entire layout as one JSON string. This is the exact role `format_data` plays in Print Format.
+A hidden, read-only `JSON` field on the **Butler Quotation** doctype. Holds the entire layout as one JSON string. This is the exact role `format_data` plays in Print Format. It is **copyable** (not `no_copy`), so a Duplicate/Amend carries the layout over.
 
 > The builder is launched from a Butler Quotation; the facility is read from `quotation.facility` (used only for blueprint files). One facility can have many quotations, each with its own geometry.
 
@@ -45,7 +45,7 @@ A hidden, read-only, no-copy `Code` field (Options: `JSON`) on the **Butler Quot
 
 ### Shape variants (same field, `shape` discriminator)
 
-A room is one of four shapes. `x, y` is the top-left origin for `rect`/`ellipse`/`polygon`, and the **centre anchor** for `point`.
+A room is one of five shapes. `x, y` is the top-left origin for `rect`/`ellipse`/`polygon`/`line`, and the **centre anchor** for `point`.
 
 ```jsonc
 // polygon — freeform / triangle / pentagon / hexagon / freehand all use this
@@ -57,26 +57,36 @@ A room is one of four shapes. `x, y` is the top-left origin for `rect`/`ellipse`
 { "id":"e7", "amenity":"Fountain", "category":"Outdoor", "shape":"ellipse",
   "rx":60, "ry":50, "x":120, "y":300, "rotation":0, "area":7.5, "remarks":"" }
 
+// line — an OPEN polyline (wall / fence / pipe run); NO area, has a length instead
+{ "id":"l9", "amenity":"Boundary Fence", "category":"Outdoor", "shape":"line",
+  "points":[0,0, 240,0],  // [x0,y0,...] relative to x,y; ≥2 points, not closed
+  "x":80, "y":420, "rotation":0, "area":0, "remarks":"" }
+
 // point — an icon marker; NO area (counts as qty only)
 { "id":"p8", "amenity":"CCTV Camera", "category":"Security", "shape":"point",
   "icon":"camera", "color":"#e24c4c", "size":24, "x":200, "y":140, "rotation":0,
   "area":0, "remarks":"" }
 ```
 
-- **`rect`** — `w, h`; area `w·h`. **`ellipse`** — `rx, ry`; area `π·rx·ry`. **`polygon`** — `points[]`; shoelace area. **`point`** — `icon` (Frappe icon name, nullable → falls back to a category-colored dot), `color`, `size`; **area 0**.
-- The active **shape tool** decides what a dropped amenity becomes; selecting a room + a tool **converts** it (size/position preserved). Triangle/Pentagon/Hexagon are polygon generators; Freehand traces a polygon (RDP-simplified).
+- **`rect`** — `w, h`; area `w·h`. **`ellipse`** — `rx, ry`; area `π·rx·ry`. **`polygon`** — `points[]` (closed); shoelace area. **`line`** — `points[]` (open, ≥2); **area 0**, carries a **length** (Σ segment lengths ÷ ppm) shown in metres. **`point`** — `icon` (Frappe icon name, nullable → falls back to a category-colored dot), `color`, `size`; **area 0**.
+- The active **shape tool** decides what a dropped amenity becomes; selecting a room + a tool **converts** it (size/position preserved). Triangle/Pentagon/Hexagon are polygon generators; Freehand traces a polygon (RDP-simplified). **Line** is drawn as a straight segment by click-drag, then bent into a polyline via the same vertex/midpoint handles as a polygon (no closing edge).
 
 ### Rules
 
 - **Always carry `version`.** It costs nothing and makes future migrations sane (Print Format omitted this and pays for it).
-- The field is `hidden=1`, `read_only=1`, `no_copy=1` — a machine field, never hand-edited; not carried into amendments.
+- The field is `hidden=1`, `read_only=1` — a machine field, never hand-edited. It is **not** `no_copy`, so a Duplicate/Amend keeps the layout (intentional — you can amend a quotation and reuse its layout).
 - An empty/new quotation has `geometry = null` → the builder starts from a blank `floors: []`.
 
 ---
 
 ## 1b. `Butler Quotation.amenities` — Derived Rollup (written on save)
 
-On every save the builder consolidates placements into **distinct `(amenity + floor_type)` rows** of `Butler Quotation Item`: same amenity on the same floor merges into one row with `qty` = placement count; the same amenity on two floors makes two rows. Each row sets `amenity_name`, **`floor_type`** (reqd — the floor the room sits on), `qty`, `rate` = `Amenity.standard_price`, `amount` = `rate × qty`, `amenity_category`, `image`, and the mirrored flags (`is_dependant_amenity`, `has_varied_price` ← `has_changeable_price`, `requires_number_of_floors` ← `depends_on_number_of_floors`). It also writes back `order_type` / `bundle_type`. This table is **regenerated** from geometry each save — don't hand-edit it expecting the builder to preserve it.
+On every save the builder writes the `amenities` table as **one row per placement** — `{amenity, floor_type, qty: 1}` only (the three reqd fields: `amenity`, `floor_type`, `qty`). It does **not** consolidate or price on the client; the **server** does both:
+
+- **Consolidation** — `ButlerQuotation.consolidate_amenities()` (in `before_validate`) merges rows sharing the same **`(amenity, floor_type, additional_amenity)`** key, summing `qty`. Including `additional_amenity` in the key keeps an *included* unit and an *additional* unit of the same amenity+floor on separate rows (a Bundle requirement). Skippable via **Butler Settings → Disable Amenity Consolidation**.
+- **Pricing & flags** — `calculate_totals()` (in `validate`, which runs before Frappe's mandatory-field gate) fills `rate` (from `get_amenity_pricing`, in document currency), `amount`, `amenity_currency`/`exchange_rate`, and the base mirrors. `amenity_category`, `image`, and the flags (`is_dependant_amenity`, `has_changeable_price`, `depends_on_floor_count`) come via `fetch_from` on the Amenity. This is why the client can safely send `qty: 1` rows with no price.
+
+The builder also writes back `order_type` / `bundle_type`. The `amenities` table is **regenerated** from geometry each save — don't hand-edit it expecting the builder to preserve it.
 
 > **Facility mode** doesn't update an existing quotation — its Save **inserts a new draft Butler Quotation** (with this same rollup) and routes to it. See [persistence.md](persistence.md).
 
@@ -95,7 +105,7 @@ On every save the builder consolidates placements into **distinct `(amenity + fl
 ### Palette filters (Order Type / Bundle / Amenity Category)
 
 - **Order Type** (`Amenities` / `Bundle` / `Quotation`) and **Bundle** mirror the quotation's own `order_type` / `bundle_type` — read on open, written back on save.
-- When **Order Type = Bundle**, the available categories are those whose `Amenity Category.bundles` row matches the selected bundle, and each carries a `number_of_amenities` **limit** the builder enforces (blocks dropping past the cap; full categories are dimmed with a "Full" badge).
+- When **Order Type = Bundle**, the available categories are those whose `Amenity Category.bundles` row matches the selected bundle, and each carries a `amenity_count` **limit** the builder enforces (blocks dropping past the cap; full categories are dimmed with a "Full" badge).
 - **Amenity Categories** is a `MultiSelectList` (as in a Frappe report filter) that further narrows the visible amenities. It is ephemeral palette state — not persisted.
 
 ### Blueprint: source vs placement

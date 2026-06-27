@@ -25,6 +25,30 @@ frappe.ui.form.on("Butler Quotation", {
             };
         });
 
+        // Tax template picker → the company's enabled Sales Taxes and Charges Templates.
+        frm.set_query("taxes_and_charges", () => ({
+            filters: { company: frm.doc.company, disabled: 0 },
+        }));
+
+        // Taxes grid (Sales Taxes and Charges): mirror ERPNext accounts.js — filter
+        // account_head to the company's tax/chargeable/expense accounts and cost_center
+        // to the company; rate-vs-tax_amount mandatory follows charge_type.
+        frm.set_query("account_head", "taxes", (doc) => ({
+            query: "erpnext.controllers.queries.tax_account_query",
+            filters: {
+                account_type: ["Tax", "Chargeable", "Expense Account"],
+                company: doc.company,
+            },
+        }));
+        frm.set_query("cost_center", "taxes", (doc) => ({
+            filters: { company: doc.company, is_group: 0 },
+        }));
+        $(frm.wrapper).on("grid-row-render", (e, grid_row) => {
+            if (grid_row.doc && grid_row.doc.doctype === "Sales Taxes and Charges") {
+                set_tax_row_mandatory(grid_row);
+            }
+        });
+
         // Filter the billing Address and Contact to those linked to the selected
         // party, via its Dynamic Links (same endpoints ERPNext uses).
         frm.set_query("customer_address", () =>
@@ -88,9 +112,13 @@ frappe.ui.form.on("Butler Quotation", {
         frm.trigger("set_dynamic_link");
         frm.trigger("set_label");
         frm.trigger("set_dynamic_field_label");
+        frm.trigger("toggle_currency_fields");
 
         if (frm.is_new()) return; // need a saved quotation to attach geometry to
         frm.add_custom_button(__("Open Facility Builder"), () => {
+            // pin the desk sidebar — the builder's <mode>/<name> sub-route can't be
+            // resolved to a Workspace Sidebar by Frappe's route→sidebar matcher
+            frappe.route_options = { sidebar: "Smart Homes" };
             frappe.set_route("facility-builder", "quotation", frm.doc.name);
         });
 
@@ -113,6 +141,23 @@ frappe.ui.form.on("Butler Quotation", {
             );
             frm.page.set_inner_btn_group_as_primary(__("Create"));
         }
+    },
+
+    order_type(frm) {
+        // The Bundle config only applies to a Bundle order. Switching away clears
+        // bundle_type, whose handler in turn empties the breakup + pricing; switching
+        // to it re-syncs everything for whatever bundle is already set.
+        if (frm.doc.order_type !== "Bundle") {
+            frm.set_value("bundle_type", null);
+        } else {
+            frm.trigger("bundle_type");
+        }
+    },
+
+    bundle_type(frm) {
+        populate_bundle_items(frm);
+        set_bundle_pricing(frm);
+        recalculate_quotation(frm);
     },
 
     // frappe.dynamic_link points the address/contact link queries at the party.
@@ -165,6 +210,8 @@ frappe.ui.form.on("Butler Quotation", {
                     () => {
                         frm.updating_party_details = false;
                     },
+                    // party (and its billing address) changed → re-resolve the tax template
+                    () => set_taxes_from_tax_category(frm),
                 ]);
             },
         });
@@ -200,6 +247,45 @@ frappe.ui.form.on("Butler Quotation", {
                 frm.set_value("company_address", r.message || "");
             },
         });
+        frm.trigger("toggle_currency_fields"); // company currency may have changed
+    },
+
+    currency(frm) {
+        // Document currency changed → recalc rebuilds the exchange_rates table; the row
+        // for the new currency carries its (document→company) rate.
+        frm.trigger("toggle_currency_fields");
+        recalculate_quotation(frm);
+    },
+
+    toggle_currency_fields(frm) {
+        // Mirror ERPNext (transaction.js change_form_labels / toggle_item_grid_columns),
+        // generalised: company-currency (base_*) fields show only when SOME currency in
+        // play differs from the company's (quotation, bundle, or any amenity) — when all
+        // are equal there's nothing to convert, so they stay hidden. net_total /
+        // additional_net_total show only when a document discount applies; the
+        // exchange_rates table shows whenever it has rows.
+        if (!frm.doc.company) return;
+        get_company_currency(frm).then((company_currency) => {
+            const multi = is_multi_currency(frm, company_currency);
+            const has_discount = !!(frm.doc.discount_mode && flt(frm.doc.discount_amount));
+
+            frm.toggle_display(BASE_CURRENCY_HEADER_FIELDS, multi);
+            frm.toggle_display("exchange_rates", (frm.doc.exchange_rates || []).length > 0);
+            frm.toggle_display(NET_TOTAL_FIELDS, has_discount);
+            frm.toggle_display(BASE_NET_TOTAL_FIELDS, has_discount && multi);
+
+            for (const [table, fields] of Object.entries(BASE_CURRENCY_GRID_FIELDS)) {
+                const grid = frm.fields_dict[table] && frm.fields_dict[table].grid;
+                if (!grid) continue;
+                fields.forEach((f) => {
+                    if (frappe.meta.get_docfield(grid.doctype, f)) {
+                        grid.set_column_disp(f, multi);
+                    }
+                });
+            }
+
+            set_currency_field_labels(frm, company_currency);
+        });
     },
 
     company_address(frm) {
@@ -208,6 +294,33 @@ frappe.ui.form.on("Butler Quotation", {
             "company_address",
             "company_address_display"
         );
+    },
+
+    discount_mode(frm) {
+        frm.trigger("toggle_currency_fields"); // net_total visibility depends on a discount
+        recalculate_quotation(frm);
+    },
+
+    discount_amount(frm) {
+        frm.trigger("toggle_currency_fields");
+        recalculate_quotation(frm);
+    },
+
+    apply_discount_on(frm) {
+        frm.trigger("toggle_currency_fields");
+        recalculate_quotation(frm);
+    },
+
+    bundle_price(frm) {
+        recalculate_quotation(frm);
+    },
+
+    tax_category(frm) {
+        set_taxes_from_tax_category(frm);
+    },
+
+    taxes_and_charges(frm) {
+        populate_taxes_from_template(frm);
     },
 
     facility(frm) {
@@ -225,6 +338,22 @@ frappe.ui.form.on("Butler Quotation", {
                 frm.set_value("facility_address", r.message || "");
             },
         });
+
+        // Default the party from the facility's links (Customer wins over Lead) when the
+        // quotation has none yet — mirrors the server's set_party_from_facility. Setting
+        // quotation_to then party_name lets the party_name trigger fill address/contact.
+        if (!frm.doc.party_name) {
+            frappe.call({
+                method: "butler.butler.doctype.butler_quotation.butler_quotation.get_facility_party_details",
+                args: { facility: frm.doc.facility },
+                callback(r) {
+                    if (r.message && r.message.party_name) {
+                        frm.set_value("quotation_to", r.message.quotation_to);
+                        frm.set_value("party_name", r.message.party_name);
+                    }
+                },
+            });
+        }
     },
 
     set_label(frm) {
@@ -241,6 +370,340 @@ frappe.ui.form.on("Butler Quotation", {
         frm.set_df_property("party_name", "label", label);
     },
 });
+
+// Fill the read-only Bundle Items breakup from the selected Bundle's per-category
+// amenity allowance — the same server source of truth the Facility Builder uses.
+// Instant on-form feedback; the server re-derives it authoritatively on save.
+function populate_bundle_items(frm) {
+    frm.clear_table("bundle_items");
+    if (frm.doc.order_type !== "Bundle" || !frm.doc.bundle_type) {
+        frm.refresh_field("bundle_items");
+        return;
+    }
+    frappe
+        .xcall("butler.butler.doctype.butler_bundle.butler_bundle.get_bundle_breakdown", {
+            bundle: frm.doc.bundle_type,
+        })
+        .then((rows) => {
+            (rows || []).forEach((r) => {
+                const row = frm.add_child("bundle_items");
+                row.amenity_category = r.amenity_category;
+                row.amenity_count = r.amenity_count;
+            });
+            frm.refresh_field("bundle_items");
+        });
+}
+
+// Seed the bundle pricing fields from the selected Bundle for instant feedback. On save
+// the server converts default_bundle_price/bundle_price into the document currency (using
+// the bundle currency's row in the exchange_rates table) and reseeds bundle_price for the
+// changed bundle. Quotation-only.
+function set_bundle_pricing(frm) {
+    if (frm.doc.order_type !== "Bundle" || !frm.doc.bundle_type) {
+        frm.set_value({ bundle_price: 0, default_bundle_price: 0, bundle_currency: null });
+        return;
+    }
+    frappe.db
+        .get_value("Butler Bundle", frm.doc.bundle_type, ["bundle_price", "currency"])
+        .then((r) => {
+            const v = r.message || {};
+            frm.set_value({
+                bundle_price: v.bundle_price || 0,
+                default_bundle_price: v.bundle_price || 0,
+                bundle_currency: v.currency || null,
+            });
+        });
+}
+
+// Company-currency (base_*) fields + the read-only rate mirrors, shown only in
+// multi-currency. The editable source is the exchange_rates table, not these fields.
+const BASE_CURRENCY_HEADER_FIELDS = [
+    "base_total",
+    "base_total_taxes_and_charges",
+    "base_grand_total",
+    "base_rounded_total",
+    "base_rounding_adjustment",
+    "base_discount_amount",
+    "base_in_words",
+    "base_bundle_price",
+    "base_default_bundle_price",
+    "base_additional_total",
+];
+// net_total / additional_net_total (and their base_* twins) are only meaningful when a
+// document discount applies — otherwise they equal total / additional_total. Mirrors
+// ERPNext's change_form_labels, which hides net_total unless there's a discount.
+const NET_TOTAL_FIELDS = ["net_total", "additional_net_total"];
+const BASE_NET_TOTAL_FIELDS = ["base_net_total", "base_additional_net_total"];
+const BASE_CURRENCY_GRID_FIELDS = {
+    amenities: [
+        "exchange_rate",
+        "base_amenity_price",
+        "base_rate",
+        "base_net_rate",
+        "base_amount",
+        "base_net_amount",
+    ],
+    taxes: ["base_tax_amount", "base_total", "base_tax_amount_after_discount_amount"],
+};
+
+// Render the real currency code into Currency-field labels (ERPNext parity —
+// transaction.js change_form_labels): fields with options "currency" → the document
+// currency (e.g. "Total (USD)"); fields with options "Company:company:default_currency"
+// → the company currency (e.g. "Total (SAR)", replacing the literal "(Company Currency)").
+// Covers the header and the amenities / taxes child grids.
+function set_currency_field_labels(frm, company_currency) {
+    const options_map = {
+        currency: frm.doc.currency,
+        "Company:company:default_currency": company_currency,
+    };
+    for (const parentfield of [null, "amenities", "taxes"]) {
+        const grid = parentfield && frm.fields_dict[parentfield] && frm.fields_dict[parentfield].grid;
+        const doctype = parentfield ? grid && grid.doctype : frm.doctype;
+        if (!doctype) continue;
+        for (const [options, code] of Object.entries(options_map)) {
+            if (!code) continue;
+            const fields = frappe.meta
+                .get_docfields(doctype)
+                .filter((df) => df.fieldtype === "Currency" && df.options === options)
+                .map((df) => df.fieldname);
+            frm.set_currency_labels(fields, code, parentfield);
+        }
+    }
+
+    // exchange_rates table: name the rate column with the actual company currency, so
+    // each row reads "<currency> → Rate to <SAR>" (the rate is to the company currency).
+    const ex_grid = frm.fields_dict.exchange_rates && frm.fields_dict.exchange_rates.grid;
+    if (ex_grid && company_currency) {
+        ex_grid.update_docfield_property(
+            "conversion_rate", "label", __("Rate to {0}", [company_currency]));
+        ex_grid.refresh();
+    }
+}
+
+// True when ANY currency in play (the quotation, the bundle, or any amenity) differs
+// from the company currency — i.e. some conversion is actually happening. When every
+// currency equals the company's, there's nothing to convert, so the company-currency
+// (base_*) fields stay hidden. (Document-level, not row-wise — one cheap pass.)
+function is_multi_currency(frm, company_currency) {
+    if (!company_currency) return false;
+    const differs = (c) => !!c && c !== company_currency;
+    if (differs(frm.doc.currency)) return true;
+    if (frm.doc.order_type === "Bundle" && differs(frm.doc.bundle_currency)) return true;
+    return (frm.doc.amenities || []).some((row) => differs(row.amenity_currency));
+}
+
+// Company default currency, cached on the form (mirrors erpnext.get_currency).
+function get_company_currency(frm) {
+    if (frm.__company_currency && frm.__company_currency_for === frm.doc.company) {
+        return Promise.resolve(frm.__company_currency);
+    }
+    return frappe.db.get_value("Company", frm.doc.company, "default_currency").then((r) => {
+        frm.__company_currency = (r.message || {}).default_currency;
+        frm.__company_currency_for = frm.doc.company;
+        return frm.__company_currency;
+    });
+}
+
+// Live (no-save) recompute: runs ButlerQuotation.recalculate on the in-memory doc and
+// syncs the amounts/totals back to the form, so editing a rate/qty/tax/discount updates
+// the totals immediately (Butler has no JS calc mirror — the server is authoritative).
+// Debounced so a burst of grid edits collapses to one call; guarded to the Butler
+// Quotation form because the Sales Taxes and Charges child doctype is shared.
+function recalculate_quotation(frm) {
+    if (!frm || frm.doctype !== "Butler Quotation") return;
+    clearTimeout(frm.__recalc_timer);
+    frm.__recalc_timer = setTimeout(() => {
+        frappe.call({
+            doc: frm.doc,
+            method: "recalculate",
+            callback: () => {
+                frm.refresh_fields();
+                // the recalc may have just populated exchange_rates / changed the
+                // discount → re-run the show/hide logic so the table (and net_total,
+                // base_* fields) appears without waiting for a save.
+                frm.trigger("toggle_currency_fields");
+            },
+        });
+    }, 300);
+}
+
+// --- Amenity lines — recompute amount/totals on any pricing input change. ------------
+frappe.ui.form.on("Butler Quotation Item", {
+    amenity(frm, cdt, cdn) {
+        // amenity (and its currency) changed → clear the stale per-line rate; the server
+        // re-fetches amenity_currency→company on recalc.
+        frappe.model.set_value(cdt, cdn, "exchange_rate", null);
+        recalculate_quotation(frm);
+    },
+    rate: (frm) => recalculate_quotation(frm),
+    qty: (frm) => recalculate_quotation(frm),
+    floor_type: (frm) => recalculate_quotation(frm),
+    additional_amenity: (frm) => recalculate_quotation(frm),
+    exchange_rate: (frm) => recalculate_quotation(frm),
+    amenities_remove: (frm) => recalculate_quotation(frm),
+    form_render(frm, cdt, cdn) {
+        // ERPNext's set_column_disp hides only the collapsed grid COLUMNS — the expanded
+        // row form reads a per-row CACHED docfield copy (frappe.meta.get_docfield_copy)
+        // that the toggle can't reach. So hide the company-currency (base_*) + exchange
+        // fields directly on the open row form when there's no conversion in play. Fires
+        // only when a row is opened — no per-row scan cost.
+        get_company_currency(frm).then((company_currency) => {
+            const show = is_multi_currency(frm, company_currency);
+            const grid_row = frm.fields_dict.amenities.grid.grid_rows_by_docname[cdn];
+            const detail = grid_row && grid_row.grid_form;
+            if (!detail) return;
+            BASE_CURRENCY_GRID_FIELDS.amenities.forEach((f) => {
+                const field = detail.fields_dict[f];
+                if (!field) return;
+                field.df.hidden = show ? 0 : 1;
+                field.refresh();
+                if (field.$wrapper) field.$wrapper.toggle(!!show); // belt-and-suspenders
+            });
+        });
+    },
+});
+
+// Editing a currency's rate in the exchange_rates table (Currency Exchange Rate) re-prices
+// everything in that currency (it's the single editable source for all conversion rates).
+frappe.ui.form.on("Currency Exchange Rate", {
+    conversion_rate: (frm) => recalculate_quotation(frm),
+    form_render(frm, cdt, cdn) {
+        // Per-row hint on the rate field, ERPNext-style: "1 EUR = [?] SAR" using this
+        // row's currency and the company currency.
+        const row = locals[cdt][cdn];
+        get_company_currency(frm).then((company_currency) => {
+            const grid_row = frm.fields_dict.exchange_rates.grid.grid_rows_by_docname[cdn];
+            const field = grid_row && grid_row.grid_form && grid_row.grid_form.fields_dict.conversion_rate;
+            if (field && row.currency && company_currency) {
+                field.set_description(__("1 {0} = [?] {1}", [row.currency, company_currency]));
+            }
+        });
+    },
+});
+
+// --- Taxes grid (Sales Taxes and Charges) — mirror of erpnext/public/js/controllers/
+// accounts.js, scoped to the Butler Quotation form. ----------------------------------
+frappe.ui.form.on("Sales Taxes and Charges", {
+    account_head(frm, cdt, cdn) {
+        const d = locals[cdt][cdn];
+        if (d.docstatus == 1) return;
+        if (!d.charge_type && d.account_head) {
+            frappe.msgprint(__("Please select Charge Type first"));
+            frappe.model.set_value(cdt, cdn, "account_head", "");
+        } else if (d.account_head) {
+            frappe.call({
+                method: "erpnext.controllers.accounts_controller.get_tax_rate",
+                args: { account_head: d.account_head },
+                callback(r) {
+                    if (!r.message) return;
+                    if (d.charge_type !== "Actual") {
+                        frappe.model.set_value(cdt, cdn, "rate", r.message.tax_rate || 0);
+                    }
+                    frappe.model.set_value(cdt, cdn, "description", r.message.account_name);
+                },
+            });
+        }
+    },
+    charge_type(frm, cdt, cdn) {
+        validate_tax_row(cdt, cdn);
+        const grid_row = frm.fields_dict.taxes.grid.get_row(cdn);
+        if (grid_row) set_tax_row_mandatory(grid_row);
+        recalculate_quotation(frm);
+    },
+    rate(frm, cdt, cdn) {
+        validate_tax_row(cdt, cdn);
+        recalculate_quotation(frm);
+    },
+    tax_amount(frm, cdt, cdn) {
+        validate_tax_row(cdt, cdn);
+        recalculate_quotation(frm);
+    },
+    row_id(frm, cdt, cdn) {
+        validate_tax_row(cdt, cdn);
+        recalculate_quotation(frm);
+    },
+    taxes_remove(frm) {
+        recalculate_quotation(frm);
+    },
+});
+
+// rate is mandatory/editable for rate-based charge types; tax_amount for "Actual".
+function set_tax_row_mandatory(grid_row) {
+    const actual = grid_row.doc.charge_type === "Actual";
+    grid_row.toggle_editable("tax_amount", actual);
+    grid_row.toggle_reqd("tax_amount", actual);
+    grid_row.toggle_editable("rate", !actual);
+    grid_row.toggle_reqd("rate", !actual);
+}
+
+// Mirror of erpnext.accounts.taxes.validate_taxes_and_charges (charge_type ↔ row_id).
+function validate_tax_row(cdt, cdn) {
+    const d = locals[cdt][cdn];
+    let msg = "";
+    if (d.account_head && !d.description) {
+        d.description = d.account_head.split(" - ").slice(0, -1).join(" - ");
+    }
+    if (!d.charge_type && (d.row_id || d.rate || d.tax_amount)) {
+        msg = __("Please select Charge Type first");
+        d.row_id = "";
+        d.rate = d.tax_amount = 0.0;
+    } else if (["Actual", "On Net Total", "On Paid Amount"].includes(d.charge_type) && d.row_id) {
+        msg = __("Can refer row only if the charge type is 'On Previous Row Amount' or 'Previous Row Total'");
+        d.row_id = "";
+    } else if (["On Previous Row Amount", "On Previous Row Total"].includes(d.charge_type) && d.row_id) {
+        if (d.idx == 1) {
+            msg = __("Cannot select charge type as 'On Previous Row Amount' or 'On Previous Row Total' for first row");
+            d.charge_type = "";
+        } else if (d.row_id >= d.idx) {
+            msg = __("Cannot refer row number greater than or equal to current row number for this Charge type");
+            d.row_id = "";
+        }
+    }
+    if (msg) {
+        frappe.validated = false;
+        refresh_field("taxes");
+        frappe.throw(msg);
+    }
+}
+
+// Resolve the Sales Taxes and Charges Template from tax_category (+ party, address,
+// company, date) via Tax Rule — ERPNext's erpnext.accounts.party.set_taxes. Setting
+// taxes_and_charges then populates the taxes table (see taxes_and_charges handler).
+function set_taxes_from_tax_category(frm) {
+    if (frm.updating_party_details) return;
+    if (!frm.doc.company || !frm.doc.quotation_to || !frm.doc.party_name || !frm.doc.transaction_date) {
+        return;
+    }
+    frappe.call({
+        method: "erpnext.accounts.party.set_taxes",
+        args: {
+            party: frm.doc.party_name,
+            party_type: frm.doc.quotation_to,
+            posting_date: frm.doc.transaction_date,
+            company: frm.doc.company,
+            tax_category: frm.doc.tax_category,
+            billing_address: frm.doc.customer_address,
+        },
+        callback(r) {
+            frm.set_value("taxes_and_charges", r.message || null);
+        },
+    });
+}
+
+// Copy the chosen template's rows into the taxes table (ERPNext get_taxes_and_charges).
+function populate_taxes_from_template(frm) {
+    if (!frm.doc.taxes_and_charges) return;
+    frm.call({
+        method: "erpnext.controllers.accounts_controller.get_taxes_and_charges",
+        args: {
+            master_doctype: frm.fields_dict.taxes_and_charges.df.options,
+            master_name: frm.doc.taxes_and_charges,
+        },
+        callback(r) {
+            if (!r.exc) frm.set_value("taxes", r.message || []);
+        },
+    });
+}
 
 // Build a link query filtered by the currently selected party (Dynamic Link),
 // nudging the user to pick a party first — the same UX as ERPNext's queries.js.

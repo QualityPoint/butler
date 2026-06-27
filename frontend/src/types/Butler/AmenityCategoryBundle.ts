@@ -1,5 +1,5 @@
 
-export interface AmenityCategoryBundle{
+export interface AmenityCategoryBundle {
 	name: string
 	creation: string
 	modified: string
@@ -13,5 +13,5 @@ export interface AmenityCategoryBundle{
 	/**	Bundle Name : Link - Butler Bundle	*/
 	bundle_name: string
 	/**	Number of Amenities : Int	*/
-	number_of_amenities: number
+	amenity_count: number
 }

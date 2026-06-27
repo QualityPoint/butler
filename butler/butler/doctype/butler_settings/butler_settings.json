@@ -1,17 +1,23 @@
 {
  "actions": [],
+ "allow_bulk_edit": 1,
  "allow_rename": 1,
  "creation": "2026-02-03 17:47:00.845488",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "quotation_section",
   "disable_amenity_consolidation",
   "column_break_aufy",
   "maintain_standard_price_action",
-  "role_to_override_stop_action",
-  "quotation_section",
+  "role_to_override_standard_price_stop_action",
+  "section_break_eqov",
   "default_valid_till",
-  "column_break_fjcs"
+  "column_break_fofu",
+  "bundle_section",
+  "action_if_bundle_items_unfulfilled",
+  "role_to_override_unfulfilled_stop_action",
+  "column_break_tync"
  ],
  "fields": [
   {
@@ -29,15 +35,8 @@
    "default": "Stop",
    "fieldname": "maintain_standard_price_action",
    "fieldtype": "Select",
-   "label": "Action if amenity standard price is not maintained",
-   "options": "Ignore\nWarn\nStop"
-  },
-  {
-   "depends_on": "eval:doc.maintain_standard_price_action==\"Stop\"",
-   "fieldname": "role_to_override_stop_action",
-   "fieldtype": "Link",
-   "label": " Role allowed to override stop action ",
-   "options": "Role"
+   "label": "Action if Amenity standard price is not maintained",
+   "options": "Stop\nWarn"
   },
   {
    "fieldname": "quotation_section",
@@ -51,15 +50,50 @@
    "non_negative": 1
   },
   {
-   "fieldname": "column_break_fjcs",
+   "fieldname": "section_break_eqov",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "column_break_fofu",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "bundle_section",
+   "fieldtype": "Section Break",
+   "label": "Bundle"
+  },
+  {
+   "default": "Stop",
+   "description": "Select the system action if the bundle item count in the quotation is lower than its required quantity.",
+   "fieldname": "action_if_bundle_items_unfulfilled",
+   "fieldtype": "Select",
+   "label": "Action if Bundle Items Unfulfilled",
+   "options": "Stop\nWarn"
+  },
+  {
+   "fieldname": "column_break_tync",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.action_if_bundle_items_unfulfilled==\"Stop\"",
+   "fieldname": "role_to_override_unfulfilled_stop_action",
+   "fieldtype": "Link",
+   "label": " Role allowed to override stop action ",
+   "options": "Role"
+  },
+  {
+   "depends_on": "eval:doc.maintain_standard_price_action==\"Stop\"",
+   "fieldname": "role_to_override_standard_price_stop_action",
+   "fieldtype": "Link",
+   "label": " Role allowed to override stop action ",
+   "options": "Role"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-06-18 16:09:15.193967",
+ "modified": "2026-06-23 12:24:20.205308",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Butler Settings",

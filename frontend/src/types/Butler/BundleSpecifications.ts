@@ -1,5 +1,5 @@
 
-export interface BundleSpecifications{
+export interface BundleSpecifications {
 	name: string
 	creation: string
 	modified: string
@@ -13,5 +13,5 @@ export interface BundleSpecifications{
 	/**	Amenity Category : Link - Amenity Category	*/
 	amenity_category?: string
 	/**	Number of Amenities : Int	*/
-	number_of_amenities?: number
+	amenity_count?: number
 }

@@ -44,8 +44,8 @@
 
 		<v-text :config="labelConfig" :listening="false" />
 
-		<!-- edge midpoint "add" handles (selected polygon only; not while drawing it) -->
-		<template v-if="room.shape === 'polygon' && isSelected && !isPenRoom">
+		<!-- edge midpoint "add" handles (selected polygon/line only; not while drawing it) -->
+		<template v-if="isPath && isSelected && !isPenRoom">
 			<v-circle
 				v-for="m in midpointList"
 				:key="'mid-' + m.index"
@@ -55,8 +55,8 @@
 			/>
 		</template>
 
-		<!-- corner vertex handles (selected polygon only; not while drawing it) -->
-		<template v-if="room.shape === 'polygon' && isSelected && !isPenRoom">
+		<!-- corner vertex handles (selected polygon/line only; not while drawing it) -->
+		<template v-if="isPath && isSelected && !isPenRoom">
 			<v-circle
 				v-for="v in vertexList"
 				:key="v.index"
@@ -72,7 +72,7 @@
 <script setup>
 import { inject, computed, ref, watchEffect } from "vue";
 import { resolveColor } from "../colors";
-import { room_bbox, dist_to_segment } from "../utils";
+import { room_bbox, room_length_m, dist_to_segment } from "../utils";
 import { load_icon_image } from "../icons";
 
 const props = defineProps(["room"]);
@@ -80,6 +80,9 @@ const store = inject("$store");
 
 const isSelected = computed(() => store.is_selected(props.room.id));
 const isPenRoom = computed(() => store.pen_room_id.value === props.room.id); // being drawn
+// point-list shapes that carry editable vertex/midpoint handles (closed polygon or open line)
+const isPath = computed(() => props.room.shape === "polygon" || props.room.shape === "line");
+const isLine = computed(() => props.room.shape === "line");
 const fillColor = computed(() =>
 	resolveColor(props.room.category, store.category_colors.value)
 );
@@ -119,12 +122,17 @@ const ellipseConfig = computed(() => ({
 	strokeWidth: strokeWidth.value,
 }));
 
+// shared by the closed polygon and the open line (the v-else branch)
 const lineConfig = computed(() => ({
 	points: props.room.points || [],
-	closed: true,
-	fill: fillColor.value,
-	stroke: strokeColor.value,
-	strokeWidth: strokeWidth.value,
+	closed: !isLine.value, // polygon closes the path; a line stays open
+	// an open line has no fill; it's drawn as a thicker, category-coloured stroke
+	fill: isLine.value ? undefined : fillColor.value,
+	stroke: isLine.value ? (isSelected.value ? "#2490ef" : fillColor.value) : strokeColor.value,
+	strokeWidth: isLine.value ? (isSelected.value ? 4 : 3) : strokeWidth.value,
+	hitStrokeWidth: isLine.value ? 12 : undefined, // easier to click a thin line
+	lineCap: "round",
+	lineJoin: "round",
 }));
 
 // --- point marker ---
@@ -180,6 +188,20 @@ const labelConfig = computed(() => {
 			fill: "#1f272e",
 		};
 	}
+	if (props.room.shape === "line") {
+		// a line shows its length (not area), centred above the segment
+		const lb = room_bbox(props.room);
+		const len = room_length_m(props.room, store.ppm.value);
+		return {
+			x: lb.x + lb.w / 2 - 40,
+			y: lb.y - 18,
+			width: 80,
+			text: `${__(props.room.amenity)} · ${len.toFixed(1)} m`,
+			align: "center",
+			fontSize: 12,
+			fill: "#1f272e",
+		};
+	}
 	const b = room_bbox(props.room);
 	return {
 		x: b.x,
@@ -221,8 +243,10 @@ function vertexConfig(v) {
 const midpointList = computed(() => {
 	const pts = props.room.points || [];
 	const n = pts.length;
+	// an open line has no closing edge → stop one vertex short
+	const limit = isLine.value ? n - 2 : n;
 	const out = [];
-	for (let i = 0; i < n; i += 2) {
+	for (let i = 0; i < limit; i += 2) {
 		const ax = pts[i], ay = pts[i + 1];
 		const bx = pts[(i + 2) % n], by = pts[(i + 3) % n];
 		out.push({ index: i / 2, x: (ax + bx) / 2, y: (ay + by) / 2 });
@@ -347,9 +371,11 @@ function onAddVertex(e) {
 	const group = e.target.getParent();
 	const p = group.getRelativePointerPosition();
 	const pts = props.room.points;
+	// an open line has no closing edge → don't consider the wrap-around segment
+	const limit = isLine.value ? pts.length - 2 : pts.length;
 	let bestStart = 0;
 	let bestDist = Infinity;
-	for (let i = 0; i < pts.length; i += 2) {
+	for (let i = 0; i < limit; i += 2) {
 		const ax = pts[i], ay = pts[i + 1];
 		const bx = pts[(i + 2) % pts.length], by = pts[(i + 3) % pts.length];
 		const d = dist_to_segment(p.x, p.y, ax, ay, bx, by);
@@ -365,7 +391,8 @@ function onAddVertex(e) {
 
 function onDeleteVertex(index) {
 	const pts = props.room.points;
-	if (pts.length / 2 <= 3) return; // keep at least a triangle
+	const min = isLine.value ? 2 : 3; // a line needs ≥2 points, a polygon ≥3
+	if (pts.length / 2 <= min) return;
 	const np = pts.slice();
 	np.splice(index * 2, 2);
 	store.update_room(props.room.id, { points: np });

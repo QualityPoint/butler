@@ -75,7 +75,7 @@ export function getStore(mode, target_name) {       // mode: "facility" | "quota
     let design    = ref(null);    // parsed geometry envelope { version, scale, canvas, floors }
     let amenities  = ref([]);     // Amenity catalog (palette)
     let categories = ref([]);     // Amenity Category catalog (filters + colors)
-    let bundle_limits = ref({});  // { category → number_of_amenities } for the active bundle
+    let bundle_limits = ref({});  // { category → amenity_count } for the active bundle
     let order_type = ref("Amenities");
     let bundle_type = ref(null);
     let selected_categories = ref([]);   // MultiSelectList filter (ephemeral)

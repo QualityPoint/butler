@@ -22,8 +22,22 @@ frappe.pages["facility-builder"].on_page_show = function (wrapper) {
 		label: __("Facility Builder"),
 		route: "facility-builder",
 	});
+	pin_sidebar();
 	load_facility_builder(wrapper);
 };
+
+// Keep the desk Workspace Sidebar in sync. Frappe resolves the active sidebar
+// reliably for DocType routes but not for this Page: the `<mode>/<name>` sub-route
+// makes its route→sidebar matcher read the mode ("quotation"/"facility") as the
+// entity, and the page's module ("Butler") doesn't equal the sidebar title
+// ("Smart Homes") so the module fallback misses too. So pin it explicitly here
+// (covers reload / deep-link, where the launch buttons' route_options didn't run).
+function pin_sidebar() {
+	const sb = frappe.app?.sidebar;
+	if (!sb) return;
+	if (sb.sidebar_title !== "Smart Homes") sb.setup("Smart Homes");
+	sb.set_active_workspace_item();
+}
 
 frappe.pages["facility-builder"].on_page_hide = function () {
 	frappe.facility_builder?.destroy?.();

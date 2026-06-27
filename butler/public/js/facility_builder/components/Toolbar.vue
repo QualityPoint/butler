@@ -30,6 +30,7 @@
 					<select
 						class="fb-input"
 						:value="store.active_blueprint_page.value"
+						:disabled="store.read_only.value"
 						@change="store.set_blueprint_page($event.target.value)"
 					>
 						<option v-for="n in store.blueprint_page_count.value" :key="n" :value="n">{{ n }}</option>
@@ -153,7 +154,9 @@
 			<template v-if="room">
 				<div class="fb-toolbar-group">
 					<span class="fb-room-label">
-						{{ __(room.amenity) }}<template v-if="room.shape !== 'point'"> · {{ room.area.toFixed(1) }} m²</template>
+						{{ __(room.amenity)
+						}}<template v-if="room.shape === 'line'"> · {{ lineLength.toFixed(1) }} m</template
+						><template v-else-if="room.shape !== 'point'"> · {{ room.area.toFixed(1) }} m²</template>
 					</span>
 				</div>
 				<button class="btn btn-xs btn-danger" :disabled="store.read_only.value" @click="store.delete_room(room.id)">
@@ -172,9 +175,12 @@
 
 <script setup>
 import { inject, computed, ref, watch, nextTick, onBeforeUnmount } from "vue";
+import { room_length_m } from "../utils";
 
 const store = inject("$store");
 const room = computed(() => store.selected_room.value);
+// length (metres) of the selected line, for the toolbar readout
+const lineLength = computed(() => (room.value ? room_length_m(room.value, store.ppm.value) : 0));
 const isDrawing = computed(() => store.active_layer.value === "drawing");
 // the point controls edit the selected point if there is one, else the tool's defaults
 const pointRoom = computed(() => (room.value?.shape === "point" ? room.value : null));
@@ -225,6 +231,7 @@ const tools = [
 		label: __("Select"),
 		svg: `<svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M5 3 L5 19 L9 15 L11.5 20 L13.5 19 L11 14 L16 14 Z"/></svg>`,
 	},
+	{ key: "line", label: __("Line"), svg: SVG(`<line x1="4" y1="20" x2="20" y2="4"/>`) },
 	{ key: "rect", label: __("Rectangle"), svg: SVG(`<rect x="4" y="6" width="16" height="12"/>`) },
 	{ key: "ellipse", label: __("Ellipse"), svg: SVG(`<ellipse cx="12" cy="12" rx="9" ry="6"/>`) },
 	{ key: "triangle", label: __("Triangle"), svg: SVG(`<polygon points="12,4 21,20 3,20"/>`) },

@@ -42,10 +42,21 @@ export function ellipse_area_m2(rx, ry, ppm) {
 
 // Area for any room shape, in m².
 export function room_area_m2(room, ppm) {
-	if (room.shape === "point") return 0; // markers have no area
+	if (room.shape === "point" || room.shape === "line") return 0; // markers / open lines have no area
 	if (room.shape === "ellipse") return ellipse_area_m2(room.rx, room.ry, ppm);
 	if (room.shape === "polygon") return polygon_area_m2(room.points || [], ppm);
 	return rect_area_m2(room.w, room.h, ppm);
+}
+
+// Total length in metres of an open line (sum of its segments); 0 for other shapes.
+export function room_length_m(room, ppm) {
+	if (room.shape !== "line") return 0;
+	const pts = room.points || [];
+	let px = 0;
+	for (let i = 2; i < pts.length; i += 2) {
+		px += Math.hypot(pts[i] - pts[i - 2], pts[i + 1] - pts[i - 1]);
+	}
+	return px / ppm;
 }
 
 // Corner points (relative to the room origin) for a rectangle → polygon conversion.
@@ -55,7 +66,7 @@ export function rect_to_polygon_points(w, h) {
 
 // Local-space bounding box of a room: { x, y, w, h } relative to the room origin.
 export function room_bbox(room) {
-	if (room.shape === "polygon") {
+	if (room.shape === "polygon" || room.shape === "line") {
 		const pts = room.points || [];
 		let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 		for (let i = 0; i < pts.length; i += 2) {
@@ -77,11 +88,39 @@ export function room_bbox(room) {
 	return { x: 0, y: 0, w: room.w, h: room.h };
 }
 
+// World-space axis-aligned bounding box of a room, accounting for its rotation.
+// room_bbox gives the UNROTATED local box; here we rotate its corners about the
+// room origin (Konva rotates the group around its x,y) and take the extent — so
+// marquee-select and object-snap are correct for rotated shapes too.
+export function room_world_aabb(room) {
+	const b = room_bbox(room); // local, relative to the origin
+	const rot = ((room.rotation || 0) * Math.PI) / 180;
+	if (!rot) return { x: room.x + b.x, y: room.y + b.y, w: b.w, h: b.h };
+	const cos = Math.cos(rot);
+	const sin = Math.sin(rot);
+	const corners = [
+		[b.x, b.y],
+		[b.x + b.w, b.y],
+		[b.x + b.w, b.y + b.h],
+		[b.x, b.y + b.h],
+	];
+	let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+	for (const [lx, ly] of corners) {
+		const wx = room.x + lx * cos - ly * sin;
+		const wy = room.y + lx * sin + ly * cos;
+		minX = Math.min(minX, wx);
+		maxX = Math.max(maxX, wx);
+		minY = Math.min(minY, wy);
+		maxY = Math.max(maxY, wy);
+	}
+	return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+}
+
 // Width/height extent of any shape (used when converting between shapes).
 export function shape_extent(room) {
 	if (room.shape === "ellipse") return { w: 2 * room.rx, h: 2 * room.ry };
 	if (room.shape === "point") return { w: room.size || 24, h: room.size || 24 };
-	if (room.shape === "polygon") {
+	if (room.shape === "polygon" || room.shape === "line") {
 		const b = room_bbox(room);
 		return { w: b.w, h: b.h };
 	}

@@ -69,6 +69,10 @@ frappe.pages['[your-page]'].on_page_unload = function () {
 };
 ```
 
+> **Page chrome is the controller's job too.** Frappe doesn't reliably sync the
+> Workspace Sidebar + breadcrumb for a custom Page — re-assert them from this
+> controller's `on_page_show`. See [page-chrome-sync.md](page-chrome-sync.md).
+
 ---
 
 ## Step 2 — Vue Lifecycle Manager

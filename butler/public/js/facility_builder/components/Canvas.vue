@@ -200,20 +200,25 @@ function onBlueprintChange(e) {
 	});
 }
 
-function fit_blueprint() {
+// `silent` (auto-fit on load) places the blueprint without marking the doc dirty;
+// the Toolbar "Fit" button calls it non-silently since that IS a user edit.
+function fit_blueprint(silent = false) {
 	if (!blueprintImage.value) return;
 	const { width: w, height: h } = blueprintImage.value;
 	const wW = design.value.canvas.width;
 	const wH = design.value.canvas.height;
 	const s = Math.min(wW / w, wH / h);
-	store.set_blueprint_transform({
-		x: (wW - w * s) / 2,
-		y: (wH - h * s) / 2,
-		scaleX: s,
-		scaleY: s,
-		rotation: 0,
-		opacity: store.active_blueprint.value?.opacity ?? 0.6,
-	});
+	store.set_blueprint_transform(
+		{
+			x: (wW - w * s) / 2,
+			y: (wH - h * s) / 2,
+			scaleX: s,
+			scaleY: s,
+			rotation: 0,
+			opacity: store.active_blueprint.value?.opacity ?? 0.6,
+		},
+		{ silent }
+	);
 }
 
 let loadedPage = 1;
@@ -230,7 +235,7 @@ async function loadBlueprint(doFit) {
 		blueprintImage.value = res;
 		loadedPage = page;
 		store.blueprint_page_count.value = res.pageCount || 1;
-		if (doFit && !store.active_blueprint.value) fit_blueprint();
+		if (doFit && !store.active_blueprint.value) fit_blueprint(true); // auto-fit: don't mark dirty
 	} catch (err) {
 		frappe.show_alert({ message: err.message, indicator: "orange" });
 	}

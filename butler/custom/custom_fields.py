@@ -6,6 +6,30 @@ from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 def custom_fields():
     """Butler specific custom fields that need to be added to the system."""
     return {
+        "Quotation Item": [
+            {
+                "fieldname": "butler_quotation",
+                "label": _("Butler Quotation"),
+                "fieldtype": "Link",
+                "options": "Butler Quotation",
+                "is_system_generated": 1,
+                "print_hide": 1,
+                "no_copy": 1,
+                "read_only": 1,
+                "insert_after": "prevdoc_docname",
+            },
+            {
+                "fieldname": "butler_quotation_item",
+                "label": _("Butler Quotation Item"),
+                "fieldtype": "Link",
+                "options": "Butler Quotation Item",
+                "is_system_generated": 1,
+                "print_hide": 1,
+                "no_copy": 1,
+                "read_only": 1,
+                "insert_after": "butler_quotation",
+            },
+        ],
         "Sales Order Item": [
             {
                 "fieldname": "butler_quotation",

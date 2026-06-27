@@ -1,5 +1,6 @@
-// Deterministic pastel color per Space Type name, so the same space type
-// always renders with the same fill across the palette and canvas.
+// Deterministic pastel color per name (an Amenity Category), so the same category
+// always renders with the same fill across the palette and canvas when it has no
+// explicit color set. Used as the fallback in resolveColor below.
 const PALETTE = [
 	"#bcd0f7",
 	"#bce3c5",

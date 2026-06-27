@@ -2,7 +2,7 @@ export type OrderType = "" | "Bundle" | "Quotation" | "Amenities";
 
 export interface BundleCategory {
   amenity_category: string;
-  number_of_amenities: number;
+  amenity_count: number;
 }
 
 export interface BundleDetails {

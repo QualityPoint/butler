@@ -43,7 +43,7 @@ Creation is **draw-on-canvas**, not drag-drop:
 |---|---|---|
 | **Select** (default, arrow) | click to select, drag to move — **no drawing** | — |
 | Point | single click | `draw_point(x,y)` |
-| Rect / Ellipse / Triangle / Pentagon / Hexagon | click-drag to size | `begin_draw` → `update_draw` → `finish_draw` (a no-drag click gets the tool's default size) |
+| Rect / Ellipse / Line / Triangle / Pentagon / Hexagon | click-drag to size | `begin_draw` → `update_draw` → `finish_draw` (a no-drag click gets the tool's default size; Line drags a straight 2-point segment) |
 | Freehand | click to drop vertices; **double-click** (or **Enter**) to close; **Esc** cancels | `pen_click(x,y)` → `finish_pen` / `cancel_pen` |
 
 All paths funnel through `add_room`, which enforces the bundle per-category limit, caches `room.category`, pushes onto `active_floor.rooms`, selects the new room, and marks dirty. The **active amenity stays selected** so you can draw several in a row.
@@ -68,7 +68,7 @@ All paths funnel through `add_room`, which enforces the bundle per-category limi
 A Konva `Transformer` (in the `ui` layer) attaches **only when exactly one room is selected** (no transformer for multi-select or while drawing). Its config is reactive to that room's shape (`Canvas.vue`):
 
 - **Rectangle / Ellipse** → all 8 resize anchors + rotate handle (`onTransformEnd` folds the scale back into `w/h` or `rx/ry`).
-- **Polygon** → `enabledAnchors: []` (no resize); rotate + move only — polygons reshape via their vertices.
+- **Polygon / Line** → `enabledAnchors: []` (no resize); rotate + move only — they reshape via their vertices.
 - **Point** → no anchors, no rotate; move only (style via the toolbar).
 - **Rotation** snaps to 45° for everything except points.
 
@@ -114,16 +114,16 @@ Recompute `room.area` on every move/resize/vertex-edit so it is always current a
 
 All shapes share one data model (`shape` discriminator); `RoomShape.vue` branches per shape:
 
-| | `rect` | `ellipse` | `polygon` | `point` |
-|---|---|---|---|---|
-| Konva node | `Rect` | `Ellipse` | `Line` (`closed`) | `Image` (icon) / `Circle` fallback |
-| Geometry | `x,y,w,h` | `x,y,rx,ry` | `x,y,points[]` | `x,y,icon,color,size` (x,y = centre) |
-| Area | `w·h / PPM²` | `π·rx·ry / PPM²` | shoelace / PPM² | **0** |
-| Editing | move + resize + rotate | move + resize + rotate | move + rotate + vertices | move only |
+| | `rect` | `ellipse` | `polygon` | `line` | `point` |
+|---|---|---|---|---|---|
+| Konva node | `Rect` | `Ellipse` | `Line` (`closed`) | `Line` (open) | `Image` (icon) / `Circle` fallback |
+| Geometry | `x,y,w,h` | `x,y,rx,ry` | `x,y,points[]` | `x,y,points[]` (≥2, open) | `x,y,icon,color,size` (x,y = centre) |
+| Area | `w·h / PPM²` | `π·rx·ry / PPM²` | shoelace / PPM² | **0** (shows length Σseg / PPM) | **0** |
+| Editing | move + resize + rotate | move + resize + rotate | move + rotate + vertices | move + rotate + vertices | move only |
 
 ### Shape-tool strip + conversion
 
-The Toolbar (drawing layer) shows a row of **icon tool buttons** — Rectangle, Ellipse, Triangle, Pentagon, Hexagon, Freehand, Point (custom inline SVG glyphs, tooltip = name). `store.active_tool` is the highlighted one.
+The Toolbar (drawing layer) shows a row of **icon tool buttons** — Rectangle, Ellipse, Line, Triangle, Pentagon, Hexagon, Freehand, Point (custom inline SVG glyphs, tooltip = name). `store.active_tool` is the highlighted one.
 
 - **Placing:** dropping/double-clicking an amenity calls `store.place_amenity(amenity, x, y)`, which builds the room from `tool_geometry(active_tool)` (triangle/pentagon/hexagon → polygon via `ngon_points`).
 - **Converting:** with a room selected, clicking a tool runs `store.convert_room_shape(id, tool)` — it reads the current `shape_extent`, normalises the origin, and rebuilds as the new shape **preserving size + position**.

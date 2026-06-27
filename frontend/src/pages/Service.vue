@@ -86,7 +86,7 @@
                   class="ml-2 px-2 py-0.5 text-xs bg-primary text-primary-foreground rounded"
                 >
                   {{ categorySelectedCount(category.name) }}/{{
-                    bundleCategoryFor(category.name)?.number_of_amenities
+                    bundleCategoryFor(category.name)?.amenity_count
                   }}
                 </span>
               </Button>
@@ -449,7 +449,7 @@ function isAmenityCategoryFull(amenity: Amenity) {
   );
   if (!bundleCategory) return false;
   const currentCount = categorySelectedCount(amenity.amenity_category);
-  return currentCount >= bundleCategory.number_of_amenities;
+  return currentCount >= bundleCategory.amenity_count;
 }
 
 /* --- Drag and drop (vuedraggable) --- */
@@ -489,9 +489,9 @@ function onAdd(evt: any) {
       const otherCount = selectedItems.value
         .filter((i, idx) => i.category === item.category && idx !== index)
         .reduce((sum, i) => sum + i.count, 0);
-      if (otherCount >= bundleCategory.number_of_amenities) {
+      if (otherCount >= bundleCategory.amenity_count) {
         showWarning(
-          `Cannot add more amenities. Maximum ${bundleCategory.number_of_amenities} amenities allowed for ${item.category} category in this bundle.`,
+          `Cannot add more amenities. Maximum ${bundleCategory.amenity_count} amenities allowed for ${item.category} category in this bundle.`,
         );
         selectedItems.value.splice(index, 1);
       }
@@ -552,9 +552,9 @@ function handleMakeOrder() {
       );
       if (selectedCount === 0) {
         missingCategories.push(bundleCategory.amenity_category);
-      } else if (selectedCount < bundleCategory.number_of_amenities) {
+      } else if (selectedCount < bundleCategory.amenity_count) {
         incompleteCategories.push(
-          `${bundleCategory.amenity_category} (${selectedCount}/${bundleCategory.number_of_amenities})`,
+          `${bundleCategory.amenity_category} (${selectedCount}/${bundleCategory.amenity_count})`,
         );
       }
     });

@@ -29,7 +29,7 @@
             :key="category.amenity_category"
             class="p-2 border-2 border-border"
             :class="
-              selectedCount(category) >= category.number_of_amenities
+              selectedCount(category) >= category.amenity_count
                 ? 'bg-green-100'
                 : 'bg-background'
             "
@@ -41,14 +41,14 @@
               <span
                 class="font-head"
                 :class="
-                  selectedCount(category) >= category.number_of_amenities
+                  selectedCount(category) >= category.amenity_count
                     ? 'text-green-600'
                     : 'text-muted-foreground'
                 "
               >
-                {{ selectedCount(category) }}/{{ category.number_of_amenities }}
+                {{ selectedCount(category) }}/{{ category.amenity_count }}
                 <template
-                  v-if="selectedCount(category) >= category.number_of_amenities"
+                  v-if="selectedCount(category) >= category.amenity_count"
                 >
                   ✓
                 </template>
@@ -59,13 +59,13 @@
               <div
                 class="h-full transition-all"
                 :class="
-                  selectedCount(category) >= category.number_of_amenities
+                  selectedCount(category) >= category.amenity_count
                     ? 'bg-green-500'
                     : 'bg-primary'
                 "
                 :style="{
                   width: `${Math.min(
-                    (selectedCount(category) / category.number_of_amenities) *
+                    (selectedCount(category) / category.amenity_count) *
                       100,
                     100,
                   )}%`,

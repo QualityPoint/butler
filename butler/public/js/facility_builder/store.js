@@ -4,6 +4,7 @@ import {
 	room_area_m2,
 	rect_to_polygon_points,
 	room_bbox,
+	room_world_aabb,
 	shape_extent,
 	ngon_points,
 } from "./utils";
@@ -25,7 +26,7 @@ export function getStore(mode, target_name) {
 	let design = ref(null); // parsed geometry envelope (spatial only)
 	let amenities = ref([]); // Amenity catalog (palette)
 	let categories = ref([]); // Amenity Category catalog (filters + colors)
-	let bundle_limits = ref({}); // { category -> number_of_amenities } for the active bundle
+	let bundle_limits = ref({}); // { category -> amenity_count } for the active bundle
 
 	// order config (mirrors the quotation's own fields — read on open, written on save)
 	let order_type = ref("Amenities"); // "Amenities" | "Bundle" | "Quotation"
@@ -89,7 +90,8 @@ export function getStore(mode, target_name) {
 	function clear_selection() {
 		selected_ids.value = [];
 	}
-	// marquee (rubber-band) select — rooms whose bbox intersects the rect (world coords)
+	// marquee (rubber-band) select — rooms whose world AABB intersects the rect
+	// (rotation-aware, so rotated shapes are picked by their true extent)
 	function select_within(x1, y1, x2, y2) {
 		const left = Math.min(x1, x2);
 		const right = Math.max(x1, x2);
@@ -97,10 +99,8 @@ export function getStore(mode, target_name) {
 		const bottom = Math.max(y1, y2);
 		const ids = [];
 		for (const r of active_floor.value?.rooms || []) {
-			const b = room_bbox(r);
-			const rl = r.x + b.x;
-			const rt = r.y + b.y;
-			if (rl <= right && rl + b.w >= left && rt <= bottom && rt + b.h >= top) ids.push(r.id);
+			const a = room_world_aabb(r);
+			if (a.x <= right && a.x + a.w >= left && a.y <= bottom && a.y + a.h >= top) ids.push(r.id);
 		}
 		selected_ids.value = ids;
 	}
@@ -298,22 +298,20 @@ export function getStore(mode, target_name) {
 			.then((rows) => (categories.value = rows));
 	}
 
-	// limits come from Amenity Category.bundles (child rows matching the active bundle)
+	// limits come from the bundle's per-category allowance — the same server-side
+	// source of truth the Butler Quotation uses (Amenity Category -> Bundles rows)
 	function load_bundle_limits() {
 		if (order_type.value !== "Bundle" || !bundle_type.value) {
 			bundle_limits.value = {};
 			return Promise.resolve();
 		}
-		return frappe.db
-			.get_list("Amenity Category Bundle", {
-				parent: "Amenity Category",
-				fields: ["parent", "number_of_amenities"],
-				filters: [["bundle_name", "=", bundle_type.value]],
-				limit: 0,
+		return frappe
+			.xcall("butler.butler.doctype.butler_bundle.butler_bundle.get_bundle_breakdown", {
+				bundle: bundle_type.value,
 			})
 			.then((rows) => {
 				const map = {};
-				for (const r of rows) map[r.parent] = r.number_of_amenities;
+				for (const r of rows || []) map[r.amenity_category] = r.amenity_count;
 				bundle_limits.value = map;
 			});
 	}
@@ -488,6 +486,8 @@ export function getStore(mode, target_name) {
 				return { shape: "polygon", points: ngon_points(5, 120, 120) };
 			case "hexagon":
 				return { shape: "polygon", points: ngon_points(6, 120, 120) };
+			case "line":
+				return { shape: "line", points: [0, 0, 120, 0] };
 			case "point":
 				return {
 					shape: "point",
@@ -535,6 +535,8 @@ export function getStore(mode, target_name) {
 			room.ry = partial.ry ?? 50;
 		} else if (shape === "polygon") {
 			room.points = partial.points || rect_to_polygon_points(120, 100);
+		} else if (shape === "line") {
+			room.points = partial.points || [0, 0, 120, 0];
 		} else if (shape === "point") {
 			room.icon = partial.icon || null;
 			room.color = partial.color || null;
@@ -569,6 +571,7 @@ export function getStore(mode, target_name) {
 		let geom;
 		if (tool === "ellipse") geom = { shape: "ellipse", rx: 1, ry: 1 };
 		else if (N_SIDES[tool]) geom = { shape: "polygon", points: ngon_points(N_SIDES[tool], 2, 2) };
+		else if (tool === "line") geom = { shape: "line", points: [0, 0, 0, 0] };
 		else geom = { shape: "rect", w: 1, h: 1 };
 		const room = add_room({ amenity: active_amenity.value, x, y, ...geom });
 		if (!room) return;
@@ -579,6 +582,14 @@ export function getStore(mode, target_name) {
 	function update_draw(x, y) {
 		const room = active_floor.value?.rooms.find((r) => r.id === draw_id.value);
 		if (!room) return;
+		if (room.shape === "line") {
+			// a straight segment: anchored at the drag start, the 2nd point follows the cursor
+			room.x = _draw_origin.x;
+			room.y = _draw_origin.y;
+			room.points = [0, 0, x - _draw_origin.x, y - _draw_origin.y];
+			room.area = 0;
+			return;
+		}
 		const left = Math.min(_draw_origin.x, x);
 		const top = Math.min(_draw_origin.y, y);
 		const w = Math.abs(x - _draw_origin.x);
@@ -654,13 +665,14 @@ export function getStore(mode, target_name) {
 		const w = Math.max(1, ext.w);
 		const h = Math.max(1, ext.h);
 		const wasPoint = room.shape === "point";
-		const polyOffset = room.shape === "polygon" ? room_bbox(room) : { x: 0, y: 0 };
+		const isPath = room.shape === "polygon" || room.shape === "line";
+		const polyOffset = isPath ? room_bbox(room) : { x: 0, y: 0 };
 
 		// normalise origin to the shape's top-left before rebuilding
 		if (wasPoint) {
 			room.x -= w / 2;
 			room.y -= h / 2;
-		} else if (room.shape === "polygon") {
+		} else if (isPath) {
 			room.x += polyOffset.x;
 			room.y += polyOffset.y;
 		}
@@ -690,6 +702,10 @@ export function getStore(mode, target_name) {
 			case "hexagon":
 				room.shape = "polygon";
 				room.points = ngon_points(6, w, h);
+				break;
+			case "line":
+				room.shape = "line";
+				room.points = [0, 0, w, 0]; // a horizontal segment spanning the old width
 				break;
 			case "point":
 				room.shape = "point";
@@ -798,25 +814,26 @@ export function getStore(mode, target_name) {
 		if (ids.length) selected_ids.value = ids;
 	}
 
-	// --- object snapping (move only): snap a room's bbox edges to nearby rooms' edges ---
+	// --- object snapping (move only): snap a room's world-AABB edges to nearby rooms' edges ---
 	function snap_room_position(id, x, y) {
 		if (!snap_enabled.value) return { x, y };
 		const room = active_floor.value?.rooms.find((r) => r.id === id);
 		if (!room) return { x, y };
-		const b = room_bbox(room); // local bbox {x,y,w,h}
+		// AABB extent RELATIVE to the origin (rotation-aware) — add the candidate origin below
+		const rel = room_world_aabb({ ...room, x: 0, y: 0 });
 		const threshold = 8;
 		let nx = x;
 		let ny = y;
 		let bestDX = threshold;
 		let bestDY = threshold;
 		// moving edges in world coords for a candidate origin (x,y)
-		const movX = [x + b.x, x + b.x + b.w]; // left, right
-		const movY = [y + b.y, y + b.y + b.h]; // top, bottom
+		const movX = [x + rel.x, x + rel.x + rel.w]; // left, right
+		const movY = [y + rel.y, y + rel.y + rel.h]; // top, bottom
 		for (const other of active_floor.value.rooms) {
 			if (other.id === id) continue;
-			const ob = room_bbox(other);
-			const oX = [other.x + ob.x, other.x + ob.x + ob.w];
-			const oY = [other.y + ob.y, other.y + ob.y + ob.h];
+			const ob = room_world_aabb(other);
+			const oX = [ob.x, ob.x + ob.w];
+			const oY = [ob.y, ob.y + ob.h];
 			for (const m of movX)
 				for (const o of oX) {
 					const d = Math.abs(m - o);
@@ -875,8 +892,11 @@ export function getStore(mode, target_name) {
 	}
 
 	// --- blueprint placement (per active floor, stored in geometry) ---
-	function set_blueprint_transform(patch) {
+	// `silent` suppresses the dirty flip — used for the auto-fit on load, which is a
+	// derived placement, not a user edit (so opening a doc never shows "Not Saved").
+	function set_blueprint_transform(patch, { silent = false } = {}) {
 		if (read_only.value || !active_floor.value) return;
+		if (silent) suppress_dirty_once();
 		const base = active_floor.value.blueprint || {
 			x: 0,
 			y: 0,
@@ -890,6 +910,7 @@ export function getStore(mode, target_name) {
 
 	// --- blueprint page (the SOURCE, stored on the FACILITY's child row) ---
 	function set_blueprint_page(page) {
+		if (read_only.value) return; // a submitted/cancelled quotation must not mutate the shared Facility
 		const row = active_blueprint_row.value;
 		if (!row) return;
 		row.page = Math.max(1, Number(page) || 1);
@@ -938,7 +959,21 @@ export function getStore(mode, target_name) {
 	}
 
 	// --- dirty tracking ---
-	watch(design, () => (dirty.value = true), { deep: true });
+	// A guarded deep watch: programmatic, derived mutations (e.g. blueprint auto-fit on
+	// load) can suppress the flip for one flush so they don't mark the doc unsaved.
+	let _suppress_dirty = false;
+	function suppress_dirty_once() {
+		_suppress_dirty = true;
+		nextTick(() => (_suppress_dirty = false)); // reset after the watcher has flushed
+	}
+	watch(
+		design,
+		() => {
+			if (_suppress_dirty) return;
+			dirty.value = true;
+		},
+		{ deep: true }
+	);
 
 	return {
 		mode,

@@ -17,9 +17,9 @@ The builder runs in one of **two modes**, carried in the route as `facility-buil
 
 In both modes you:
 - Filter the amenity palette by **Order Type** (Amenities / Bundle / Quotation), **Bundle** (when Order Type = Bundle), and one-or-more **Amenity Categories** (MultiSelectList).
-- Pick a **Floor Type** (tabs), **select an amenity** from the palette (the active amenity shows in the toolbar), then **draw it on the canvas** with the active tool — **Select** (default; click/drag to select & move), Freehand, Point, Rectangle, Ellipse, Triangle/Pentagon/Hexagon. (No drag-drop or double-click.)
-- Rooms are rect/ellipse/polygon/point, each one placed amenity on that floor. Multi-select (click / Shift-click / Ctrl+A), copy-paste (Ctrl+C/V), group-move, and snap-to-shapes (so they touch) are supported.
-- The layout is saved as one JSON field (`Butler Quotation.geometry`); on save, placements consolidate into the quotation's `amenities` table as distinct **(amenity + floor_type)** rows with `qty` = placement count.
+- Pick a **Floor Type** (tabs), **select an amenity** from the palette (the active amenity shows in the toolbar), then **draw it on the canvas** with the active tool — **Select** (default; click/drag to select & move), Freehand, Point, Rectangle, Ellipse, Line, Triangle/Pentagon/Hexagon. (No drag-drop or double-click.)
+- Rooms are rect/ellipse/polygon/line/point, each one placed amenity on that floor. Multi-select (click / Shift-click / Ctrl+A), copy-paste (Ctrl+C/V), group-move, and snap-to-shapes (so they touch) are supported.
+- The layout is saved as one JSON field (`Butler Quotation.geometry`); on save the builder writes the quotation's `amenities` table as **one row per placement** (`qty` 1), and the **server** consolidates them into distinct **(amenity + floor_type)** rows and prices them.
 
 ---
 
@@ -29,8 +29,8 @@ In both modes you:
 |---|---|---|
 | Surface | Separate `facility-builder` Vue page (Pattern 3), launched from the **Facility** or **Butler Quotation** form; route encodes `<mode>/<name>` | Canvas needs full width; mirrors Print Format Builder |
 | Quotation creation | Facility mode **inserts a new draft Butler Quotation** on Save when ≥1 amenity is placed, then routes to it (always new) | Lets a layout session originate a quotation; 0 amenities = nothing to create |
-| Source of truth | `Butler Quotation.geometry` (Code/JSON, hidden, read-only, no-copy) — **the only store for placement**. The **Facility no longer has a geometry field** | Exactly Print Format's `format_data`: stringify on save, parse on load |
-| Amenity rows | On save, placements consolidate into distinct **(amenity + floor_type)** `Butler Quotation Item` rows (`qty` = count, `rate`/`amount` from Amenity price, flags mirrored) | The quotation needs a flat, priced, per-floor amenity list; geometry stays the placement store |
+| Source of truth | `Butler Quotation.geometry` (JSON field, hidden, read-only; **copyable** — carried into a Duplicate/Amend) — **the only store for placement**. The **Facility no longer has a geometry field** | Exactly Print Format's `format_data`: stringify on save, parse on load |
+| Amenity rows | On save the builder sends **one row per placement** (`{amenity, floor_type, qty: 1}`); the **server** consolidates them into distinct **(amenity + floor_type)** rows and fills `rate`/`amount`/category/flags in `validate` | The quotation needs a flat, priced, per-floor amenity list; pricing is server-authoritative; geometry stays the placement store |
 | Blueprint source | Blueprint **files** stay on `Facility.blueprints` (shared across quotations); only the **placement** lives in geometry | A facility's physical plan is reused by every quotation of it |
 | Room color | Resolved from the **Amenity Category**'s `color` at render (rooms cache `category`, store no color) | Recoloring a category restyles all its amenity rooms without re-saving |
 | Doc state | Facility mode is always editable; quotation mode opens any docstatus for viewing but **Save is blocked** for Submitted (1) / Cancelled (2) | Submitted/cancelled quotations are an audit trail |
@@ -58,7 +58,7 @@ In both modes you:
 - **Colors** — Per–Amenity-Category color (`Color` field on Amenity Category) drives palette + canvas fills, with a name-hash fallback. ✅ shipped.
 - **Blueprints + Layers** — Two layers (`Blueprint | Drawing`, Photoshop-style). Per-floor blueprint (image or PDF via PDF.js; multi-page page-select) as a traceable background with move/scale/rotate/opacity; **measurement calibration** (draw a known length → sets real px/m); upload managed in-builder (child table read-only on form, committed on upload); placement saved in `geometry`. CAD → export to PDF. ✅ shipped.
 - **Navigation & editing** — Wheel zoom, middle-drag pan (hand cursor), footer zoom controls (− / % / + / Fit), arrow-key nudge, drawing-layer opacity, Snap switch (default off). ✅ shipped.
-- **Shapes & tools** — A shape-tool strip (icon glyphs): Rectangle, Ellipse, Triangle/Pentagon/Hexagon (polygon generators), Freehand pen (RDP-simplified trace), and **Point** markers rendered as **Frappe icons** (icon/color/size). Ellipse area = π·rx·ry; points have 0 area but still count as qty. ✅ shipped.
+- **Shapes & tools** — A shape-tool strip (icon glyphs): Rectangle, Ellipse, **Line** (open polyline — drag a segment, then bend it via vertex handles; shows length in m, 0 area), Triangle/Pentagon/Hexagon (polygon generators), Freehand pen (RDP-simplified trace), and **Point** markers rendered as **Frappe icons** (icon/color/size). Ellipse area = π·rx·ry; lines/points have 0 area but still count as qty. ✅ shipped.
 - **Later** — Per-floor metadata, copy/duplicate floor, room templates, Amenity `default_area`, native DXF rendering, default icon per Amenity.
 
 ### v2 interaction notes

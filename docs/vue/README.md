@@ -43,6 +43,7 @@ Vue Islands is an architectural pattern for embedding Vue 3 components as isolat
 | [pattern-dashboard.md](pattern-dashboard.md) | Pattern 1 — Doctype Dashboard Island |
 | [pattern-page.md](pattern-page.md) | Pattern 2 — Full Custom Page Island |
 | [pattern-lazy-bundle.md](pattern-lazy-bundle.md) | Pattern 3 — Lazy Bundle + Shared Store (**Frappe core's own technique**) |
+| [page-chrome-sync.md](page-chrome-sync.md) | Keeping the **sidebar + breadcrumb** in sync on custom desk Pages |
 | [css-and-libraries.md](css-and-libraries.md) | CSS isolation, Tailwind, Radix Vue headless components |
 | [pitfalls.md](pitfalls.md) | Common problems and solutions |
 | [comparison.md](comparison.md) | **Islands vs core compared; sweet spots; recommended hybrid for Butler** |
