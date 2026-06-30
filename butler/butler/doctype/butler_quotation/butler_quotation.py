@@ -24,6 +24,7 @@ class ButlerQuotation(Document):
         self.set_default_company()
         self.set_default_valid_till()
         self.set_party_from_facility()
+        self.set_default_terms()
         self.clear_additional_amenities()
         self.consolidate_amenities()
 
@@ -99,6 +100,20 @@ class ButlerQuotation(Document):
             if days
             else add_months(self.transaction_date, 1)
         )
+
+    def set_default_terms(self):
+        """Auto-fill tc_name and terms from the Company's default_selling_terms when
+        the quotation doesn't already carry either — mirrors selling_controller behaviour.
+        """
+        if self.tc_name or self.terms or not self.company:
+            return
+
+        default_terms = frappe.get_value("Company", self.company, "default_selling_terms")
+        if not default_terms:
+            return
+
+        self.tc_name = default_terms
+        self.terms = frappe.get_value("Terms and Conditions", self.tc_name, "terms")
 
     def set_default_company(self):
         """Resolve Company the way ERPNext does when it isn't supplied (e.g. the
@@ -225,7 +240,45 @@ class ButlerQuotation(Document):
         self.set_status(update=True)
 
     def on_cancel(self):
+        if self.lost_reasons:
+            self.lost_reasons = []
         self.set_status(update=True)
+
+    @frappe.whitelist()
+    def declare_enquiry_lost(self, lost_reasons_list, competitors, detailed_reason=None):
+        import json
+
+        if self.is_fully_ordered() or self.is_partially_ordered():
+            frappe.throw(_("Cannot set as Lost as Sales Order is made."))
+
+        if isinstance(lost_reasons_list, str):
+            lost_reasons_list = json.loads(lost_reasons_list)
+        if isinstance(competitors, str):
+            competitors = json.loads(competitors)
+
+        valid_lost_reasons = [
+            r.name for r in frappe.get_list("Quotation Lost Reason", fields=["name"])
+        ]
+
+        self.db_set("status", "Lost")
+
+        if detailed_reason:
+            self.db_set("order_lost_reason", detailed_reason)
+
+        for reason in lost_reasons_list:
+            if reason.get("lost_reason") in valid_lost_reasons:
+                self.append("lost_reasons", reason)
+            else:
+                frappe.throw(
+                    _("Invalid lost reason {0}, please create a new lost reason.").format(
+                        frappe.bold(reason.get("lost_reason"))
+                    )
+                )
+
+        for competitor in competitors:
+            self.append("competitors", competitor)
+
+        self.save()
 
     # --- Sales Order status tracking (mirrors ERPNext's Quotation) ---------
 
@@ -975,16 +1028,17 @@ def make_sales_order(source_name, target_doc=None):
 
 
 def _make_sales_order(source_name, target_doc=None, ignore_permissions=False):
-    """Map a Butler Quotation to a Sales Order, mirroring ERPNext's Quotation:
-    each amenity line becomes a Sales Order Item (item_code = the Amenity's linked
-    Item), only the not-yet-ordered balance is mapped (partial ordering), and the
-    line keeps back-links to the quotation + row so status can be recomputed.
+    """Map a Butler Quotation to a Sales Order.
+
+    Amenities: each amenity row → Sales Order Item via amenity.amenity_item (partial
+    ordering supported — only the not-yet-ordered balance is mapped).
+
+    Bundle: single Sales Order Item via butler_bundle.bundle_item at bundle_price.
     """
     source = frappe.get_doc("Butler Quotation", source_name)
 
-    if source.order_type != "Amenities":
-        frappe.throw(
-            _("Creating a Sales Order is currently supported only for Amenities quotations."))
+    if source.order_type not in ("Amenities", "Bundle"):
+        frappe.throw(_("Creating a Sales Order is supported only for Amenities and Bundle quotations."))
 
     if not frappe.db.get_single_value(
         "Selling Settings", "allow_sales_order_creation_for_expired_quotation"
@@ -998,10 +1052,6 @@ def _make_sales_order(source_name, target_doc=None, ignore_permissions=False):
     customer = _make_customer(source_name, ignore_permissions)
     ordered_items = source.get_ordered_items()
 
-    # the quotation's document→company rate (its exchange_rates row for the document
-    # currency; 1 when the quotation currency is the company currency / no row). All
-    # amenity rates are already in the document currency, so this single rate is all the
-    # Sales Order needs to reconcile its base (company-currency) amounts to the quotation.
     doc_conversion_rate = next(
         (flt(r.conversion_rate) for r in source.exchange_rates
          if r.currency == source.currency), 1.0)
@@ -1011,13 +1061,79 @@ def _make_sales_order(source_name, target_doc=None, ignore_permissions=False):
             target.customer = customer.name
             target.customer_name = customer.customer_name
         if source.currency:
-            target.currency = source.currency  # don't let party defaults flip it
-        target.ignore_pricing_rule = 1  # keep the already-converted amenity rates intact
+            target.currency = source.currency
+        target.ignore_pricing_rule = 1
         target.flags.ignore_permissions = ignore_permissions
         target.run_method("set_missing_values")
-        # carry the quotation's rate (after set_missing_values, so it isn't re-fetched)
         if doc_conversion_rate:
             target.conversion_rate = doc_conversion_rate
+
+        if source.order_type == "Bundle":
+            bundle_item_code = frappe.db.get_value("Butler Bundle", source.bundle_type, "bundle_item")
+            if not bundle_item_code:
+                frappe.throw(
+                    _("Bundle {0} has no linked Item, so it can't be added to a Sales Order.").format(
+                        frappe.bold(source.bundle_type)
+                    )
+                )
+            # 1. Flat bundle price as a single line
+            target.append("items", {
+                "item_code": bundle_item_code,
+                "qty": 1,
+                "rate": source.bundle_price,
+                "butler_quotation": source.name,
+            })
+
+            # 2. Additional amenity lines — mirrors calculate_additional_total exactly:
+            #    • category NOT in bundle_items → every row charged (auto-additional)
+            #    • category IN bundle_items with overflow → ticked row @ excess qty
+            configured = {r.amenity_category: cint(r.amenity_count) for r in source.bundle_items}
+
+            rows_by_cat = {}
+            for row in source.amenities:
+                if not row.amenity:
+                    continue
+                category = frappe.get_cached_value("Amenity", row.amenity, "amenity_category")
+                if category:
+                    rows_by_cat.setdefault(category, []).append(row)
+
+            for category, rows in rows_by_cat.items():
+                if category not in configured:
+                    # auto-additional: map every row directly
+                    for row in rows:
+                        amenity_item = frappe.get_cached_value("Amenity", row.amenity, "amenity_item")
+                        if not amenity_item:
+                            frappe.throw(
+                                _("Amenity {0} has no linked Item.").format(frappe.bold(row.amenity))
+                            )
+                        target.append("items", {
+                            "item_code": amenity_item,
+                            "qty": row.qty,
+                            "rate": row.rate,
+                            "butler_quotation": source.name,
+                            "butler_quotation_item": row.name,
+                        })
+                else:
+                    # in-bundle overflow: ticked row at excess qty
+                    excess = sum(cint(r.qty) for r in rows) - configured[category]
+                    if excess <= 0:
+                        continue
+                    ticked = next((r for r in rows if r.additional_amenity), None)
+                    if not ticked:
+                        continue  # undesignated — validate_bundle_amenities handles this
+                    amenity_item = frappe.get_cached_value("Amenity", ticked.amenity, "amenity_item")
+                    if not amenity_item:
+                        frappe.throw(
+                            _("Amenity {0} has no linked Item.").format(frappe.bold(ticked.amenity))
+                        )
+                    target.append("items", {
+                        "item_code": amenity_item,
+                        "qty": excess,
+                        "rate": ticked.rate,
+                        "butler_quotation": source.name,
+                        "butler_quotation_item": ticked.name,
+                    })
+
         target.run_method("calculate_taxes_and_totals")
 
     def update_item(obj, target, source_parent):
@@ -1036,6 +1152,15 @@ def _make_sales_order(source_name, target_doc=None, ignore_permissions=False):
     def can_map_row(obj):
         return flt(obj.qty) > flt(ordered_items.get(obj.name, 0))
 
+    child_table_map = {}
+    if source.order_type == "Amenities":
+        child_table_map["Butler Quotation Item"] = {
+            "doctype": "Sales Order Item",
+            "field_map": {"parent": "butler_quotation", "name": "butler_quotation_item"},
+            "postprocess": update_item,
+            "condition": can_map_row,
+        }
+
     doclist = get_mapped_doc(
         "Butler Quotation",
         source_name,
@@ -1044,12 +1169,7 @@ def _make_sales_order(source_name, target_doc=None, ignore_permissions=False):
                 "doctype": "Sales Order",
                 "validation": {"docstatus": ["=", 1]},
             },
-            "Butler Quotation Item": {
-                "doctype": "Sales Order Item",
-                "field_map": {"parent": "butler_quotation", "name": "butler_quotation_item"},
-                "postprocess": update_item,
-                "condition": can_map_row,
-            },
+            **child_table_map,
         },
         target_doc,
         set_missing_values,

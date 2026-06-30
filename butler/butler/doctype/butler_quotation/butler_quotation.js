@@ -122,11 +122,11 @@ frappe.ui.form.on("Butler Quotation", {
             frappe.set_route("facility-builder", "quotation", frm.doc.name);
         });
 
-        // Create -> Sales Order, like ERPNext's Quotation (Amenities orders only,
-        // while the quotation is submitted and not fully ordered/lost/cancelled).
+        // Create -> Sales Order (Amenities and Bundle orders, while submitted and
+        // not fully ordered/lost/cancelled).
         if (
             frm.doc.docstatus === 1 &&
-            frm.doc.order_type === "Amenities" &&
+            ["Amenities", "Bundle"].includes(frm.doc.order_type) &&
             !["Ordered", "Lost", "Cancelled"].includes(frm.doc.status)
         ) {
             frm.add_custom_button(
@@ -141,6 +141,62 @@ frappe.ui.form.on("Butler Quotation", {
             );
             frm.page.set_inner_btn_group_as_primary(__("Create"));
         }
+
+        // Set as Lost — mirrors ERPNext Quotation behaviour.
+        if (
+            frm.doc.docstatus === 1 &&
+            !["Lost", "Ordered", "Cancelled"].includes(frm.doc.status) &&
+            frm.has_perm("write")
+        ) {
+            frm.add_custom_button(__("Set as Lost"), () => {
+                frm.trigger("set_as_lost_dialog");
+            });
+        }
+    },
+
+    set_as_lost_dialog(frm) {
+        const dialog = new frappe.ui.Dialog({
+            title: __("Set as Lost"),
+            fields: [
+                {
+                    fieldtype: "Table MultiSelect",
+                    label: __("Lost Reasons"),
+                    fieldname: "lost_reason",
+                    options: "Quotation Lost Reason Detail",
+                    reqd: 1,
+                },
+                {
+                    fieldtype: "Table MultiSelect",
+                    label: __("Competitors"),
+                    fieldname: "competitors",
+                    options: "Competitor Detail",
+                },
+                {
+                    fieldtype: "Small Text",
+                    label: __("Detailed Reason"),
+                    fieldname: "detailed_reason",
+                },
+            ],
+            primary_action_label: __("Declare Lost"),
+            primary_action(values) {
+                frm.call({
+                    doc: frm.doc,
+                    method: "declare_enquiry_lost",
+                    args: {
+                        lost_reasons_list: values.lost_reason,
+                        competitors: values.competitors || [],
+                        detailed_reason: values.detailed_reason,
+                    },
+                    callback(r) {
+                        if (!r.exc) {
+                            dialog.hide();
+                            frm.reload_doc();
+                        }
+                    },
+                });
+            },
+        });
+        dialog.show();
     },
 
     order_type(frm) {
@@ -321,6 +377,12 @@ frappe.ui.form.on("Butler Quotation", {
 
     taxes_and_charges(frm) {
         populate_taxes_from_template(frm);
+    },
+
+    tc_name(frm) {
+        erpnext.utils.get_terms(frm.doc.tc_name, frm.doc, function (r) {
+            if (r.message) frm.set_value("terms", r.message);
+        });
     },
 
     facility(frm) {
