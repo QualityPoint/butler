@@ -677,8 +677,19 @@ class ButlerQuotation(Document):
         (`additional_total`); Net-Total mode lowers the net before taxes, Grand-Total
         mode lowers the final grand total.
         """
-        gross_bundle = flt(self.total)
-        gross_additional = flt(self.additional_total)
+        if self.order_type == "Bundle":
+            # Bundle: flat bundle price + additional amenities beyond the composition.
+            # bundle_price is the taxable base for the bundle itself; additional_total
+            # covers every amenity beyond the configured bundle composition.
+            gross_bundle = flt(self.bundle_price)
+            gross_additional = flt(self.additional_total)
+        else:
+            # Amenities / Quotation: every amenity line contributes to the taxable base.
+            # additional_total is always 0 for non-Bundle orders (cleared by
+            # clear_additional_amenities in before_validate).
+            gross_bundle = flt(self.total)
+            gross_additional = 0.0
+
         gross = gross_bundle + gross_additional
         total_qty = cint(self.amenity_count)
 
@@ -1170,6 +1181,15 @@ def _make_sales_order(source_name, target_doc=None, ignore_permissions=False):
                 "validation": {"docstatus": ["=", 1]},
             },
             **child_table_map,
+            # Carry the tax rows (account_head, rate, charge_type, row_id) so the SO
+            # uses the same tax structure as the quotation. reset_value=True lets the
+            # SO's calculate_taxes_and_totals recompute amounts on its own items —
+            # which sum to the same net base, so tax amounts reconcile exactly.
+            # Mirrors ERPNext's Quotation → Sales Order mapping.
+            "Sales Taxes and Charges": {
+                "doctype": "Sales Taxes and Charges",
+                "reset_value": True,
+            },
         },
         target_doc,
         set_missing_values,
