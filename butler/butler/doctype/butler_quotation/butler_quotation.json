@@ -95,6 +95,10 @@
   "company_address",
   "company_address_display",
   "column_break_oslg",
+  "terms_tab",
+  "terms_section_break",
+  "tc_name",
+  "terms",
   "payment_tab",
   "installment_payment_section",
   "due_start_date",
@@ -113,8 +117,16 @@
   "competitors",
   "column_break_aawe",
   "order_lost_reason",
+  "utm_analytics_section",
+  "utm_source",
+  "utm_medium",
+  "column_break_embl",
+  "utm_campaign",
+  "utm_content",
   "additional_info_section",
   "status",
+  "customer_group",
+  "territory",
   "column_break_evzx",
   "amended_from",
   "section_break_agvg",
@@ -890,6 +902,83 @@
    "label": "Detailed Reason",
    "no_copy": 1,
    "print_hide": 1
+  },
+  {
+   "depends_on": "eval:(doc.quotation_to=='Customer' && doc.party_name)",
+   "fieldname": "customer_group",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "Customer Group",
+   "options": "Customer Group",
+   "print_hide": 1
+  },
+  {
+   "fieldname": "territory",
+   "fieldtype": "Link",
+   "label": "Territory",
+   "options": "Territory",
+   "print_hide": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "utm_analytics_section",
+   "fieldtype": "Section Break",
+   "label": "UTM Analytics"
+  },
+  {
+   "fieldname": "utm_source",
+   "fieldtype": "Link",
+   "label": "Source",
+   "options": "UTM Source",
+   "print_hide": 1
+  },
+  {
+   "fieldname": "utm_medium",
+   "fieldtype": "Link",
+   "label": "Medium",
+   "options": "UTM Medium",
+   "print_hide": 1
+  },
+  {
+   "fieldname": "column_break_embl",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "utm_campaign",
+   "fieldtype": "Link",
+   "label": "Campaign",
+   "options": "UTM Campaign",
+   "print_hide": 1
+  },
+  {
+   "fieldname": "utm_content",
+   "fieldtype": "Data",
+   "label": "Content",
+   "print_hide": 1
+  },
+  {
+   "fieldname": "terms_tab",
+   "fieldtype": "Tab Break",
+   "label": "Terms"
+  },
+  {
+   "fieldname": "terms_section_break",
+   "fieldtype": "Section Break",
+   "label": "Terms and Conditions",
+   "options": "fa fa-legal"
+  },
+  {
+   "fieldname": "tc_name",
+   "fieldtype": "Link",
+   "label": "Terms",
+   "options": "Terms and Conditions",
+   "print_hide": 1,
+   "report_hide": 1
+  },
+  {
+   "fieldname": "terms",
+   "fieldtype": "Text Editor",
+   "label": "Term Details"
   }
  ],
  "grid_page_length": 50,
@@ -897,7 +986,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-06-27 12:10:57.933623",
+ "modified": "2026-06-30 15:52:58.830986",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Butler Quotation",
