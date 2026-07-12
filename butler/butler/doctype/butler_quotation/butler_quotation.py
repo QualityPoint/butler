@@ -184,19 +184,17 @@ class ButlerQuotation(Document):
         self.calculate_totals()
 
     def validate_taxes(self):
-        """Per-row sanity of the Sales Taxes and Charges rows (charge_type ↔ row_id),
-        reusing ERPNext's validator — same check its calculate_taxes_and_totals runs.
-        Inclusive taxes aren't modelled by _apply_taxes, so reject them rather than
-        compute a silently wrong total."""
-        from erpnext.controllers.accounts_controller import validate_taxes_and_charges
+        """Per-row sanity of the Sales Taxes and Charges rows (charge_type ↔ row_id,
+        and inclusive-tax eligibility), reusing ERPNext's validators verbatim — same
+        checks its calculate_taxes_and_totals runs. See _resolve_exclusive_gross for
+        how an inclusive row is priced (docs/quotation_pricing/taxes_and_charges.md)."""
+        from erpnext.controllers.accounts_controller import (
+            validate_inclusive_tax,
+            validate_taxes_and_charges,
+        )
         for tax in self.get("taxes") or []:
             validate_taxes_and_charges(tax)
-            if tax.included_in_print_rate:
-                frappe.throw(
-                    _("Row {0}: inclusive taxes (Included in Print Rate) aren't supported "
-                      "on a Butler Quotation.").format(tax.idx),
-                    title=_("Unsupported tax"),
-                )
+            validate_inclusive_tax(tax, self)
 
     def set_bundle_breakdown(self):
         """Fill the read-only Bundle Items breakup from the selected Bundle's
@@ -580,6 +578,7 @@ class ButlerQuotation(Document):
         # --- document discount → taxes → grand/rounded totals → base mirrors ---
         self.calculate_discount_taxes_and_totals()
         self.set_base_amounts(conversion_rate)
+        self.set_total_in_words(company_currency)
 
     def sync_exchange_rates(self, company_currency):
         """Maintain the exchange_rates table — one row per DISTINCT non-company currency
@@ -693,6 +692,16 @@ class ButlerQuotation(Document):
         gross = gross_bundle + gross_additional
         total_qty = cint(self.amenity_count)
 
+        # Inclusive tax: back the tax portion out of the combined gross (one base, not
+        # per-item — see _resolve_exclusive_gross) and share the reduction across bundle +
+        # additional the same way the discount below is shared. A no-op (ratio 1.0) when
+        # no row is inclusive, so this changes nothing for the common case.
+        exclusive_gross = self._resolve_exclusive_gross(gross, total_qty)
+        ratio = (exclusive_gross / gross) if gross else 1.0
+        gross_bundle = flt(gross_bundle) * ratio
+        gross_additional = flt(gross_additional) * ratio
+        gross = exclusive_gross
+
         # pass 1 (no discount): the pre-discount grand total drives a Grand-Total
         # percentage base and Grand-Total-mode discounting
         taxes0, grand0 = self._apply_taxes(gross, total_qty)
@@ -733,6 +742,44 @@ class ButlerQuotation(Document):
 
         self._resolved_discount = discount
         self.set_rounded_total()
+
+    def _resolve_exclusive_gross(self, gross, total_qty):
+        """Back the inclusive-tax portion out of `gross`, mirroring ERPNext's
+        determine_exclusive_rate/get_current_tax_fraction — adapted to Butler's single
+        combined base (no per-item table to adjust). A tax row with
+        `included_in_print_rate` means `gross` already contains that tax; every row
+        (inclusive or not) then computes its tax_amount off the backed-out exclusive
+        base in _apply_taxes, the same way ERPNext taxes every item off its adjusted
+        net_amount. Returns `gross` unchanged when no row is inclusive.
+        """
+        rows = self.get("taxes") or []
+        if not any(cint(t.included_in_print_rate) for t in rows):
+            return gross
+
+        fractions, grand_fractions = [], []
+        cumulated_fraction, flat_total = 0.0, 0.0
+        for i, tax in enumerate(rows):
+            fraction = 0.0
+            if cint(tax.included_in_print_rate):
+                rate = flt(tax.rate)
+                if tax.charge_type == "On Net Total":
+                    fraction = rate / 100.0
+                elif tax.charge_type == "On Previous Row Amount":
+                    idx = cint(tax.row_id) - 1
+                    fraction = (rate / 100.0) * fractions[idx] if 0 <= idx < i else 0.0
+                elif tax.charge_type == "On Previous Row Total":
+                    idx = cint(tax.row_id) - 1
+                    fraction = (rate / 100.0) * grand_fractions[idx] if 0 <= idx < i else 0.0
+                elif tax.charge_type == "On Item Quantity":
+                    flat_total += rate * flt(total_qty)
+                # Actual can never be inclusive (validate_inclusive_tax blocks it) -> 0
+            fractions.append(fraction)
+            grand_fractions.append((grand_fractions[i - 1] if i > 0 else 1.0) + fraction)
+            cumulated_fraction += fraction
+
+        if not cumulated_fraction and not flat_total:
+            return gross
+        return (flt(gross) - flat_total) / (1 + cumulated_fraction)
 
     def _apply_taxes(self, net_base, total_qty):
         """Compute the `taxes` rows over a single net base, per the documented
@@ -819,6 +866,24 @@ class ButlerQuotation(Document):
             row.base_net_rate = flt(row.net_rate) * rate
             row.base_amount = flt(row.amount) * rate
             row.base_net_amount = flt(row.net_amount) * rate
+
+    def set_total_in_words(self, company_currency):
+        """Written-out grand total, off `rounded_total`/`base_rounded_total` (or the
+        unrounded `grand_total`/`base_grand_total` when disable_rounded_total is set) —
+        same trigger points as ERPNext's `set_total_in_words`. Uses Butler's own
+        `format_currency_in_words` rather than ERPNext's `money_in_words` — see
+        docs/quotation_pricing/reference.md for the comparison.
+        """
+        from butler.utils.currency import format_currency_in_words
+
+        amount = flt(self.grand_total if self.disable_rounded_total else self.rounded_total)
+        self.in_words = format_currency_in_words(abs(amount), self.currency) if self.currency else ""
+
+        base_amount = flt(
+            self.base_grand_total if self.disable_rounded_total else self.base_rounded_total)
+        self.base_in_words = (
+            format_currency_in_words(abs(base_amount), company_currency) if company_currency else ""
+        )
 
     def check_bundle_price_discount(self, max_discount):
         """Line-level discount on the bundle, ERPNext item-discount style:

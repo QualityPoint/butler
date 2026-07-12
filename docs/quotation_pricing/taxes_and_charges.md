@@ -86,8 +86,12 @@ same `taxes` child table:
   `tax_amount` / `row_id` change (`validate_tax_row`), and again **server-side** in
   `validate_taxes` via ERPNext's `validate_taxes_and_charges`.
 - `rate` is mandatory for rate-based charge types; `tax_amount` for **Actual**.
-- **Inclusive taxes** (`included_in_print_rate`) are **rejected** — `_apply_taxes`
-  doesn't model them, so they'd produce a silently wrong total.
+- **Inclusive taxes** (`included_in_print_rate`) are **supported** — see
+  [Inclusive tax](#inclusive-tax) below. Eligibility (never `Actual`; a "Previous Row"
+  type requires the referenced row(s) to also be inclusive; never a `Valuation`-category
+  charge) is validated both client-side (`validate_inclusive_tax` in
+  `butler_quotation.js`, reverting the checkbox on failure) and server-side
+  (`validate_taxes` → ERPNext's own `validate_inclusive_tax`).
 
 ---
 
@@ -118,6 +122,33 @@ are recomputed — the printed/entered price stays unchanged.
 
 ---
 
+## Inclusive tax
+
+ERPNext backs the tax out **per item** (`determine_exclusive_rate`): every
+`included_in_print_rate` row contributes a fraction (or, for "On Item Quantity", a flat
+per-unit amount) that's divided out of each item's entered `amount` to get its
+`net_amount` — the entered price is unchanged, only the net/tax split underneath it
+shifts. Butler has **one combined base**, not a per-item table, so
+`ButlerQuotation._resolve_exclusive_gross(gross, total_qty)` adapts the same math to
+that single number: it walks `self.taxes` once, accumulating each inclusive row's own
+fraction (chained through "On Previous Row Amount/Total" via a running
+`grand_fractions` list, mirroring ERPNext's `tax_fraction_for_current_item` /
+`grand_total_fraction_for_current_item`) plus a flat total for inclusive "On Item
+Quantity" rows, then returns `(gross - flat_total) / (1 + cumulated_fraction)`. It's a
+no-op (returns `gross` unchanged) when no row is inclusive.
+
+`calculate_discount_taxes_and_totals()` calls this once, right where `gross_bundle` /
+`gross_additional` / `gross` are combined — then scales `gross_bundle` and
+`gross_additional` down by the same ratio (the same proportional-split convention the
+header discount already uses) **before** any of the existing discount/ceiling/
+`_apply_taxes` logic runs. Every tax row — inclusive or not — then computes its
+`tax_amount` off that same backed-out base in `_apply_taxes`, unchanged. Net effect:
+`grand_total` reconciles back to the original entered `bundle_price`/`total` (no
+double-charge) when every tax is inclusive; an exclusive tax stacked on top still adds
+on top of the reduced base, exactly as in ERPNext.
+
+---
+
 ## What Butler does
 
 ERPNext's `calculate_taxes_and_totals` hard-requires an `items` child table, which
@@ -127,5 +158,7 @@ single net base applying the documented `charge_type` formulas, and
 `calculate_discount_taxes_and_totals()` / `set_rounded_total()` / `set_base_amounts()`
 compose `total_taxes_and_charges`, `grand_total`, `rounded_total` and the `base_*`
 mirrors. The taxable base is the net of the amenity lines (Amenities/Quotation) or of
-`bundle_price + additional_total` (Bundle). Inclusive taxes and per-item tax templates
-are out of scope (the per-item tax map defaults to `{}`).
+`bundle_price + additional_total` (Bundle), backed out for inclusive tax by
+`_resolve_exclusive_gross` (see above) before `_apply_taxes` ever runs. Per-item tax
+templates are out of scope (the per-item tax map defaults to `{}`) — Butler has no
+`items` table to attach one to.

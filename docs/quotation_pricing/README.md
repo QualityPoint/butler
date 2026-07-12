@@ -67,8 +67,10 @@ the governance throws are deferred to where the spec requires them.
 **Live recompute (no save):** Butler has no client-side calc mirror — the server is the
 single source of truth. So the form calls the whitelisted `recalculate` method (which
 runs `calculate_totals` **without** the governance throws) on any pricing input change —
-a rate, qty, amenity, tax row, discount, bundle price, or currency rate. The recomputed
-doc is synced back and the fields refresh immediately. `calculate_totals` is therefore
+a rate, qty, amenity, tax row, discount, bundle price, currency rate, or the
+`disable_rounded_total` toggle (stricter than ERPNext's own Quotation, which has no
+field trigger for that checkbox either). The recomputed doc is synced back and the
+fields refresh immediately. `calculate_totals` is therefore
 kept **throw-free**; the standard-price / bundle governance lives in `validate`.
 
 ---
@@ -117,6 +119,8 @@ These are used by both order types — see [amenities.md](./amenities.md) for de
 | Taxes & charges (`taxes` rows, `charge_type` formulas) — engine mirrored over the net base | **Implemented** |
 | `tax_category` → template auto-resolution (Tax Rule) → `taxes` populated | **Implemented** |
 | Default tax template auto-loaded on a new quotation / company change (`apply_default_taxes`) | **Implemented** |
+| Inclusive tax (`included_in_print_rate`) — combined-base back-out (`_resolve_exclusive_gross`) | **Implemented** |
+| `in_words` / `base_in_words` — Butler's own `format_currency_in_words`, not ERPNext's `money_in_words` | **Implemented** |
 | `base_*` (company-currency) fields shown only in multi-currency; rate fields editable then (ERPNext parity) | **Implemented** |
 | Granular multi-currency: per-currency rates in the **Currency Exchange Rates** table (document / amenity / bundle currencies), auto-fetched from Currency Exchange; document & bundle rates are computed locals | **Implemented** |
 | Create → Sales Order (Amenities) | **Implemented** |

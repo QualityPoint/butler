@@ -382,6 +382,13 @@ frappe.ui.form.on("Butler Quotation", {
         recalculate_quotation(frm);
     },
 
+    disable_rounded_total(frm) {
+        // stricter than ERPNext (whose own Quotation has no field trigger for this
+        // either, so toggling it there sits stale until another field recalculates) —
+        // Butler's rule is any pricing input change recalculates live.
+        recalculate_quotation(frm);
+    },
+
     tax_category(frm) {
         set_taxes_from_tax_category(frm);
     },
@@ -695,6 +702,18 @@ frappe.ui.form.on("Sales Taxes and Charges", {
         validate_tax_row(cdt, cdn);
         recalculate_quotation(frm);
     },
+    included_in_print_rate(frm, cdt, cdn) {
+        const d = locals[cdt][cdn];
+        try {
+            validate_tax_row(cdt, cdn);
+            validate_inclusive_tax(d, frm);
+        } catch (e) {
+            d.included_in_print_rate = 0;
+            refresh_field("included_in_print_rate", d.name, d.parentfield);
+            throw e;
+        }
+        recalculate_quotation(frm);
+    },
     taxes_remove(frm) {
         recalculate_quotation(frm);
     },
@@ -736,6 +755,40 @@ function validate_tax_row(cdt, cdn) {
         frappe.validated = false;
         refresh_field("taxes");
         frappe.throw(msg);
+    }
+}
+
+// Mirror of erpnext.accounts.taxes.validate_inclusive_tax (accounts.js): what a row can
+// legally be inclusive of — never Actual; "On Previous Row Amount/Total" require the
+// referenced row(s) to also be inclusive; never a Valuation-category charge. Reverting
+// the checkbox on failure is handled by the included_in_print_rate handler below.
+function validate_inclusive_tax(tax, frm) {
+    const on_previous_row_error = (row_range) => {
+        frappe.throw(
+            __("For row {0} in {1}. To include {2} in the total, rows {3} must also be included", [
+                tax.idx, __(tax.doctype), tax.charge_type, row_range,
+            ])
+        );
+    };
+
+    if (!cint(tax.included_in_print_rate)) return;
+
+    if (tax.charge_type === "Actual") {
+        frappe.throw(__("Actual type tax cannot be included in the total in row {0}", [tax.idx]));
+    } else if (
+        tax.charge_type === "On Previous Row Amount" &&
+        !cint(frm.doc.taxes[tax.row_id - 1].included_in_print_rate)
+    ) {
+        on_previous_row_error(tax.row_id);
+    } else if (tax.charge_type === "On Previous Row Total") {
+        const not_included = frm.doc.taxes
+            .slice(0, tax.row_id)
+            .some((t) => !cint(t.included_in_print_rate));
+        if (not_included) {
+            on_previous_row_error(tax.row_id == 1 ? "1" : "1 - " + tax.row_id);
+        }
+    } else if (tax.category === "Valuation") {
+        frappe.throw(__("Valuation type charges can not be marked as Inclusive"));
     }
 }
 
@@ -801,7 +854,11 @@ function set_taxes_from_tax_category(frm) {
     });
 }
 
-// Copy the chosen template's rows into the taxes table (ERPNext get_taxes_and_charges).
+// Copy the chosen template's rows into the taxes table (ERPNext get_taxes_and_charges),
+// then recalculate — the template only carries rate/charge_type, not this quotation's
+// tax_amount/total/grand_total (those are computed by _apply_taxes over Butler's own net
+// base), so every load must be followed by a recalc. Fires whenever taxes_and_charges
+// changes: a manual pick, or Tax Rule resolving one via set_taxes_from_tax_category.
 function populate_taxes_from_template(frm) {
     if (!frm.doc.taxes_and_charges) return;
     frm.call({
@@ -811,7 +868,9 @@ function populate_taxes_from_template(frm) {
             master_name: frm.doc.taxes_and_charges,
         },
         callback(r) {
-            if (!r.exc) frm.set_value("taxes", r.message || []);
+            if (r.exc) return;
+            frm.set_value("taxes", r.message || []);
+            recalculate_quotation(frm);
         },
     });
 }

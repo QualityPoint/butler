@@ -28,6 +28,7 @@ Quick lookup for the fields and functions the pricing engine touches. `*` = _Pla
 | `base_discount_amount` | Currency (ro) | resolved discount in company currency |
 | `additional_total` * / `additional_net_total` * | Currency (ro) | extra-amenity charge (+ discount share) |
 | `grand_total` / `rounded_total` / `disable_rounded_total` | Currency / Check (ro) | ERPNext rounding |
+| `in_words` / `base_in_words` | Data (ro) | written-out `rounded_total`/`base_rounded_total` (or `grand_total`/`base_grand_total` when rounding is disabled) — see [Amount in words](#amount-in-words) below |
 | `base_*` | Currency (ro) | company-currency mirrors (`÷ conversion_rate`): `base_total`, `base_net_total`, `base_grand_total`, `base_bundle_price`, `base_additional_*`, … |
 
 ## Butler Quotation Item (line)
@@ -154,6 +155,29 @@ currency, regardless of the quotation currency.
   applies** (otherwise they equal `total` / `additional_total` — redundant); their
   `base_*` twins show only when discounted **and** multi-currency.
 
+## Amount in words
+
+`in_words`/`base_in_words` are set by `ButlerQuotation.set_total_in_words()`, called at
+the end of `calculate_totals()` — same trigger points as ERPNext's own
+`set_total_in_words` (off `rounded_total`/`base_rounded_total`, or the unrounded
+`grand_total`/`base_grand_total` when `disable_rounded_total` is set).
+
+Butler uses its **own** formatter, `butler.utils.currency.format_currency_in_words` —
+deliberately **not** ERPNext's `frappe.utils.money_in_words` — mirroring the same
+function already used in the sibling `erp_contract` app (duplicated, not cross-imported,
+so Butler's only hard dependency stays `erpnext`). Both build on the same low-level
+primitive, `frappe.utils.data.in_words` (which wraps `num2words`), but differ in the
+wrapping:
+
+| | ERPNext `money_in_words` | Butler `format_currency_in_words` |
+|---|---|---|
+| Fraction length | dynamic, from `Currency.fraction_units` (handles 3-decimal currencies) | fixed 2 decimals |
+| Numbering system | `en_IN` (lakh/crore) when the currency's number format is Indian-grouped, else `frappe.local.lang` | always `frappe.local.lang` (no lakh/crore fallback) |
+| Currency name | the raw currency **code** (`self.currency`, e.g. `SAR`) wrapped in `_()` | `Currency.currency_name` (e.g. "Saudi Riyal") — reads correctly without a translation entry |
+| Word order | currency first: `"SAR One Thousand and Fifty Halala"` | number first, cheque-writing style: `"One Thousand Saudi Riyal and Fifty Halala only."` |
+| `DZD` special-case | yes (Algerian Dinars) | no |
+| Callable from client | no (server-only, internal to `set_total_in_words`) | yes (`@frappe.whitelist()`) |
+
 ## Whitelisted / shared functions
 
 | Function | Location | Purpose |
@@ -161,3 +185,4 @@ currency, regardless of the quotation currency.
 | `get_amenity_pricing(amenity, facility_type)` | `butler_quotation.py` | resolve an amenity's standard price (server + client) |
 | `get_bundle_breakdown(bundle)` | `butler_bundle.py` | a bundle's per-category allowance (quotation + Facility Builder) |
 | `apply_governance_action(action, *, message, title, override_role)` | `butler_quotation.py` | Stop/Warn + override-role enforcement |
+| `format_currency_in_words(amount, currency)` | `butler/utils/currency.py` | written-out amount, Butler's own convention (see above) |
