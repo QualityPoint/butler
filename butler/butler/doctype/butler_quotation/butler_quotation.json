@@ -336,7 +336,9 @@
    "fieldtype": "JSON",
    "hidden": 1,
    "label": "Geometry",
-   "read_only": 1
+   "print_hide": 1,
+   "read_only": 1,
+   "report_hide": 1
   },
   {
    "fieldname": "floor_count",
@@ -986,7 +988,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-06-30 15:52:58.830986",
+ "modified": "2026-07-12 14:56:07.339645",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Butler Quotation",
