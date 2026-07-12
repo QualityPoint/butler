@@ -74,6 +74,16 @@ frappe.ui.form.on("Butler Quotation", {
         });
     },
 
+    onload_post_render(frm) {
+        // Auto-load the company's default tax template on a brand-new quotation, before
+        // any party is picked — mirrors ERPNext transaction.js `onload_post_render` ->
+        // `apply_default_taxes`. Skipped once the taxes table already has rows (e.g. an
+        // amended doc, or apply_default_taxes already ran via the `company` trigger).
+        if (frm.doc.__islocal && !(frm.doc.taxes || []).length) {
+            frappe.after_ajax(() => apply_default_taxes(frm));
+        }
+    },
+
     onload(frm) {
         frm.trigger("set_dynamic_link");
         frm.trigger("set_dynamic_field_label");
@@ -303,6 +313,7 @@ frappe.ui.form.on("Butler Quotation", {
                 frm.set_value("company_address", r.message || "");
             },
         });
+        apply_default_taxes(frm); // company changed -> its default tax template may differ
         frm.trigger("toggle_currency_fields"); // company currency may have changed
     },
 
@@ -726,6 +737,44 @@ function validate_tax_row(cdt, cdn) {
         refresh_field("taxes");
         frappe.throw(msg);
     }
+}
+
+// Auto-load the company's default Sales Taxes and Charges Template — mirrors ERPNext's
+// transaction.js `apply_default_taxes`. Fires on a brand-new quotation (before any party
+// is picked, via onload_post_render) and again whenever `company` changes. A later
+// tax_category/party change re-resolves the template via Tax Rule
+// (set_taxes_from_tax_category), which simply overwrites whatever this loaded. Skipped
+// when the taxes table already carries manually-added rows with no template attached —
+// nothing to override in that case (ERPNext's own guard).
+function apply_default_taxes(frm) {
+    if (!frm.doc.taxes_and_charges && frm.doc.taxes && frm.doc.taxes.length > 0) return;
+
+    const taxes_and_charges_field = frappe.meta.get_docfield(
+        frm.doc.doctype, "taxes_and_charges", frm.doc.name
+    );
+    if (!taxes_and_charges_field) return;
+
+    frappe.call({
+        method: "erpnext.controllers.accounts_controller.get_default_taxes_and_charges",
+        args: {
+            master_doctype: taxes_and_charges_field.options,
+            tax_template: frm.doc.taxes_and_charges || "",
+            company: frm.doc.company,
+        },
+        debounce: 2000,
+        callback(r) {
+            if (r.exc || !r.message) return;
+            // directly set in doc, so as not to re-trigger the taxes_and_charges handler
+            // (populate_taxes_from_template) — the rows are already in r.message.taxes
+            if (r.message.taxes_and_charges) {
+                frm.doc.taxes_and_charges = r.message.taxes_and_charges;
+            }
+            if (r.message.taxes) {
+                frm.set_value("taxes", r.message.taxes);
+            }
+            recalculate_quotation(frm);
+        },
+    });
 }
 
 // Resolve the Sales Taxes and Charges Template from tax_category (+ party, address,

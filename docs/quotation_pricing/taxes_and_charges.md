@@ -1,8 +1,8 @@
 # Taxes & Charges (ERPNext model)
 
-> _Status: Planned for Butler Quotation._ Butler adopts ERPNext's tax engine verbatim.
-> The fields are already on the doctype: `tax_category`, `taxes_and_charges`, and the
-> `taxes` child table (**Sales Taxes and Charges**).
+> _Status: Implemented._ Butler adopts ERPNext's tax engine verbatim. The fields are
+> already on the doctype: `tax_category`, `taxes_and_charges`, and the `taxes` child
+> table (**Sales Taxes and Charges**).
 
 The same engine — `erpnext.controllers.taxes_and_totals.calculate_taxes_and_totals` —
 powers **Quotation, Sales Order, and Sales Invoice** (all share these fields and call
@@ -12,23 +12,38 @@ it from `calculate_taxes_and_totals()`). Reference: `erpnext/controllers/taxes_a
 
 ## How the `taxes` table is populated
 
+Three entry points, all client-side in `butler_quotation.js`, all funnelling into the
+same `taxes` child table:
+
 ```
-tax_category ──(Tax Rule: get_tax_template)──► a Sales Taxes and Charges Template
-taxes_and_charges (Link to that template)
-        │  get_taxes_and_charges(master_doctype, master_name)
-        ▼  copies the template's rows (stripping name/parent)
-taxes (child rows)
+1. New document           get_default_taxes_and_charges(company)  ──► the company's
+   (onload_post_render,       is_default=1 template, with its rows already resolved
+    company change)           (one round trip — no separate row-copy step)
+
+2. tax_category / party   Tax Rule: get_tax_template(tax_category, party, address,
+   change                     company, transaction_date)  ──► taxes_and_charges
+                                     │
+3. taxes_and_charges      get_taxes_and_charges(master_doctype, master_name)  ──► copies
+   change (manual pick        the template's rows (stripping name/parent) into `taxes`
+   or set by 1/2 above)
 ```
 
-- **Auto-resolution (implemented):** changing `tax_category` (or the party) calls
-  `erpnext.accounts.party.set_taxes` — which matches a **Tax Rule** by tax_category +
-  party + billing address + company + `transaction_date` — and sets `taxes_and_charges`
-  to the resolved template. The `taxes_and_charges` change then calls
-  `get_taxes_and_charges` to copy the template's rows into `taxes`. (Butler form,
-  `butler_quotation.js` → `set_taxes_from_tax_category` / `populate_taxes_from_template`.)
-- You can also pick a `taxes_and_charges` template manually (filtered to the company's
-  enabled templates); its rows populate `taxes` the same way.
-- Empty `tax_category` matches Tax Rules with an empty category.
+- **1. Default template on creation (`apply_default_taxes`, implemented):** fires on a
+  brand-new quotation before any party is picked (`onload_post_render`, guarded to skip
+  once the doc already carries un-templated rows), and again whenever `company` changes.
+  Calls `erpnext.controllers.accounts_controller.get_default_taxes_and_charges`, which
+  looks up the **`is_default=1`** Sales Taxes and Charges Template for that company and
+  returns it pre-populated with its rows — `taxes_and_charges` and `taxes` are set in one
+  call. Exact mirror of ERPNext `transaction.js` `apply_default_taxes`.
+- **2. Tax Rule resolution (`set_taxes_from_tax_category`, implemented):** changing
+  `tax_category` (or the party) calls `erpnext.accounts.party.set_taxes` — which matches
+  a **Tax Rule** by tax_category + party + billing address + company +
+  `transaction_date` — and sets `taxes_and_charges` to the resolved template,
+  **overwriting** whatever step 1 loaded. Empty `tax_category` matches Tax Rules with an
+  empty category.
+- **3. Row copy (`populate_taxes_from_template`, implemented):** any `taxes_and_charges`
+  change (manual pick, or set by step 1/2) calls `get_taxes_and_charges` to copy the
+  template's rows into `taxes`.
 
 ---
 

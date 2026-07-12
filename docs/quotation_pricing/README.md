@@ -116,6 +116,7 @@ These are used by both order types — see [amenities.md](./amenities.md) for de
 | ERPNext-style discount / `grand_total` / `rounded_total` / `base_*` composition | **Implemented** |
 | Taxes & charges (`taxes` rows, `charge_type` formulas) — engine mirrored over the net base | **Implemented** |
 | `tax_category` → template auto-resolution (Tax Rule) → `taxes` populated | **Implemented** |
+| Default tax template auto-loaded on a new quotation / company change (`apply_default_taxes`) | **Implemented** |
 | `base_*` (company-currency) fields shown only in multi-currency; rate fields editable then (ERPNext parity) | **Implemented** |
 | Granular multi-currency: per-currency rates in the **Currency Exchange Rates** table (document / amenity / bundle currencies), auto-fetched from Currency Exchange; document & bundle rates are computed locals | **Implemented** |
 | Create → Sales Order (Amenities) | **Implemented** |
