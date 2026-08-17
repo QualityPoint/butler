@@ -1,4 +1,4 @@
-# Copyright (c) 2026, QP and contributors
+# Copyright (c) 2026, QualityPoint and contributors
 # For license information, please see license.txt
 
 from frappe.www.login import get_context as frappe_login_context

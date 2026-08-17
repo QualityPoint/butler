@@ -1,9 +1,9 @@
 app_name = "butler"
 app_title = "Butler"
-app_publisher = "QP"
+app_publisher = "QualityPoint"
 app_description = "An App to manage services related to smart building systems"
-app_email = "assem.bahnasy@qp.sa"
-app_license = "agpl-3.0"
+app_email = "erp@qp.sa"
+app_license = "gpl-3.0"
 
 # Apps
 # ------------------

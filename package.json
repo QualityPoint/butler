@@ -10,8 +10,8 @@
     "build": "cd frontend && yarn build"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "QualityPoint",
+  "license": "GPL-3.0-or-later",
   "type": "commonjs",
   "dependencies": {
     "konva": "^10.3.0",

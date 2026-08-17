@@ -38,4 +38,4 @@ This app can use GitHub Actions for CI. The following workflows are configured:
 
 ### License
 
-agpl-3.0
+gpl-3.0

@@ -1,11 +1,12 @@
 [project]
 name = "butler"
 authors = [
-    { name = "QP", email = "assem.bahnasy@qp.sa"}
+    { name = "QualityPoint", email = "erp@qp.sa"}
 ]
 description = "An App to manage services related to smart building systems"
 requires-python = ">=3.14"
 readme = "README.md"
+license = { file = "license.txt" }
 dynamic = ["version"]
 dependencies = []
 
