@@ -140,9 +140,20 @@
    "link_type": "DocType",
    "show_arrow": 0,
    "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Butler Setup",
+   "link_to": "Butler Setup",
+   "link_type": "Workspace",
+   "show_arrow": 0,
+   "type": "Link"
   }
  ],
- "modified": "2026-06-15 11:01:30.841016",
+ "modified": "2026-09-01 10:24:37.976682",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Butler Setup",
