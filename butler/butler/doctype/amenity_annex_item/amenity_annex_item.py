@@ -5,5 +5,5 @@
 from frappe.model.document import Document
 
 
-class FacilityTypePrice(Document):
+class AmenityAnnexItem(Document):
 	pass

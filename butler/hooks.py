@@ -144,11 +144,14 @@ after_migrate = "butler.install.after_install"
 # Hook on document methods and events
 
 doc_events = {
+    "Address": {
+        "validate": "butler.overrides.address.validate",
+    },
     "Customer": {
         "after_insert": "butler.overrides.customer.link_facility_on_customer_create",
     },
-    "Address": {
-        "validate": "butler.overrides.address.validate",
+    "Item": {
+        "validate": "butler.overrides.item.validate",
     },
     "Sales Order": {
         "on_submit": "butler.overrides.sales_order.update_butler_quotation_status",

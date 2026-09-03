@@ -1,0 +1,150 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_import": 1,
+ "autoname": "hash",
+ "creation": "2026-09-01 15:33:46.701432",
+ "doctype": "DocType",
+ "document_type": "Setup",
+ "engine": "InnoDB",
+ "field_order": [
+  "annex",
+  "uom",
+  "column_break_qcpf",
+  "annex_name",
+  "section_break_dogd",
+  "column_break_idtd",
+  "amenity",
+  "facility_type",
+  "column_break_hgsc",
+  "rate",
+  "currency"
+ ],
+ "fields": [
+  {
+   "fieldname": "column_break_qcpf",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fetch_from": "annex.item_name",
+   "fieldname": "annex_name",
+   "fieldtype": "Data",
+   "label": "Annex Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "annex",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Annex",
+   "options": "Item",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_dogd",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "column_break_idtd",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_hgsc",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "rate",
+   "fieldtype": "Currency",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "label": "Rate",
+   "non_negative": 1,
+   "options": "currency",
+   "reqd": 1
+  },
+  {
+   "fieldname": "facility_type",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Facility Type",
+   "options": "Facility Type"
+  },
+  {
+   "fieldname": "amenity",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Amenity",
+   "options": "Amenity",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "annex.stock_uom",
+   "fetch_if_empty": 1,
+   "fieldname": "uom",
+   "fieldtype": "Link",
+   "label": "UOM",
+   "options": "UOM",
+   "reqd": 1
+  },
+  {
+   "bold": 1,
+   "fetch_from": "amenity.currency",
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "in_create": 1,
+ "links": [],
+ "modified": "2026-09-01 16:26:42.531573",
+ "modified_by": "Administrator",
+ "module": "Butler",
+ "name": "Annex Price",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales Master Manager"
+  },
+  {
+   "export": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales Manager"
+  },
+  {
+   "export": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales User"
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "annex_name"
+}

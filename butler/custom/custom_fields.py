@@ -6,6 +6,29 @@ from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 def custom_fields():
     """Butler specific custom fields that need to be added to the system."""
     return {
+        "Item": [
+            {
+                "fieldname": "butler_settings",
+                "label": _("Butler Settings"),
+                "fieldtype": "Section Break",
+                "insert_after": "is_customer_provided_item",
+                "collapsible": 1,
+            },
+            {
+                "fieldname": "is_amenity",
+                "label": _("Is Amenity"),
+                "fieldtype": "Check",
+                "no_copy": 1,
+                "insert_after": "butler_settings",
+            },
+            {
+                "fieldname": "is_annex",
+                "label": _("Is Annex"),
+                "fieldtype": "Check",
+                "no_copy": 1,
+                "insert_after": "is_amenity",
+            }
+        ],
         "Quotation Item": [
             {
                 "fieldname": "butler_quotation",

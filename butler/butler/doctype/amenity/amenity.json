@@ -8,32 +8,41 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "amenity_item",
+  "amenity",
   "amenity_name",
   "amenity_category",
   "column_break_jaun",
   "disabled",
+  "image",
+  "attributes_section",
+  "lines",
+  "depends_on_floor_count",
+  "column_break_fvih",
   "is_dependant_amenity",
   "depends_on",
-  "image",
-  "amenity_specifications_section",
-  "lines",
-  "standard_price",
-  "currency",
-  "column_break_fvih",
-  "depends_on_floor_count",
-  "has_changeable_price",
-  "facility_type_prices",
   "amenity_bundle_section",
-  "annexes"
+  "currency",
+  "annexes",
+  "section_break_stbe",
+  "column_break_zkrz",
+  "total_qty",
+  "column_break_wmkw",
+  "column_break_cyhe",
+  "total",
+  "add_ons",
+  "light_system_section",
+  "light_systems",
+  "sound_system_section",
+  "sound_system_price",
+  "column_break_wtjx"
  ],
  "fields": [
   {
+   "fetch_from": "amenity.item_name",
    "fieldname": "amenity_name",
    "fieldtype": "Data",
    "label": "Amenity Name",
-   "no_copy": 1,
-   "reqd": 1,
+   "read_only": 1,
    "unique": 1
   },
   {
@@ -74,11 +83,6 @@
    "options": "Amenity Depends On"
   },
   {
-   "fieldname": "amenity_specifications_section",
-   "fieldtype": "Section Break",
-   "label": "Amenity Specifications"
-  },
-  {
    "bold": 1,
    "fieldname": "lines",
    "fieldtype": "Int",
@@ -93,13 +97,15 @@
   {
    "fieldname": "amenity_bundle_section",
    "fieldtype": "Section Break",
+   "hide_border": 1,
    "label": "Amenity Bundle"
   },
   {
    "fieldname": "annexes",
    "fieldtype": "Table",
    "label": "Annexes",
-   "options": "Amenity Annex"
+   "options": "Amenity Annex Item",
+   "reqd": 1
   },
   {
    "default": "0",
@@ -107,40 +113,6 @@
    "fieldtype": "Check",
    "label": "Disabled",
    "no_copy": 1
-  },
-  {
-   "description": "The item must be of a non-stock type",
-   "fieldname": "amenity_item",
-   "fieldtype": "Link",
-   "label": "Amenity Item",
-   "no_copy": 1,
-   "options": "Item",
-   "reqd": 1,
-   "unique": 1
-  },
-  {
-   "default": "0",
-   "fieldname": "has_changeable_price",
-   "fieldtype": "Check",
-   "label": "Has Changeable Price",
-   "no_copy": 1
-  },
-  {
-   "depends_on": "eval:doc.has_changeable_price",
-   "description": "Changeable Price By Facility Type",
-   "fieldname": "facility_type_prices",
-   "fieldtype": "Table",
-   "label": "Facility Type Prices",
-   "mandatory_depends_on": "eval:doc.has_changeable_price",
-   "no_copy": 1,
-   "options": "Facility Type Price"
-  },
-  {
-   "fieldname": "standard_price",
-   "fieldtype": "Currency",
-   "label": "Standard Price",
-   "non_negative": 1,
-   "reqd": 1
   },
   {
    "default": "0",
@@ -154,13 +126,90 @@
    "label": "Currency",
    "options": "Currency",
    "reqd": 1
+  },
+  {
+   "fieldname": "add_ons",
+   "fieldtype": "Tab Break",
+   "label": "Add-ons"
+  },
+  {
+   "fieldname": "light_system_section",
+   "fieldtype": "Section Break",
+   "label": "Light System"
+  },
+  {
+   "fieldname": "light_systems",
+   "fieldtype": "Table",
+   "label": "Light Systems",
+   "options": "Amenity Light System"
+  },
+  {
+   "fieldname": "sound_system_section",
+   "fieldtype": "Section Break",
+   "label": "Sound System"
+  },
+  {
+   "default": "0",
+   "fieldname": "sound_system_price",
+   "fieldtype": "Currency",
+   "label": "Sound System Price",
+   "non_negative": 1,
+   "options": "currency",
+   "precision": "2"
+  },
+  {
+   "fieldname": "column_break_wtjx",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_stbe",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "column_break_zkrz",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_wmkw",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "total",
+   "fieldtype": "Currency",
+   "label": "Total",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_qty",
+   "fieldtype": "Float",
+   "label": "Total Quantity",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_cyhe",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "amenity",
+   "fieldtype": "Link",
+   "label": "Amenity",
+   "no_copy": 1,
+   "options": "Item",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "attributes_section",
+   "fieldtype": "Section Break",
+   "label": "Amenity Attributes"
   }
  ],
  "grid_page_length": 50,
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-06-22 13:55:07.919327",
+ "modified": "2026-09-01 16:49:05.466955",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Amenity",
@@ -181,11 +230,13 @@
    "write": 1
   },
   {
+   "export": 1,
    "read": 1,
    "report": 1,
    "role": "Sales User"
   },
   {
+   "export": 1,
    "read": 1,
    "report": 1,
    "role": "Sales Manager"
