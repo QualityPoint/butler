@@ -3,6 +3,7 @@
 
 import erpnext
 import frappe
+from erpnext.controllers.accounts_controller import AccountsController
 from erpnext.setup.utils import get_exchange_rate
 from frappe import _
 from frappe.model.document import Document
@@ -20,6 +21,18 @@ from frappe.utils import (
 
 
 class ButlerQuotation(Document):
+    # --- Payment Schedule (Payment Terms Template -> Payment Schedule table) ----------
+    # Reused verbatim from ERPNext's AccountsController -- the single source of truth
+    # ERPNext's own Quotation/Sales Order/Sales Invoice all share -- instead of
+    # reimplementing the same distribution/validation math here. Borrowed as plain
+    # methods (method resolution only, NOT multiple inheritance), so ONLY this specific
+    # behaviour is picked up: AccountsController's other lifecycle hooks (on_submit,
+    # on_cancel, on_trash, before_print, GL postings, ...) never run against Butler
+    # Quotation, since ButlerQuotation isn't actually an AccountsController subclass.
+    get_party = AccountsController.get_party
+    set_payment_schedule = AccountsController.set_payment_schedule
+    validate_payment_schedule_amount = AccountsController.validate_payment_schedule_amount
+
     def before_validate(self):
         self.set_default_company()
         self.set_default_valid_till()
@@ -72,7 +85,9 @@ class ButlerQuotation(Document):
         """
         if not (self.quotation_to and self.party_name):
             return
-        for field, value in get_party_details(self.party_name, self.quotation_to).items():
+        for field, value in get_party_details(
+            self.party_name, self.quotation_to, self.company
+        ).items():
             if not self.get(field):
                 self.set(field, value)
 
@@ -143,6 +158,12 @@ class ButlerQuotation(Document):
         self.validate_taxes()
         self.set_bundle_breakdown()
         self.calculate_totals()
+        # Payment Schedule needs the final grand_total/base_grand_total above, exactly
+        # like ERPNext's own validate_non_invoice_documents_schedule runs after
+        # calculate_taxes_and_totals.
+        self.set_payment_schedule()
+        self.validate_payment_schedule_dates()
+        self.validate_payment_schedule_amount()
         # governance runs on save only (calculate_totals stays throw-free for live recalc)
         self.enforce_standard_price(
             getattr(self, "_price_deviations", []),
@@ -179,9 +200,15 @@ class ButlerQuotation(Document):
         """Live (no-save) recompute of amounts and totals for the form: refreshes the
         bundle breakup then runs the same calculate_totals, without the standard-price /
         bundle governance throws (those apply on save in validate). Called from the form
-        on any pricing input change."""
+        on any pricing input change.
+
+        Also re-runs set_payment_schedule (throw-free, unlike its date/amount validators)
+        so the Payment Schedule grid's amounts track the live grand_total instead of
+        going stale until save — Butler's rule (unlike ERPNext's) is that any pricing
+        input change recalculates live."""
         self.set_bundle_breakdown()
         self.calculate_totals()
+        self.set_payment_schedule()
 
     def validate_taxes(self):
         """Per-row sanity of the Sales Taxes and Charges rows (charge_type ↔ row_id,
@@ -224,7 +251,7 @@ class ButlerQuotation(Document):
 
     def validate_quotation_to(self):
         """Ensure quotation_to is one of the allowed options. The field's options are
-        static (Customer, Lead, Prospect) so this is just a sanity check."""
+        static (Customer, Lead) so this is just a sanity check."""
         if self.quotation_to not in ("Customer", "Lead"):
             frappe.throw(_("quotation_to must be Customer or Lead"))
 
@@ -341,6 +368,21 @@ class ButlerQuotation(Document):
         ):
             frappe.throw(
                 _("Valid till date cannot be before transaction date"))
+
+    def validate_payment_schedule_dates(self):
+        """Reuses ERPNext's own duplicate-due-date / discount-date-ordering checks
+        (AccountsController.validate_payment_schedule_dates) verbatim, then adds the one
+        rule that function only applies via a literal `self.doctype in ["Sales Order",
+        "Quotation"]` check — which "Butler Quotation" can never match: a row's due date
+        can't fall before the transaction date.
+        """
+        AccountsController.validate_payment_schedule_dates(self)
+        for d in self.get("payment_schedule") or []:
+            if d.due_date and getdate(d.due_date) < getdate(self.transaction_date):
+                frappe.throw(
+                    _("Row {0}: Due Date in the Payment Schedule cannot be before the Transaction Date")
+                    .format(d.idx)
+                )
 
     def consolidate_amenities(self):
         """Merge duplicate amenity lines that share the same (amenity, floor_type,
@@ -502,6 +544,11 @@ class ButlerQuotation(Document):
         company_currency = erpnext.get_company_currency(self.company) if self.company else None
         rate_map = self.sync_exchange_rates(company_currency)
         conversion_rate = flt(rate_map.get(self.currency, 1.0)) or 1.0
+        # Not a declared field (never persisted) — exists only so the borrowed
+        # AccountsController.set_payment_schedule / validate_payment_schedule_amount can
+        # read it via self.get("conversion_rate") for their amount- (rather than
+        # percentage-) based payment-term branch.
+        self.conversion_rate = conversion_rate
 
         amenity_count = 0
         items_total = 0.0
@@ -1048,15 +1095,19 @@ def get_party_name(quotation_to, party_name):
 
 
 @frappe.whitelist()
-def get_party_details(party_name, quotation_to):
+def get_party_details(party_name, quotation_to, company=None):
     """Fetch a Butler Quotation's party details, mirroring ERPNext's
     `erpnext.accounts.party.get_party_details` for the subset Butler needs:
     the party's display name, its default billing Address (+ rendered display),
-    and its default Contact (+ display / mobile / email).
+    its default Contact (+ display / mobile / email), and its default Payment Terms
+    Template (Customer/Customer Group -> Company fallback — reusing the exact same
+    ERPNext function the real get_party_details calls, so a Lead correctly resolves to
+    no template, matching ERPNext's own Quotation-to-Lead behaviour).
 
     Called from the form's `party_name` trigger; the company address is resolved
     separately on the `company` trigger, exactly like ERPNext.
     """
+    from erpnext.accounts.party import get_payment_terms_template
     from frappe.contacts.doctype.address.address import get_address_display, get_default_address
     from frappe.contacts.doctype.contact.contact import get_contact_details, get_default_contact
 
@@ -1080,6 +1131,8 @@ def get_party_details(party_name, quotation_to):
     else:
         out.update(
             {"contact_display": "", "contact_email": "", "contact_mobile": ""})
+
+    out.payment_terms_template = get_payment_terms_template(party_name, quotation_to, company)
 
     return out
 
@@ -1244,6 +1297,9 @@ def _make_sales_order(source_name, target_doc=None, ignore_permissions=False):
             "Butler Quotation": {
                 "doctype": "Sales Order",
                 "validation": {"docstatus": ["=", 1]},
+                # the Sales Order gets its OWN payment schedule (below), mirroring
+                # ERPNext's Quotation -> Sales Order mapping
+                "field_no_map": ["payment_terms_template"],
             },
             **child_table_map,
             # Carry the tax rows (account_head, rate, charge_type, row_id) so the SO
@@ -1260,6 +1316,14 @@ def _make_sales_order(source_name, target_doc=None, ignore_permissions=False):
         set_missing_values,
         ignore_permissions=ignore_permissions,
     )
+
+    # Mirrors ERPNext's Quotation._make_sales_order: pre-populate the newly mapped (still
+    # unsaved) Sales Order's own payment schedule immediately, the same one its own
+    # AccountsController.validate() would compute on save anyway (100% due immediately,
+    # or from its own payment_terms_template) -- so the freshly opened form shows it
+    # right away instead of only after the user saves.
+    if cint(frappe.get_single_value("Accounts Settings", "automatically_fetch_payment_terms")):
+        doclist.set_payment_schedule()
 
     return doclist
 

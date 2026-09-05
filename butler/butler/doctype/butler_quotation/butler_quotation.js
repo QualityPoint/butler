@@ -124,6 +124,16 @@ frappe.ui.form.on("Butler Quotation", {
         frm.trigger("set_dynamic_field_label");
         frm.trigger("toggle_currency_fields");
 
+        // A template was picked but the schedule is empty (e.g. a doc saved before this
+        // field existed) — mirrors ERPNext's transaction.js refresh safeguard.
+        if (
+            frm.docstatus < 2 &&
+            frm.doc.payment_terms_template &&
+            !(frm.doc.payment_schedule || []).length
+        ) {
+            frm.trigger("payment_terms_template");
+        }
+
         if (frm.is_new()) return; // need a saved quotation to attach geometry to
         frm.add_custom_button(__("Open Facility Builder"), () => {
             // pin the desk sidebar — the builder's <mode>/<name> sub-route can't be
@@ -256,6 +266,7 @@ frappe.ui.form.on("Butler Quotation", {
                 contact_display: "",
                 contact_mobile: "",
                 contact_email: "",
+                payment_terms_template: "",
             });
             return;
         }
@@ -265,6 +276,7 @@ frappe.ui.form.on("Butler Quotation", {
             args: {
                 party_name: frm.doc.party_name,
                 quotation_to: frm.doc.quotation_to,
+                company: frm.doc.company,
             },
             callback(r) {
                 if (!r.message) return;
@@ -403,6 +415,30 @@ frappe.ui.form.on("Butler Quotation", {
         });
     },
 
+    payment_terms_template(frm) {
+        // Reuses ERPNext's own whitelisted helper (accounts_controller.py) verbatim —
+        // the exact call transaction.js makes for every ERPNext transaction — instead
+        // of reimplementing the payment-terms expansion here.
+        if (!frm.doc.payment_terms_template) return;
+        frappe.call({
+            method: "erpnext.controllers.accounts_controller.get_payment_terms",
+            args: {
+                terms_template: frm.doc.payment_terms_template,
+                posting_date: frm.doc.transaction_date,
+                grand_total: frm.doc.rounded_total || frm.doc.grand_total,
+                base_grand_total: frm.doc.base_rounded_total || frm.doc.base_grand_total,
+            },
+            callback(r) {
+                if (r.message && !r.exc) {
+                    frm.set_value("payment_schedule", r.message);
+                    get_company_currency(frm).then((company_currency) => {
+                        set_currency_field_labels(frm, company_currency);
+                    });
+                }
+            },
+        });
+    },
+
     facility(frm) {
         // Render the Facility's default linked Address into facility_address,
         // mirroring customer_address_display / company_address_display.
@@ -524,31 +560,23 @@ const BASE_CURRENCY_GRID_FIELDS = {
         "base_net_amount",
     ],
     taxes: ["base_tax_amount", "base_total", "base_tax_amount_after_discount_amount"],
+    payment_schedule: ["base_payment_amount", "base_outstanding", "base_paid_amount"],
 };
 
 // Render the real currency code into Currency-field labels (ERPNext parity —
 // transaction.js change_form_labels): fields with options "currency" → the document
 // currency (e.g. "Total (USD)"); fields with options "Company:company:default_currency"
 // → the company currency (e.g. "Total (SAR)", replacing the literal "(Company Currency)").
-// Covers the header and the amenities / taxes child grids.
+// Covers the header and the amenities / taxes / payment_schedule child grids.
 function set_currency_field_labels(frm, company_currency) {
-    const options_map = {
-        currency: frm.doc.currency,
-        "Company:company:default_currency": company_currency,
-    };
-    for (const parentfield of [null, "amenities", "taxes"]) {
-        const grid = parentfield && frm.fields_dict[parentfield] && frm.fields_dict[parentfield].grid;
-        const doctype = parentfield ? grid && grid.doctype : frm.doctype;
-        if (!doctype) continue;
-        for (const [options, code] of Object.entries(options_map)) {
-            if (!code) continue;
-            const fields = frappe.meta
-                .get_docfields(doctype)
-                .filter((df) => df.fieldtype === "Currency" && df.options === options)
-                .map((df) => df.fieldname);
-            frm.set_currency_labels(fields, code, parentfield);
-        }
-    }
+    butler.utils.set_currency_labels(
+        frm,
+        {
+            currency: frm.doc.currency,
+            "Company:company:default_currency": company_currency,
+        },
+        [null, "amenities", "taxes", "payment_schedule"]
+    );
 
     // exchange_rates table: name the rate column with the actual company currency, so
     // each row reads "<currency> → Rate to <SAR>" (the rate is to the company currency).
@@ -657,6 +685,38 @@ frappe.ui.form.on("Currency Exchange Rate", {
             if (field && row.currency && company_currency) {
                 field.set_description(__("1 {0} = [?] {1}", [row.currency, company_currency]));
             }
+        });
+    },
+});
+
+// Picking a Payment Term directly on a Payment Schedule row (without a whole template) —
+// reuses ERPNext's own whitelisted helper verbatim, same as transaction.js's payment_term.
+frappe.ui.form.on("Payment Schedule", {
+    payment_term(frm, cdt, cdn) {
+        const row = locals[cdt][cdn];
+        // condition fields are re-derived from the term below; stale values would
+        // otherwise linger from whatever the row previously held.
+        ["due_date_based_on", "credit_days", "credit_months",
+            "discount_validity_based_on", "discount_validity"].forEach((field) => {
+            row[field] = "";
+        });
+        if (!row.payment_term) return;
+
+        frappe.call({
+            method: "erpnext.controllers.accounts_controller.get_payment_term_details",
+            args: {
+                term: row.payment_term,
+                posting_date: frm.doc.transaction_date,
+                grand_total: frm.doc.rounded_total || frm.doc.grand_total,
+                base_grand_total: frm.doc.base_rounded_total || frm.doc.base_grand_total,
+            },
+            callback(r) {
+                if (r.message && !r.exc) {
+                    Object.entries(r.message).forEach(([field, value]) => {
+                        frappe.model.set_value(cdt, cdn, field, value);
+                    });
+                }
+            },
         });
     },
 });

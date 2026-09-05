@@ -98,6 +98,17 @@
    "type": "Link"
   },
   {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "setting",
+   "indent": 1,
+   "keep_closed": 0,
+   "label": "Annex Setup",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Section Break"
+  },
+  {
    "child": 1,
    "collapsible": 1,
    "indent": 0,
@@ -111,6 +122,18 @@
   {
    "child": 1,
    "collapsible": 1,
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Annex Category",
+   "link_to": "Annex Category",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "lightbulb",
    "indent": 0,
    "keep_closed": 0,
    "label": "Light System",
@@ -151,20 +174,9 @@
    "link_type": "DocType",
    "show_arrow": 0,
    "type": "Link"
-  },
-  {
-   "child": 0,
-   "collapsible": 1,
-   "indent": 0,
-   "keep_closed": 0,
-   "label": "Butler Setup",
-   "link_to": "Butler Setup",
-   "link_type": "Workspace",
-   "show_arrow": 0,
-   "type": "Link"
   }
  ],
- "modified": "2026-09-01 10:47:13.108236",
+ "modified": "2026-09-05 16:49:36.591839",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Butler Setup",

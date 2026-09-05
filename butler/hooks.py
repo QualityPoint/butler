@@ -152,6 +152,7 @@ doc_events = {
     },
     "Item": {
         "validate": "butler.overrides.item.validate",
+        "before_save": "butler.overrides.item.before_save",
     },
     "Sales Order": {
         "on_submit": "butler.overrides.sales_order.update_butler_quotation_status",

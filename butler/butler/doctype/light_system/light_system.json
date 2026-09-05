@@ -12,8 +12,8 @@
   "is_default",
   "standard_price",
   "column_break_nuzj",
-  "image",
-  "description"
+  "description",
+  "image"
  ],
  "fields": [
   {
@@ -60,7 +60,7 @@
  "grid_page_length": 50,
  "image_field": "image",
  "links": [],
- "modified": "2026-09-01 10:45:22.361138",
+ "modified": "2026-09-05 12:48:22.850252",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Light System",
@@ -72,12 +72,28 @@
    "delete": 1,
    "email": 1,
    "export": 1,
+   "import": 1,
    "print": 1,
    "read": 1,
    "report": 1,
    "role": "Sales Master Manager",
    "share": 1,
    "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Sales User"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Sales Manager"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Sales Auditor"
   }
  ],
  "quick_entry": 1,

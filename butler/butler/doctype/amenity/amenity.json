@@ -8,18 +8,14 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "disabled",
+  "section_break_pden",
   "amenity",
   "amenity_name",
   "amenity_category",
   "column_break_jaun",
-  "disabled",
-  "image",
-  "attributes_section",
   "lines",
-  "depends_on_floor_count",
-  "column_break_fvih",
-  "is_dependant_amenity",
-  "depends_on",
+  "image",
   "amenity_bundle_section",
   "currency",
   "annexes",
@@ -29,12 +25,17 @@
   "column_break_wmkw",
   "column_break_cyhe",
   "total",
-  "add_ons",
   "light_system_section",
   "light_systems",
   "sound_system_section",
   "sound_system_price",
-  "column_break_wtjx"
+  "column_break_wtjx",
+  "dependencies_section",
+  "depends_on_floor_count",
+  "floor_extra_price",
+  "column_break_fvih",
+  "is_dependant_amenity",
+  "depends_on"
  ],
  "fields": [
   {
@@ -70,7 +71,6 @@
    "fieldname": "is_dependant_amenity",
    "fieldtype": "Check",
    "in_list_view": 1,
-   "in_standard_filter": 1,
    "label": "Is Dependant Amenity",
    "no_copy": 1
   },
@@ -109,13 +109,6 @@
   },
   {
    "default": "0",
-   "fieldname": "disabled",
-   "fieldtype": "Check",
-   "label": "Disabled",
-   "no_copy": 1
-  },
-  {
-   "default": "0",
    "fieldname": "depends_on_floor_count",
    "fieldtype": "Check",
    "label": "Depends On Floor Count"
@@ -128,11 +121,8 @@
    "reqd": 1
   },
   {
-   "fieldname": "add_ons",
-   "fieldtype": "Tab Break",
-   "label": "Add-ons"
-  },
-  {
+   "collapsible": 1,
+   "collapsible_depends_on": "eval:(doc.light_systems || []).length > 0",
    "fieldname": "light_system_section",
    "fieldtype": "Section Break",
    "label": "Light System"
@@ -144,6 +134,8 @@
    "options": "Amenity Light System"
   },
   {
+   "collapsible": 1,
+   "collapsible_depends_on": "eval:doc.sound_system_price > 0",
    "fieldname": "sound_system_section",
    "fieldtype": "Section Break",
    "label": "Sound System"
@@ -200,16 +192,42 @@
    "unique": 1
   },
   {
-   "fieldname": "attributes_section",
+   "collapsible": 1,
+   "collapsible_depends_on": "eval:doc.depends_on_floor_count || doc.is_dependant_amenity",
+   "fieldname": "dependencies_section",
    "fieldtype": "Section Break",
-   "label": "Amenity Attributes"
+   "label": "Amenity Dependencies"
+  },
+  {
+   "depends_on": "eval:doc.depends_on_floor_count",
+   "description": "This price will be multiplied by the number of floors and added to the Amenity price",
+   "fieldname": "floor_extra_price",
+   "fieldtype": "Currency",
+   "label": "Floor Extra Price",
+   "non_negative": 1,
+   "options": "currency",
+   "precision": "2"
+  },
+  {
+   "default": "0",
+   "fieldname": "disabled",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "in_standard_filter": 1,
+   "label": "Disabled",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_pden",
+   "fieldtype": "Section Break"
   }
  ],
  "grid_page_length": 50,
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-01 16:49:05.466955",
+ "modified": "2026-09-05 17:35:57.498895",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Amenity",

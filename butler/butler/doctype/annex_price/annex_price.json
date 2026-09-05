@@ -26,7 +26,7 @@
    "fieldtype": "Column Break"
   },
   {
-   "fetch_from": "annex.item_name",
+   "fetch_from": "annex.annex_name",
    "fieldname": "annex_name",
    "fieldtype": "Data",
    "label": "Annex Name",
@@ -37,7 +37,7 @@
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Annex",
-   "options": "Item",
+   "options": "Annex",
    "reqd": 1
   },
   {
@@ -80,7 +80,6 @@
    "reqd": 1
   },
   {
-   "fetch_from": "annex.stock_uom",
    "fetch_if_empty": 1,
    "fieldname": "uom",
    "fieldtype": "Link",
@@ -101,7 +100,7 @@
  "grid_page_length": 50,
  "in_create": 1,
  "links": [],
- "modified": "2026-09-01 16:26:42.531573",
+ "modified": "2026-09-05 16:20:31.831121",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Annex Price",

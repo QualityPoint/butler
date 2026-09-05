@@ -1,0 +1,131 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_import": 1,
+ "allow_rename": 1,
+ "autoname": "field:annex_name",
+ "creation": "2026-09-05 12:22:54.761019",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "disabled",
+  "section_break_hkvj",
+  "annex_item",
+  "annex_name",
+  "annex_category",
+  "description",
+  "column_break_hwpd",
+  "manufacturer",
+  "warranty",
+  "warranty_uom",
+  "image"
+ ],
+ "fields": [
+  {
+   "fieldname": "column_break_hwpd",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "image",
+   "fieldtype": "Attach Image",
+   "hidden": 1,
+   "label": "Image",
+   "no_copy": 1
+  },
+  {
+   "fieldname": "annex_item",
+   "fieldtype": "Link",
+   "label": "Annex Item",
+   "options": "Item",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fetch_from": "annex_item.item_name",
+   "fetch_if_empty": 1,
+   "fieldname": "annex_name",
+   "fieldtype": "Data",
+   "label": "Annex Name",
+   "unique": 1
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  },
+  {
+   "fieldname": "manufacturer",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Manufacturer"
+  },
+  {
+   "fieldname": "warranty",
+   "fieldtype": "Float",
+   "label": "Warranty",
+   "non_negative": 1,
+   "precision": "1"
+  },
+  {
+   "fieldname": "warranty_uom",
+   "fieldtype": "Select",
+   "label": "Warranty UOM",
+   "options": "\nYears\nMonths\nWeeks\nDays"
+  },
+  {
+   "fieldname": "annex_category",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Annex Category",
+   "options": "Annex Category",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "disabled",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "in_standard_filter": 1,
+   "label": "Disabled",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_hkvj",
+   "fieldtype": "Section Break"
+  }
+ ],
+ "grid_page_length": 50,
+ "image_field": "image",
+ "links": [],
+ "modified": "2026-09-05 17:17:09.027497",
+ "modified_by": "Administrator",
+ "module": "Butler",
+ "name": "Annex",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "quick_entry": 1,
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "show_preview_popup": 1,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "translated_doctype": 1
+}

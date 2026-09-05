@@ -14,13 +14,20 @@
   "column_break_vegf",
   "rate",
   "amount",
+  "description_section",
+  "description",
+  "annex_category",
+  "column_break_ynrp",
+  "manufacturer",
+  "warranty",
+  "warranty_uom",
   "pricing_section",
   "pricing_per_facility_type",
   "column_break_gwyk"
  ],
  "fields": [
   {
-   "fetch_from": "annex.item_name",
+   "fetch_from": "annex.annex_name",
    "fieldname": "annex_name",
    "fieldtype": "Data",
    "label": "Annex Name",
@@ -72,7 +79,7 @@
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Annex",
-   "options": "Item",
+   "options": "Annex",
    "reqd": 1
   },
   {
@@ -88,13 +95,61 @@
    "fieldname": "pricing_section",
    "fieldtype": "Section Break",
    "label": "Facility Type Pricing"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "description_section",
+   "fieldtype": "Section Break",
+   "label": "Description"
+  },
+  {
+   "fetch_from": "annex.description",
+   "fetch_if_empty": 1,
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  },
+  {
+   "fieldname": "column_break_ynrp",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fetch_from": "annex.manufacturer",
+   "fieldname": "manufacturer",
+   "fieldtype": "Data",
+   "label": "Manufacturer",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "annex.warranty",
+   "fieldname": "warranty",
+   "fieldtype": "Float",
+   "label": "Warranty",
+   "precision": "1",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "annex.warranty_uom",
+   "fieldname": "warranty_uom",
+   "fieldtype": "Select",
+   "label": "Warranty UOM",
+   "options": "\nYears\nMonths\nWeeks\nDays",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "annex.annex_category",
+   "fieldname": "annex_category",
+   "fieldtype": "Link",
+   "label": "Annex Category",
+   "options": "Annex Category",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-09-01 14:05:34.900910",
+ "modified": "2026-09-05 16:14:33.032153",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Amenity Annex Item",
