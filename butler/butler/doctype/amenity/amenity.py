@@ -75,6 +75,14 @@ class Amenity(Document):
 
     def before_save(self):
         self.clear_dependent_fields()
+
+    def on_update(self):
+        """Sync the annex rows out to their standard Annex Price records.
+
+        Runs on_update rather than before_save because an Annex Price links back to this
+        Amenity: on a first insert the row doesn't exist in the database until after
+        before_save, so creating the price there fails link validation.
+        """
         self.remove_stale_annex_prices()
 
         # Keep each annex row's standard Annex Price in sync: create it the first

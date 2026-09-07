@@ -25,7 +25,11 @@ frappe.ui.form.on("Amenity", {
             const taken = (doc.light_systems || [])
                 .filter((row) => row.system_name && row.name !== cdn)
                 .map((row) => row.system_name);
-            return { filters: { name: ["not in", taken] } };
+            return {
+                filters: {
+                    name: ["not in", taken]
+                }
+            };
         });
     },
 

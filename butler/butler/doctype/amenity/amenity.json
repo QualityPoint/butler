@@ -35,7 +35,9 @@
   "floor_extra_price",
   "column_break_fvih",
   "is_dependant_amenity",
-  "depends_on"
+  "depends_on",
+  "additional_info_section",
+  "description"
  ],
  "fields": [
   {
@@ -221,13 +223,26 @@
   {
    "fieldname": "section_break_pden",
    "fieldtype": "Section Break"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "additional_info_section",
+   "fieldtype": "Section Break",
+   "label": "Additional Info"
+  },
+  {
+   "fetch_from": "amenity.description",
+   "fetch_if_empty": 1,
+   "fieldname": "description",
+   "fieldtype": "Text Editor",
+   "label": "Description"
   }
  ],
  "grid_page_length": 50,
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-05 17:35:57.498895",
+ "modified": "2026-09-07 12:39:34.719920",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Amenity",

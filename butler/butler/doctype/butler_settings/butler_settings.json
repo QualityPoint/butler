@@ -9,8 +9,8 @@
   "quotation_section",
   "disable_amenity_consolidation",
   "column_break_aufy",
-  "maintain_standard_price_action",
-  "role_to_override_standard_price_stop_action",
+  "maintain_annex_price_action",
+  "role_to_override_annex_price_stop_action",
   "section_break_eqov",
   "default_valid_till",
   "column_break_fofu",
@@ -30,13 +30,6 @@
    "fieldname": "disable_amenity_consolidation",
    "fieldtype": "Check",
    "label": "Disable Amenity Consolidation"
-  },
-  {
-   "default": "Stop",
-   "fieldname": "maintain_standard_price_action",
-   "fieldtype": "Select",
-   "label": "Action if Amenity standard price is not maintained",
-   "options": "Stop\nWarn"
   },
   {
    "fieldname": "quotation_section",
@@ -82,8 +75,15 @@
    "options": "Role"
   },
   {
-   "depends_on": "eval:doc.maintain_standard_price_action==\"Stop\"",
-   "fieldname": "role_to_override_standard_price_stop_action",
+   "default": "Stop",
+   "fieldname": "maintain_annex_price_action",
+   "fieldtype": "Select",
+   "label": "Action if Annex standard price is not maintained",
+   "options": "Stop\nWarn"
+  },
+  {
+   "depends_on": "eval:doc.maintain_annex_price_action==\"Stop\"",
+   "fieldname": "role_to_override_annex_price_stop_action",
    "fieldtype": "Link",
    "label": " Role allowed to override stop action ",
    "options": "Role"
@@ -93,7 +93,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-06-23 12:24:20.205308",
+ "modified": "2026-09-07 13:11:23.764681",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Butler Settings",

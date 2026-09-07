@@ -552,12 +552,22 @@ const NET_TOTAL_FIELDS = ["net_total", "additional_net_total"];
 const BASE_NET_TOTAL_FIELDS = ["base_net_total", "base_additional_net_total"];
 const BASE_CURRENCY_GRID_FIELDS = {
     amenities: [
-        "exchange_rate",
+        "qtn_exchange_rate",
+        "base_exchange_rate",
         "base_amenity_price",
-        "base_rate",
-        "base_net_rate",
-        "base_amount",
-        "base_net_amount",
+        "base_amenity_net_price",
+        "base_amenity_amount",
+        "base_amenity_net_amount",
+        "base_annex_price",
+        "base_annex_net_price",
+        "base_annex_amount",
+        "base_annex_net_amount",
+        "base_light_system_price",
+        "base_light_system_amount",
+        "base_sound_system_price",
+        "base_sound_system_amount",
+        "base_floor_price",
+        "base_floor_amount",
     ],
     taxes: ["base_tax_amount", "base_total", "base_tax_amount_after_discount_amount"],
     payment_schedule: ["base_payment_amount", "base_outstanding", "base_paid_amount"],
@@ -638,16 +648,25 @@ function recalculate_quotation(frm) {
 // --- Amenity lines — recompute amount/totals on any pricing input change. ------------
 frappe.ui.form.on("Butler Quotation Item", {
     amenity(frm, cdt, cdn) {
-        // amenity (and its currency) changed → clear the stale per-line rate; the server
-        // re-fetches amenity_currency→company on recalc.
-        frappe.model.set_value(cdt, cdn, "exchange_rate", null);
+        // the amenity (and so its currency) changed → drop the stale per-row rates; the
+        // server re-derives them from the exchange_rates table on recalc.
+        frappe.model.set_value(cdt, cdn, "qtn_exchange_rate", null);
+        frappe.model.set_value(cdt, cdn, "base_exchange_rate", null);
         recalculate_quotation(frm);
     },
-    rate: (frm) => recalculate_quotation(frm),
-    qty: (frm) => recalculate_quotation(frm),
+    // the four user-editable prices, one per priced component
+    qtn_annex_price: (frm) => recalculate_quotation(frm),
+    qtn_light_system_price: (frm) => recalculate_quotation(frm),
+    qtn_sound_system_price: (frm) => recalculate_quotation(frm),
+    qtn_floor_price: (frm) => recalculate_quotation(frm),
+    amenity_qty: (frm) => recalculate_quotation(frm),
+    annex: (frm) => recalculate_quotation(frm),
+    annex_quantity: (frm) => recalculate_quotation(frm),
+    annex_uom: (frm) => recalculate_quotation(frm),
+    light_system: (frm) => recalculate_quotation(frm),
+    has_sound_system: (frm) => recalculate_quotation(frm),
     floor_type: (frm) => recalculate_quotation(frm),
     additional_amenity: (frm) => recalculate_quotation(frm),
-    exchange_rate: (frm) => recalculate_quotation(frm),
     amenities_remove: (frm) => recalculate_quotation(frm),
     form_render(frm, cdt, cdn) {
         // ERPNext's set_column_disp hides only the collapsed grid COLUMNS — the expanded

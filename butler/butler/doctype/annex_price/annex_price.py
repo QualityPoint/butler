@@ -53,6 +53,36 @@ def upsert_annex_price(annex, amenity, uom, rate, currency, facility_type=None):
 
 
 @frappe.whitelist()
+def get_annex_price(annex, amenity, facility_type=None):
+	"""The Annex Price that governs an annex on a given amenity, for a facility type.
+
+	A row scoped to `facility_type` wins; otherwise the standard row (`facility_type = ""`)
+	applies. This is the successor to the old `Amenity.facility_type_prices` lookup — the
+	override now lives per annex rather than per amenity, and the mere existence of a
+	facility-type row is what makes a price changeable (there is no `has_changeable_price`
+	gate any more).
+
+	Returns the Annex Price as a dict (name, rate, uom, currency), or None when the
+	annex/amenity pair was never priced.
+	"""
+	if not (annex and amenity):
+		return None
+
+	# facility-type override first, then the standard row
+	for scope in ([facility_type] if facility_type else []) + [""]:
+		match = frappe.db.get_value(
+			"Annex Price",
+			{"annex": annex, "amenity": amenity, "facility_type": scope},
+			["name", "rate", "uom", "currency"],
+			as_dict=True,
+		)
+		if match:
+			return match
+
+	return None
+
+
+@frappe.whitelist()
 def create_facility_type_annex_price(amenity, annex, uom, currency, facility_type, rate):
 	"""Handler for the Amenity form's per-row "Facility Type Pricing" button: creates
 	(or updates, per upsert_annex_price) the Annex Price for this annex/amenity,

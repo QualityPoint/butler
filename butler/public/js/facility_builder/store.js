@@ -346,12 +346,20 @@ export function getStore(mode, target_name) {
 	// --- save ---
 	// aggregate placements into DISTINCT (amenity + floor_type) rows, qty = placement count
 	function build_amenity_rows() {
-		// one row per placement (qty 1); the server consolidates in before_validate per Butler Settings
+		// One amenity row per placement (qty 1). The server fills in the rest: it seeds
+		// each amenity's annex rows from the Amenity master (expand_amenity_rows) and then
+		// consolidates placements in before_validate per Butler Settings — so the builder
+		// never has to know how an amenity is composed or priced.
 		const rows = [];
 		for (const floor of design.value.floors) {
 			for (const r of floor.rooms) {
 				if (r.amenity) {
-					rows.push({ doctype: "Butler Quotation Item", amenity: r.amenity, floor_type: floor.floor_type, qty: 1 });
+					rows.push({
+						doctype: "Butler Quotation Item",
+						amenity: r.amenity,
+						floor_type: floor.floor_type,
+						amenity_qty: 1,
+					});
 				}
 			}
 		}

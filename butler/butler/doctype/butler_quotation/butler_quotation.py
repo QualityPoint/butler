@@ -3,6 +3,7 @@
 
 import erpnext
 import frappe
+from butler.butler.doctype.annex.annex import get_annex_default_uom
 from erpnext.controllers.accounts_controller import AccountsController
 from erpnext.setup.utils import get_exchange_rate
 from frappe import _
@@ -18,6 +19,80 @@ from frappe.utils import (
     nowdate,
     round_based_on_smallest_currency_fraction,
 )
+
+
+# Fields that only make sense on an ANNEX row — cleared on an amenity row.
+ANNEX_ROW_FIELDS = (
+    "annex_quantity", "annex_uom", "annex_stock_uom", "conversion_factor",
+    "annex_price_list", "annex_price", "annex_amount",
+    "qtn_annex_price", "qtn_annex_net_price", "qtn_annex_amount", "qtn_annex_net_amount",
+    "base_annex_price", "base_annex_net_price", "base_annex_amount", "base_annex_net_amount",
+)
+
+# Fields that only make sense on an AMENITY row — cleared on an annex row. The amenity's
+# own price ladder is derived, so it is cleared too rather than carried per annex.
+AMENITY_ROW_FIELDS = (
+    "amenity_qty", "amenity_price", "qtn_amenity_price",
+    "qtn_amenity_net_price", "qtn_amenity_amount", "qtn_amenity_net_amount",
+    "base_amenity_price", "base_amenity_net_price", "base_amenity_amount",
+    "base_amenity_net_amount",
+    "light_system", "used_lines", "total_lines", "light_system_price",
+    "light_system_amount", "light_system_pricing_mode",
+    "qtn_light_system_price", "qtn_light_system_amount",
+    "base_light_system_price", "base_light_system_amount",
+    "has_sound_system", "sound_system_price", "sound_system_amount",
+    "qtn_sound_system_price", "qtn_sound_system_amount",
+    "base_sound_system_price", "base_sound_system_amount",
+    "floor_price", "floor_qty", "floor_amount",
+    "qtn_floor_price", "qtn_floor_amount",
+    "base_floor_price", "base_floor_amount",
+)
+
+
+def get_amenity_item(amenity):
+    """The Item an Amenity is sold as, for the Sales Order mapping. The link is the
+    Amenity's own `amenity` field (it was `amenity_item` before the annex refactor)."""
+    item = frappe.get_cached_value("Amenity", amenity, "amenity") if amenity else None
+    if not item:
+        frappe.throw(
+            _("Amenity {0} has no linked Item, so it can't be added to a Sales Order.").format(
+                frappe.bold(amenity)
+            )
+        )
+    return item
+
+
+def get_annex_uom_conversion(annex, uom):
+    """An annex's stock UOM and the factor converting `uom` into it, resolved through the
+    Annex's Item — reusing ERPNext's own `get_conversion_factor` so Butler follows the
+    same UOM Conversion Detail rules as a Sales Order line.
+
+    The factor is for the downstream stock quantity only. The annex rate is quoted *per
+    `uom`*, so applying the factor to money as well would double-count it.
+    """
+    item = frappe.db.get_value("Annex", annex, "annex_item") if annex else None
+    if not item:
+        return None, 1.0
+
+    stock_uom = frappe.db.get_value("Item", item, "stock_uom")
+    if not uom or uom == stock_uom:
+        return stock_uom, 1.0
+
+    from erpnext.stock.get_item_details import get_conversion_factor
+
+    return stock_uom, flt(get_conversion_factor(item, uom).get("conversion_factor")) or 1.0
+
+
+def amenity_row_key(row):
+    """Identity of the amenity group a row belongs to. `additional_amenity` is part of it
+    so an included and an additional unit of the same amenity on one floor stay apart."""
+    return (row.amenity, row.floor_type, cint(row.additional_amenity))
+
+
+def annex_row_key(row):
+    """Identity of an annex row within its amenity group. Quantity and price are in the
+    key so an overridden row is never deduped into a differently-priced twin."""
+    return (row.annex, row.annex_uom, flt(row.annex_quantity), flt(row.qtn_annex_price))
 
 
 class ButlerQuotation(Document):
@@ -39,7 +114,10 @@ class ButlerQuotation(Document):
         self.set_party_from_facility()
         self.set_default_terms()
         self.clear_additional_amenities()
+        self.clear_row_type_fields()
         self.consolidate_amenities()
+        self.expand_amenity_rows()
+        self.order_amenity_rows()
 
     def set_party_from_facility(self):
         """Default quotation_to / party_name from the Facility's linked party when the
@@ -165,10 +243,11 @@ class ButlerQuotation(Document):
         self.validate_payment_schedule_dates()
         self.validate_payment_schedule_amount()
         # governance runs on save only (calculate_totals stays throw-free for live recalc)
-        self.enforce_standard_price(
+        self.enforce_annex_price(
             getattr(self, "_price_deviations", []),
             getattr(self, "_bundle_price_breach", None),
         )
+        self.validate_row_types()
         self.validate_bundle_amenities(enforce=False)  # warn while editing
         self.validate_exchange_rates(enforce=False)  # warn while editing
         self.validate_valid_till()
@@ -346,11 +425,14 @@ class ButlerQuotation(Document):
         return ordered
 
     def get_ordered_status(self):
+        # only amenity rows reach a Sales Order — annex rows are quotation-only detail
         ordered = self.get_ordered_items()
         if not ordered:
             return "Open"
         for row in self.amenities:
-            if row.name not in ordered or flt(row.qty) > flt(ordered.get(row.name)):
+            if row.annex:
+                continue
+            if row.name not in ordered or flt(row.amenity_qty) > flt(ordered.get(row.name)):
                 return "Partially Ordered"
         return "Ordered"
 
@@ -369,6 +451,52 @@ class ButlerQuotation(Document):
             frappe.throw(
                 _("Valid till date cannot be before transaction date"))
 
+    def validate_row_types(self):
+        """Each row must be a complete example of its type.
+
+        The two row types share one doctype, so the mandatory flags that would normally
+        express this can't live on the fields (`annex_uom` reqd would block every amenity
+        row). They are enforced here instead, per type.
+        """
+        groups, orphans = self.group_amenity_rows()
+
+        if orphans:
+            names = ", ".join(sorted({frappe.bold(r.annex) for r in orphans if r.annex}))
+            frappe.throw(
+                _("These annexes don't belong to any amenity on the quotation: {0}").format(names),
+                title=_("Unattached annex"),
+            )
+
+        for amenity_row, annex_rows in groups:
+            if flt(amenity_row.amenity_qty) <= 0:
+                frappe.throw(
+                    _("Row #{0}: Amenity Quantity must be greater than zero.").format(
+                        amenity_row.idx),
+                    title=_("Invalid quantity"),
+                )
+
+            allowed = {r.annex for r in frappe.get_cached_doc(
+                "Amenity", amenity_row.amenity).annexes}
+            for annex_row in annex_rows:
+                if flt(annex_row.annex_quantity) <= 0:
+                    frappe.throw(
+                        _("Row #{0}: Annex Quantity must be greater than zero.").format(
+                            annex_row.idx),
+                        title=_("Invalid quantity"),
+                    )
+                if not annex_row.annex_uom:
+                    frappe.throw(
+                        _("Row #{0}: Annex UOM is required.").format(annex_row.idx),
+                        title=_("Missing UOM"),
+                    )
+                if annex_row.annex not in allowed:
+                    frappe.throw(
+                        _("Row #{0}: {1} is not an annex of {2}.").format(
+                            annex_row.idx, frappe.bold(annex_row.annex),
+                            frappe.bold(amenity_row.amenity)),
+                        title=_("Annex not configured"),
+                    )
+
     def validate_payment_schedule_dates(self):
         """Reuses ERPNext's own duplicate-due-date / discount-date-ordering checks
         (AccountsController.validate_payment_schedule_dates) verbatim, then adds the one
@@ -384,33 +512,141 @@ class ButlerQuotation(Document):
                     .format(d.idx)
                 )
 
-    def consolidate_amenities(self):
-        """Merge duplicate amenity lines that share the same (amenity, floor_type,
-        additional_amenity), summing their qty. Including additional_amenity in the key
-        keeps an *included* unit and an *additional* unit of the same amenity+floor on
-        separate rows (a Bundle requirement). Runs server-side so every entry point —
-        the Facility Builder (which just sends one row per placement) and manual form
-        edits — stays consistent.
+    # --- row model: amenity rows and their annex rows ---------------------------------
+    # The `amenities` table holds two kinds of row. A row with no `annex` is an AMENITY
+    # row: it carries the amenity's quantity and its per-amenity add-ons (light system,
+    # sound system, floor extra). A row with an `annex` is an ANNEX row belonging to the
+    # amenity row above it. See docs/quotation_pricing/annexes.md.
 
-        Skipped when Butler Settings → "Disable Amenity Consolidation" is on.
+    def group_amenity_rows(self):
+        """Walk the table in order and pair every amenity row with its annex rows.
+
+        A group is identified by the (amenity, floor_type, additional_amenity) key — the
+        same triple consolidation merges on. When that key legitimately repeats (Butler
+        Settings → "Disable Amenity Consolidation" lets one amenity sit on a floor more
+        than once) the key alone is ambiguous, so the *nearest preceding* amenity row
+        carrying it wins; `order_amenity_rows` keeps each group contiguous so that stays
+        well-defined across saves.
+
+        Returns ``(groups, orphans)`` where groups is ``[(amenity_row, [annex_row, ...])]``
+        and orphans are annex rows that match no amenity row.
+        """
+        groups = []
+        orphans = []
+        latest = {}  # row key -> index of the most recent group opened for it
+
+        for row in self.amenities:
+            if not row.annex:
+                latest[amenity_row_key(row)] = len(groups)
+                groups.append((row, []))
+                continue
+
+            position = latest.get(amenity_row_key(row))
+            if position is None:
+                orphans.append(row)
+            else:
+                groups[position][1].append(row)
+
+        return groups, orphans
+
+    def set_amenity_rows(self, rows):
+        """Replace the table with `rows`, renumbering idx to match the new order."""
+        for idx, row in enumerate(rows, start=1):
+            row.idx = idx
+        self.amenities = rows
+
+    def order_amenity_rows(self):
+        """Lay the table out as amenity row → its annex rows, group after group.
+
+        Contiguity is what makes the (amenity, floor_type, additional_amenity) key
+        unambiguous when consolidation is off and the same key repeats, so it is
+        re-established on every save rather than trusted from the client.
+        """
+        groups, orphans = self.group_amenity_rows()
+        ordered = []
+        for amenity_row, annex_rows in groups:
+            ordered.append(amenity_row)
+            ordered.extend(annex_rows)
+        ordered.extend(orphans)  # kept so validate_row_types can report them
+        self.set_amenity_rows(ordered)
+
+    def clear_row_type_fields(self):
+        """Blank the fields that don't belong to a row's type — annex pricing on an
+        amenity row, and the per-amenity add-ons on an annex row.
+
+        Cleared rather than rejected: the two row types share one doctype, so a field
+        left over from the wrong type is stale data, not a user error worth blocking on.
+        """
+        for row in self.amenities:
+            for fieldname in (ANNEX_ROW_FIELDS if not row.annex else AMENITY_ROW_FIELDS):
+                row.set(fieldname, None)
+
+    def consolidate_amenities(self):
+        """Merge amenity groups that share the same (amenity, floor_type,
+        additional_amenity), summing `amenity_qty`, and dedupe their annex rows.
+
+        Annex quantities are **per amenity unit** — `amenity_qty` carries the multiplier —
+        so identical annex rows are deduped, never summed; doing both would square the
+        quantity. An annex whose uom, price or quantity was overridden differs from its
+        twin and is kept as its own row rather than silently folded away.
+
+        Skipped when Butler Settings → "Disable Amenity Consolidation" is on, which is
+        precisely the case where a repeated key is intentional.
         """
         if frappe.db.get_single_value("Butler Settings", "disable_amenity_consolidation"):
             return
 
-        merged = {}  # (amenity, floor_type, additional_amenity) -> kept row
-        kept = []
-        for row in self.amenities:
-            key = (row.amenity, row.floor_type, cint(row.additional_amenity))
-            if key in merged:
-                merged[key].qty = cint(merged[key].qty) + cint(row.qty)
-            else:
-                merged[key] = row
-                kept.append(row)
+        groups, orphans = self.group_amenity_rows()
+        merged = {}  # row key -> (kept amenity row, {annex key: kept annex row})
 
-        if len(kept) != len(self.amenities):
-            for idx, row in enumerate(kept, start=1):
-                row.idx = idx
-            self.amenities = kept
+        for amenity_row, annex_rows in groups:
+            key = amenity_row_key(amenity_row)
+            if key in merged:
+                target = merged[key][0]
+                target.amenity_qty = flt(target.amenity_qty) + flt(amenity_row.amenity_qty)
+            else:
+                merged[key] = (amenity_row, {})
+
+            kept_annexes = merged[key][1]
+            for annex_row in annex_rows:
+                kept_annexes.setdefault(annex_row_key(annex_row), annex_row)
+
+        ordered = []
+        for amenity_row, kept_annexes in merged.values():
+            ordered.append(amenity_row)
+            ordered.extend(kept_annexes.values())
+        ordered.extend(orphans)
+        self.set_amenity_rows(ordered)
+
+    def expand_amenity_rows(self):
+        """Seed an amenity row's annex rows from its Amenity's own `annexes` table.
+
+        Every entry point — the Facility Builder, a data import, the API — only has to
+        send the amenity row (amenity + floor_type) and gets a fully composed quotation
+        line back. A group that already carries annex rows is left untouched, so edits
+        and deliberate deletions survive a re-save.
+        """
+        groups, orphans = self.group_amenity_rows()
+        ordered = []
+
+        for amenity_row, annex_rows in groups:
+            ordered.append(amenity_row)
+            if annex_rows or not amenity_row.amenity:
+                ordered.extend(annex_rows)
+                continue
+
+            for source in frappe.get_cached_doc("Amenity", amenity_row.amenity).annexes:
+                ordered.append(self.append("amenities", {
+                    "amenity": amenity_row.amenity,
+                    "floor_type": amenity_row.floor_type,
+                    "additional_amenity": amenity_row.additional_amenity,
+                    "annex": source.annex,
+                    "annex_quantity": source.qty,
+                    "annex_uom": source.uom,
+                }))
+
+        ordered.extend(orphans)
+        self.set_amenity_rows(ordered)
 
     def before_submit(self):
         self.validate_dependencies()
@@ -437,13 +673,13 @@ class ButlerQuotation(Document):
         # reliable regardless of when fetch_from runs in the save/submit flow.
         placed, ticked = {}, set()
         for row in self.amenities:
-            if not row.amenity:
-                continue
+            if row.annex or not row.amenity:
+                continue  # bundle composition counts amenities, not their annexes
             category = frappe.get_cached_value(
                 "Amenity", row.amenity, "amenity_category")
             if not category:
                 continue
-            placed[category] = placed.get(category, 0) + cint(row.qty)
+            placed[category] = placed.get(category, 0) + cint(row.amenity_qty)
             if row.additional_amenity:
                 ticked.add(category)
 
@@ -553,36 +789,44 @@ class ButlerQuotation(Document):
         amenity_count = 0
         items_total = 0.0
         deviations = []
-        for row in self.amenities:
-            row.qty = cint(row.qty)
-            info = get_amenity_pricing(row.amenity, facility_type)
-            row.amenity_currency = info.get("currency")
-            # amenity_price stays in the amenity's OWN currency (its standard price);
-            # standard_rate is that price converted to the document currency, via the
-            # exchange_rates table:  standard_rate = amenity_price × exchange_rate / conversion_rate
-            row.exchange_rate = flt(rate_map.get(row.amenity_currency, 1.0)) or 1.0
-            row.amenity_price = flt(info["amenity_price"])  # standard price, amenity currency
-            resolved = flt(row.amenity_price) * flt(row.exchange_rate) / conversion_rate
-            previous_standard = flt(row.standard_rate)
-            row.standard_rate = resolved  # the reference standard, in document currency
-            # Default rate to the standard, and keep TRACKING it whenever rate still equals
-            # the PREVIOUS standard (i.e. wasn't manually overridden) — so a currency or
-            # exchange-rate change re-converts the rate instead of leaving a stale value.
-            # A genuine override (rate ≠ the previous standard) is preserved.
-            if not row.rate or abs(flt(row.rate) - previous_standard) <= 0.005:
-                row.rate = resolved
-            if abs(flt(row.rate) - resolved) > 0.005:
-                # standard-price governance: Amenities/Quotation check every line; a
-                # Bundle checks only the ticked additional rows (the included lines are
-                # covered by the flat bundle_price). See validations.md.
-                if self.order_type != "Bundle" or row.additional_amenity:
-                    deviations.append(row)
-            # floor-dependent amenities are priced across every distinct floor
-            floors = self.floor_count if (
-                info["depends_on_floor_count"] and self.floor_count) else 1
-            row.amount = flt(floors) * flt(row.rate) * flt(row.qty)
-            amenity_count += row.qty
-            items_total += flt(row.amount)
+        for amenity_row, annex_rows in self.group_amenity_rows()[0]:
+            amenity = (
+                frappe.get_cached_doc("Amenity", amenity_row.amenity)
+                if amenity_row.amenity else None
+            )
+            amenity_row.amenity_qty = flt(amenity_row.amenity_qty) or 1.0
+            # Per-row rates, both derived from the exchange_rates table so a currency
+            # never carries two different rates: amenity→company, and amenity→quotation
+            # as the ratio of the two company rates.
+            amenity_row.base_exchange_rate = flt(
+                rate_map.get(amenity_row.amenity_currency, 1.0)) or 1.0
+            amenity_row.qtn_exchange_rate = (
+                flt(amenity_row.base_exchange_rate) / conversion_rate)
+
+            # --- annexes: the amenity's price is composed from them ---
+            annex_total = 0.0
+            for annex_row in annex_rows:
+                annex_row.base_exchange_rate = amenity_row.base_exchange_rate
+                annex_row.qtn_exchange_rate = amenity_row.qtn_exchange_rate
+                annex_total += self.price_annex_row(
+                    annex_row, facility_type, deviations)
+
+            # --- the per-amenity add-ons ---
+            light_amount = self.price_light_system(amenity_row, amenity)
+            sound_amount = self.price_sound_system(amenity_row, amenity)
+            floor_amount = self.price_floor_extra(amenity_row, amenity)
+
+            # amenity_price is PER UNIT, in the amenity's own currency; amenity_qty is
+            # the multiplier, applied once when the amount is projected out.
+            amenity_row.amenity_price = (
+                annex_total + light_amount + sound_amount + floor_amount)
+            amenity_row.qtn_amenity_price = (
+                flt(amenity_row.amenity_price) * flt(amenity_row.qtn_exchange_rate))
+            amenity_row.qtn_amenity_amount = (
+                flt(amenity_row.qtn_amenity_price) * flt(amenity_row.amenity_qty))
+
+            amenity_count += flt(amenity_row.amenity_qty)
+            items_total += flt(amenity_row.qtn_amenity_amount)
         self.amenity_count = amenity_count
 
         # --- bundle price + default + currency (the bundle is sold at its flat price) ---
@@ -626,6 +870,129 @@ class ButlerQuotation(Document):
         self.calculate_discount_taxes_and_totals()
         self.set_base_amounts(conversion_rate)
         self.set_total_in_words(company_currency)
+
+    def price_annex_row(self, row, facility_type, deviations):
+        """Resolve one annex row's price and amount, returning its amount in the
+        amenity's currency (the unit the amenity price is composed in).
+
+        The standard comes from the **Annex Price** matching (annex, amenity,
+        facility_type), falling back to the facility-type-agnostic row. `qtn_annex_price`
+        is the one user-authoritative price on the line: while it still equals the
+        previous standard it keeps tracking (so a currency or rate change re-converts it),
+        and once genuinely overridden it is preserved and back-converted into
+        `annex_price`, with the deviation recorded for governance.
+        """
+        from butler.butler.doctype.annex_price.annex_price import get_annex_price
+
+        standard = get_annex_price(row.annex, row.amenity, facility_type) or {}
+        row.annex_price_list = standard.get("name")
+        row.annex_uom = row.annex_uom or standard.get("uom") or get_annex_default_uom(row.annex)
+        row.annex_quantity = flt(row.annex_quantity)
+
+        # UOM conversion is for the downstream stock qty only — the rate is already per
+        # annex_uom, so the factor must never enter the money maths.
+        row.annex_stock_uom, row.conversion_factor = get_annex_uom_conversion(
+            row.annex, row.annex_uom)
+
+        qtn_rate = flt(row.qtn_exchange_rate) or 1.0
+        resolved = flt(standard.get("rate"))          # amenity currency, per annex_uom
+        previous_standard = flt(row.annex_price)
+        row.annex_price = resolved
+
+        qtn_standard = resolved * qtn_rate
+        previous_qtn_standard = previous_standard * qtn_rate
+        if not row.qtn_annex_price or abs(
+            flt(row.qtn_annex_price) - previous_qtn_standard
+        ) <= 0.005:
+            row.qtn_annex_price = qtn_standard
+        elif abs(flt(row.qtn_annex_price) - qtn_standard) > 0.005:
+            # a genuine override: it wins, and the amenity-currency price follows it
+            row.annex_price = flt(row.qtn_annex_price) / qtn_rate
+            deviations.append((row, qtn_standard))
+
+        row.annex_amount = flt(row.annex_price) * flt(row.annex_quantity)
+        row.qtn_annex_amount = flt(row.qtn_annex_price) * flt(row.annex_quantity)
+        return flt(row.annex_amount)
+
+    def price_light_system(self, row, amenity):
+        """Mirror the chosen Light System's per-amenity configuration onto the row and
+        return its contribution, in the amenity's currency.
+
+        The configuration (lines consumed, price, mode) lives on the Amenity's own
+        `light_systems` table, keyed by the Light System — it is not on the Light System
+        master, so it can't be fetched by a Link and is copied here. `Neutral` means
+        fitted at no charge, `Subtract` credits the line.
+        """
+        config = next(
+            (r for r in (amenity.light_systems if amenity else [])
+             if r.system_name == row.light_system),
+            None,
+        )
+        if not (row.light_system and config):
+            row.light_system_price = row.light_system_amount = 0
+            row.qtn_light_system_price = row.qtn_light_system_amount = 0
+            row.used_lines = row.total_lines = 0
+            row.light_system_pricing_mode = None
+            return 0.0
+
+        row.used_lines = cint(config.used_lines)
+        row.total_lines = cint(amenity.lines)
+        row.light_system_pricing_mode = config.pricing_mode
+        row.light_system_price = flt(config.price)
+
+        qtn_rate = flt(row.qtn_exchange_rate) or 1.0
+        qtn_standard = flt(row.light_system_price) * qtn_rate
+        if not row.qtn_light_system_price:
+            row.qtn_light_system_price = qtn_standard
+
+        sign = {"Add": 1.0, "Subtract": -1.0}.get(config.pricing_mode, 0.0)
+        row.light_system_amount = sign * flt(row.qtn_light_system_price) / qtn_rate
+        row.qtn_light_system_amount = sign * flt(row.qtn_light_system_price)
+        return flt(row.light_system_amount)
+
+    def price_sound_system(self, row, amenity):
+        """The Amenity's flat sound-system price, charged only when the row opts in.
+
+        Flat by design: unlike the light system there is nothing to choose and no mode —
+        the Amenity carries a single `sound_system_price`, so `has_sound_system` is the
+        only thing that distinguishes "not fitted" from "fitted".
+        """
+        if not (row.has_sound_system and amenity):
+            row.sound_system_price = row.sound_system_amount = 0
+            row.qtn_sound_system_price = row.qtn_sound_system_amount = 0
+            return 0.0
+
+        row.sound_system_price = flt(amenity.sound_system_price)
+        qtn_rate = flt(row.qtn_exchange_rate) or 1.0
+        if not row.qtn_sound_system_price:
+            row.qtn_sound_system_price = flt(row.sound_system_price) * qtn_rate
+
+        row.sound_system_amount = flt(row.qtn_sound_system_price) / qtn_rate
+        row.qtn_sound_system_amount = flt(row.qtn_sound_system_price)
+        return flt(row.sound_system_amount)
+
+    def price_floor_extra(self, row, amenity):
+        """The Amenity's floor extra, charged once per distinct floor on the quotation.
+
+        Additive, per `Amenity.floor_extra_price`'s own definition — "multiplied by the
+        number of floors and **added** to the Amenity price". This replaces the old model
+        where floor_count multiplied the whole line.
+        """
+        if not (amenity and amenity.depends_on_floor_count):
+            row.floor_price = row.floor_amount = 0
+            row.qtn_floor_price = row.qtn_floor_amount = 0
+            row.floor_qty = 0
+            return 0.0
+
+        row.floor_price = flt(amenity.floor_extra_price)
+        row.floor_qty = cint(self.floor_count)
+        qtn_rate = flt(row.qtn_exchange_rate) or 1.0
+        if not row.qtn_floor_price:
+            row.qtn_floor_price = flt(row.floor_price) * qtn_rate
+
+        row.floor_amount = flt(row.qtn_floor_price) / qtn_rate * flt(row.floor_qty)
+        row.qtn_floor_amount = flt(row.qtn_floor_price) * flt(row.floor_qty)
+        return flt(row.floor_amount)
 
     def sync_exchange_rates(self, company_currency):
         """Maintain the exchange_rates table — one row per DISTINCT non-company currency
@@ -678,15 +1045,19 @@ class ButlerQuotation(Document):
         """Charge for amenities beyond the bundle composition, per
         docs/quotation_pricing/additional-amenities.md:
           • category NOT in bundle_items → every row's amount (auto-additional);
-          • category IN bundle_items with overflow → floors × (first ticked row's rate)
-            × (placed_qty − configured_count); the ticked row supplies the rate/floors,
-            the category supplies the overflow quantity.
+          • category IN bundle_items with overflow → (first ticked row's unit price)
+            × (placed_qty − configured_count); the ticked row supplies the price, the
+            category supplies the overflow quantity.
+
+        Amenity rows only — an annex is priced into its amenity, never charged twice.
+        The amenity's own price already carries the floor extra, so there is no separate
+        floors multiplier here any more.
         """
         configured = {r.amenity_category: cint(r.amenity_count) for r in self.bundle_items}
 
         rows_by_cat = {}
         for row in self.amenities:
-            if not row.amenity:
+            if row.annex or not row.amenity:
                 continue
             category = frappe.get_cached_value(
                 "Amenity", row.amenity, "amenity_category")
@@ -696,20 +1067,16 @@ class ButlerQuotation(Document):
         total = 0.0
         for category, rows in rows_by_cat.items():
             if category not in configured:
-                total += sum(flt(r.amount) for r in rows)  # whole category is extra
+                # whole category is extra
+                total += sum(flt(r.qtn_amenity_amount) for r in rows)
                 continue
-            excess = sum(cint(r.qty) for r in rows) - configured[category]
+            excess = sum(cint(r.amenity_qty) for r in rows) - configured[category]
             if excess <= 0:
                 continue
             ticked = next((r for r in rows if r.additional_amenity), None)
             if not ticked:
                 continue  # undesignated overflow — validate_bundle_amenities warns/blocks
-            floors = self.floor_count if (
-                frappe.get_cached_value(
-                    "Amenity", ticked.amenity, "depends_on_floor_count")
-                and self.floor_count
-            ) else 1
-            total += flt(floors) * flt(ticked.rate) * excess
+            total += flt(ticked.qtn_amenity_price) * excess
         return total
 
     def calculate_discount_taxes_and_totals(self):
@@ -901,18 +1268,46 @@ class ButlerQuotation(Document):
             tax.base_tax_amount_after_discount_amount = flt(
                 tax.tax_amount_after_discount_amount) * rate
 
-        # amenity lines (net == gross at line level; the document discount is applied at
-        # the header, not redistributed to lines)
-        for row in self.amenities:
-            row.net_rate = flt(row.rate)
-            row.net_amount = flt(row.amount)
-            # amenity_price is in the amenity's currency → company via its own exchange_rate;
-            # rate/amount are in document currency → company via conversion_rate.
-            row.base_amenity_price = flt(row.amenity_price) * flt(row.exchange_rate)
-            row.base_rate = flt(row.rate) * rate
-            row.base_net_rate = flt(row.net_rate) * rate
-            row.base_amount = flt(row.amount) * rate
-            row.base_net_amount = flt(row.net_amount) * rate
+        # The header discount is shared down proportionally: onto each amenity row, then
+        # across that amenity's annex rows. The annex net_ figures are guidance only —
+        # nothing is charged from them — which is why the split can stay this simple.
+        share = (flt(self.net_total) / flt(self.total)) if flt(self.total) else 1.0
+
+        for amenity_row, annex_rows in self.group_amenity_rows()[0]:
+            amenity_row.qtn_amenity_net_price = flt(amenity_row.qtn_amenity_price) * share
+            amenity_row.qtn_amenity_net_amount = flt(amenity_row.qtn_amenity_amount) * share
+
+            # amenity-currency values convert straight to company currency via the
+            # amenity's own rate; quotation-currency values via the document rate.
+            amenity_rate = flt(amenity_row.base_exchange_rate) or 1.0
+            amenity_row.base_amenity_price = flt(amenity_row.amenity_price) * amenity_rate
+            amenity_row.base_amenity_net_price = flt(amenity_row.qtn_amenity_net_price) * rate
+            amenity_row.base_amenity_amount = flt(amenity_row.qtn_amenity_amount) * rate
+            amenity_row.base_amenity_net_amount = flt(amenity_row.qtn_amenity_net_amount) * rate
+
+            for name in ("light_system", "sound_system", "floor"):
+                for suffix in ("price", "amount"):
+                    self.mirror_to_company(amenity_row, f"{name}_{suffix}", amenity_rate, rate)
+
+            for annex_row in annex_rows:
+                annex_rate = flt(annex_row.base_exchange_rate) or 1.0
+                annex_row.qtn_annex_net_price = flt(annex_row.qtn_annex_price) * share
+                annex_row.qtn_annex_net_amount = flt(annex_row.qtn_annex_amount) * share
+                annex_row.base_annex_price = flt(annex_row.annex_price) * annex_rate
+                annex_row.base_annex_net_price = flt(annex_row.qtn_annex_net_price) * rate
+                annex_row.base_annex_amount = flt(annex_row.qtn_annex_amount) * rate
+                annex_row.base_annex_net_amount = flt(annex_row.qtn_annex_net_amount) * rate
+
+    def mirror_to_company(self, row, fieldname, amenity_rate, document_rate):
+        """Fill a component's `base_*` mirror from whichever tier is authoritative: the
+        quotation-currency value when there is one (it may carry a user override),
+        otherwise the amenity-currency source."""
+        qtn_value = flt(row.get(f"qtn_{fieldname}"))
+        row.set(
+            f"base_{fieldname}",
+            qtn_value * document_rate if qtn_value
+            else flt(row.get(fieldname)) * amenity_rate,
+        )
 
     def set_total_in_words(self, company_currency):
         """Written-out grand total, off `rounded_total`/`base_rounded_total` (or the
@@ -951,21 +1346,21 @@ class ButlerQuotation(Document):
             )
         )
 
-    def enforce_standard_price(self, deviations, bundle_price_breach=None):
-        """Govern prices that deviate from the standard, per Butler Settings →
-        maintain_standard_price_action (Warn → msgprint · Stop → throw, unless the user
-        holds role_to_override_standard_price_stop_action, who is warned but allowed).
+    def enforce_annex_price(self, deviations, bundle_price_breach=None):
+        """Govern annex prices that deviate from their Annex Price standard, per Butler
+        Settings → maintain_annex_price_action (Warn → msgprint · Stop → throw, unless
+        the user holds role_to_override_annex_price_stop_action, who is warned but
+        allowed).
 
-        Amenities/Quotation: every line whose rate ≠ standard_rate (the standard price in
-        document currency). Bundle: only ticked additional rows (collected in
-        calculate_totals) plus `bundle_price_breach` when bundle_price is discounted past
-        the bundle's max_discount.
+        `qtn_annex_price` is the only user-editable price that carries a published
+        standard, so it is the only one governed. `bundle_price_breach` rides along when
+        a Bundle's flat price is discounted past its max_discount.
         """
         lines = [
-            "<li>{0} — {1} (standard {2})</li>".format(
-                frappe.bold(r.amenity), fmt_money(r.rate), fmt_money(r.standard_rate)
+            "<li>{0} &mdash; {1} (standard {2})</li>".format(
+                frappe.bold(row.annex), fmt_money(row.qtn_annex_price), fmt_money(standard)
             )
-            for r in deviations
+            for row, standard in deviations
         ]
         if bundle_price_breach:
             lines.append(bundle_price_breach)
@@ -976,11 +1371,11 @@ class ButlerQuotation(Document):
 
         apply_governance_action(
             frappe.db.get_single_value(
-                "Butler Settings", "maintain_standard_price_action") or "Stop",
+                "Butler Settings", "maintain_annex_price_action") or "Stop",
             message=msg,
-            title=_("Standard price not maintained"),
+            title=_("Annex price not maintained"),
             override_role=frappe.db.get_single_value(
-                "Butler Settings", "role_to_override_standard_price_stop_action"),
+                "Butler Settings", "role_to_override_annex_price_stop_action"),
         )
 
 
@@ -1007,20 +1402,28 @@ def apply_governance_action(action, *, message, title, override_role=None):
 
 @frappe.whitelist()
 def get_amenity_pricing(amenity, facility_type=None):
-    """Single source of truth for an amenity's standard price. Default is the Amenity's
-    standard_price; if it has a changeable price and a facility_type_prices row matches,
-    that row's price wins. The price is returned **in the amenity's own currency**
-    (`currency`); the quotation converts it to the document currency.
+    """An amenity's standard price for a facility type, composed from its annexes.
+
+    There is no flat amenity price any more: the price is the sum of the amenity's annex
+    rows, each valued at the **Annex Price** that applies to the facility type (falling
+    back to the standard one), so a facility-type override on any single annex moves the
+    amenity's price. Returned **in the amenity's own currency**; the quotation converts.
+
+    Add-ons (light system, sound system, floor extra) are deliberately excluded — they
+    depend on per-row choices the quotation makes, not on the amenity alone.
     """
+    from butler.butler.doctype.annex_price.annex_price import get_annex_price
+
     if not amenity:
         return {"amenity_price": 0.0, "depends_on_floor_count": 0, "currency": None}
+
     am = frappe.get_cached_doc("Amenity", amenity)
-    price = flt(am.standard_price)
-    if am.has_changeable_price and facility_type:
-        for r in am.facility_type_prices or []:
-            if r.facility_type == facility_type:
-                price = flt(r.amenity_price)
-                break
+    price = 0.0
+    for row in am.annexes:
+        standard = get_annex_price(row.annex, amenity, facility_type)
+        rate = flt(standard["rate"]) if standard else flt(row.rate)
+        price += rate * flt(row.qty)
+
     return {
         "amenity_price": price,
         "depends_on_floor_count": cint(am.depends_on_floor_count),
@@ -1230,35 +1633,25 @@ def _make_sales_order(source_name, target_doc=None, ignore_permissions=False):
                 if category not in configured:
                     # auto-additional: map every row directly
                     for row in rows:
-                        amenity_item = frappe.get_cached_value("Amenity", row.amenity, "amenity_item")
-                        if not amenity_item:
-                            frappe.throw(
-                                _("Amenity {0} has no linked Item.").format(frappe.bold(row.amenity))
-                            )
                         target.append("items", {
-                            "item_code": amenity_item,
-                            "qty": row.qty,
-                            "rate": row.rate,
+                            "item_code": get_amenity_item(row.amenity),
+                            "qty": row.amenity_qty,
+                            "rate": row.qtn_amenity_price,
                             "butler_quotation": source.name,
                             "butler_quotation_item": row.name,
                         })
                 else:
                     # in-bundle overflow: ticked row at excess qty
-                    excess = sum(cint(r.qty) for r in rows) - configured[category]
+                    excess = sum(cint(r.amenity_qty) for r in rows) - configured[category]
                     if excess <= 0:
                         continue
                     ticked = next((r for r in rows if r.additional_amenity), None)
                     if not ticked:
                         continue  # undesignated — validate_bundle_amenities handles this
-                    amenity_item = frappe.get_cached_value("Amenity", ticked.amenity, "amenity_item")
-                    if not amenity_item:
-                        frappe.throw(
-                            _("Amenity {0} has no linked Item.").format(frappe.bold(ticked.amenity))
-                        )
                     target.append("items", {
-                        "item_code": amenity_item,
+                        "item_code": get_amenity_item(ticked.amenity),
                         "qty": excess,
-                        "rate": ticked.rate,
+                        "rate": ticked.qtn_amenity_price,
                         "butler_quotation": source.name,
                         "butler_quotation_item": ticked.name,
                     })
@@ -1266,20 +1659,17 @@ def _make_sales_order(source_name, target_doc=None, ignore_permissions=False):
         target.run_method("calculate_taxes_and_totals")
 
     def update_item(obj, target, source_parent):
-        item_code = frappe.db.get_value("Amenity", obj.amenity, "amenity_item")
-        if not item_code:
-            frappe.throw(
-                _("Amenity {0} has no linked Item, so it can't be added to a Sales Order.").format(
-                    frappe.bold(obj.amenity)
-                )
-            )
-        target.item_code = item_code
-        balance_qty = flt(obj.qty) - flt(ordered_items.get(obj.name, 0))
+        target.item_code = get_amenity_item(obj.amenity)
+        balance_qty = flt(obj.amenity_qty) - flt(ordered_items.get(obj.name, 0))
         target.qty = balance_qty if balance_qty > 0 else 0
-        target.rate = obj.rate
+        # the amenity's unit price already contains its annexes and add-ons
+        target.rate = obj.qtn_amenity_price
 
     def can_map_row(obj):
-        return flt(obj.qty) > flt(ordered_items.get(obj.name, 0))
+        # annex rows are quotation-only detail — they are priced into their amenity
+        if obj.annex:
+            return False
+        return flt(obj.amenity_qty) > flt(ordered_items.get(obj.name, 0))
 
     child_table_map = {}
     if source.order_type == "Amenities":

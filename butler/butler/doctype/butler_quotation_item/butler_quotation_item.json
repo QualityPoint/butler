@@ -12,45 +12,96 @@
   "column_break_wfcb",
   "is_dependant_amenity",
   "depends_on_floor_count",
-  "has_changeable_price",
+  "has_sound_system",
   "additional_amenity",
-  "description_section",
+  "attributes_section",
   "description",
+  "lines",
   "amenity_category",
   "section_break_hzon",
   "image",
   "image_view",
-  "quantity_and_rate_section",
-  "qty",
-  "column_break_htuf",
   "section_break_uurh",
+  "amenity_qty",
   "amenity_price",
-  "standard_rate",
-  "base_amenity_price",
-  "column_break_aseh",
   "amenity_currency",
-  "exchange_rate",
+  "column_break_uzti",
+  "qtn_amenity_price",
+  "qtn_exchange_rate",
+  "column_break_aseh",
+  "base_amenity_price",
+  "base_exchange_rate",
   "section_break_sqrs",
-  "rate",
-  "net_rate",
-  "amount",
-  "net_amount",
+  "qtn_amenity_net_price",
+  "qtn_amenity_amount",
+  "qtn_amenity_net_amount",
   "column_break_pilj",
-  "base_rate",
-  "base_net_rate",
-  "base_amount",
-  "base_net_amount"
+  "base_amenity_net_price",
+  "base_amenity_amount",
+  "base_amenity_net_amount",
+  "light_system_section",
+  "light_system",
+  "used_lines",
+  "total_lines",
+  "column_break_buvl",
+  "light_system_price",
+  "light_system_amount",
+  "light_system_pricing_mode",
+  "section_break_qzvc",
+  "qtn_light_system_price",
+  "qtn_light_system_amount",
+  "column_break_rqow",
+  "base_light_system_price",
+  "base_light_system_amount",
+  "sound_system_section",
+  "sound_system_price",
+  "sound_system_amount",
+  "column_break_hfok",
+  "qtn_sound_system_price",
+  "qtn_sound_system_amount",
+  "column_break_rrwn",
+  "base_sound_system_price",
+  "base_sound_system_amount",
+  "annex_section",
+  "annex",
+  "annex_name",
+  "annex_category",
+  "column_break_xulg",
+  "manufacturer",
+  "warranty",
+  "warranty_uom",
+  "section_break_gaov",
+  "column_break_jzok",
+  "annex_quantity",
+  "annex_uom",
+  "annex_stock_uom",
+  "conversion_factor",
+  "column_break_ektr",
+  "annex_price_list",
+  "annex_price",
+  "annex_amount",
+  "section_break_nwyx",
+  "qtn_annex_price",
+  "qtn_annex_net_price",
+  "qtn_annex_amount",
+  "qtn_annex_net_amount",
+  "column_break_tdnx",
+  "base_annex_price",
+  "base_annex_net_price",
+  "base_annex_amount",
+  "base_annex_net_amount",
+  "floor_pricing_section",
+  "floor_price",
+  "floor_qty",
+  "floor_amount",
+  "column_break_ndal",
+  "qtn_floor_price",
+  "qtn_floor_amount",
+  "column_break_rpod",
+  "base_floor_price",
+  "base_floor_amount"
  ],
  "fields": [
-  {
-   "fieldname": "amount",
-   "fieldtype": "Currency",
-   "in_list_view": 1,
-   "label": "Amount",
-   "non_negative": 1,
-   "options": "currency",
-   "read_only": 1
-  },
   {
    "fetch_from": "amenity.amenity_category",
    "fieldname": "amenity_category",
@@ -87,24 +138,6 @@
    "read_only": 1
   },
   {
-   "default": "1",
-   "fieldname": "qty",
-   "fieldtype": "Int",
-   "in_list_view": 1,
-   "label": "Quantity",
-   "non_negative": 1,
-   "read_only": 1
-  },
-  {
-   "fieldname": "rate",
-   "fieldtype": "Currency",
-   "in_list_view": 1,
-   "label": "Rate",
-   "non_negative": 1,
-   "options": "currency",
-   "reqd": 1
-  },
-  {
    "columns": 2,
    "fieldname": "floor_type",
    "fieldtype": "Link",
@@ -121,35 +154,11 @@
    "print_hide": 1
   },
   {
-   "fieldname": "quantity_and_rate_section",
-   "fieldtype": "Section Break",
-   "label": "Quantity and Rate"
-  },
-  {
-   "fieldname": "column_break_htuf",
-   "fieldtype": "Column Break"
-  },
-  {
-   "collapsible": 1,
-   "fieldname": "description_section",
-   "fieldtype": "Section Break",
-   "label": "Description"
-  },
-  {
    "fieldname": "description",
    "fieldtype": "Text Editor",
    "label": "Description",
    "print_width": "300px",
    "width": "300px"
-  },
-  {
-   "default": "0",
-   "fetch_from": "amenity.has_changeable_price",
-   "fieldname": "has_changeable_price",
-   "fieldtype": "Check",
-   "label": "Has Changeable Price",
-   "print_hide": 1,
-   "read_only": 1
   },
   {
    "columns": 2,
@@ -194,24 +203,6 @@
    "label": "Additional Amenity"
   },
   {
-   "fieldname": "net_rate",
-   "fieldtype": "Currency",
-   "label": "Net Rate",
-   "non_negative": 1,
-   "options": "currency",
-   "print_hide": 1,
-   "read_only": 1
-  },
-  {
-   "fieldname": "net_amount",
-   "fieldtype": "Currency",
-   "label": "Net Amount",
-   "non_negative": 1,
-   "options": "currency",
-   "print_hide": 1,
-   "read_only": 1
-  },
-  {
    "fieldname": "base_amenity_price",
    "fieldtype": "Currency",
    "label": "Amenity Price (Company Currency)",
@@ -221,44 +212,9 @@
    "read_only": 1
   },
   {
-   "fieldname": "base_rate",
-   "fieldtype": "Currency",
-   "label": "Rate (Company Currency)",
-   "non_negative": 1,
-   "options": "Company:company:default_currency",
-   "print_hide": 1,
-   "read_only": 1
-  },
-  {
-   "fieldname": "base_net_rate",
-   "fieldtype": "Currency",
-   "label": "Net Rate (Company Currency)",
-   "non_negative": 1,
-   "options": "Company:company:default_currency",
-   "print_hide": 1,
-   "read_only": 1
-  },
-  {
-   "fieldname": "base_amount",
-   "fieldtype": "Currency",
-   "label": "Amount (Company Currency)",
-   "non_negative": 1,
-   "options": "Company:company:default_currency",
-   "print_hide": 1,
-   "read_only": 1
-  },
-  {
-   "fieldname": "base_net_amount",
-   "fieldtype": "Currency",
-   "label": "Net Amount (Company Currency)",
-   "non_negative": 1,
-   "options": "Company:company:default_currency",
-   "print_hide": 1,
-   "read_only": 1
-  },
-  {
    "fieldname": "section_break_uurh",
-   "fieldtype": "Section Break"
+   "fieldtype": "Section Break",
+   "label": "Amenity Quantity and Price"
   },
   {
    "fieldname": "column_break_aseh",
@@ -273,30 +229,538 @@
    "fieldtype": "Column Break"
   },
   {
-   "fieldname": "exchange_rate",
+   "fieldname": "light_system_section",
+   "fieldtype": "Section Break",
+   "hide_border": 1,
+   "label": "Light System"
+  },
+  {
+   "fieldname": "light_system",
+   "fieldtype": "Link",
+   "label": "Light System",
+   "options": "Light System"
+  },
+  {
+   "fieldname": "column_break_buvl",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "used_lines",
+   "fieldtype": "Int",
+   "label": "Used Lines",
+   "non_negative": 1,
+   "read_only": 1
+  },
+  {
+   "bold": 1,
+   "fieldname": "total_lines",
+   "fieldtype": "Int",
+   "label": "Total Lines",
+   "non_negative": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "light_system_pricing_mode",
+   "fieldtype": "Select",
+   "label": "System Pricing Mode",
+   "options": "\nNeutral\nAdd\nSubtract",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "light_system_price",
+   "fieldtype": "Currency",
+   "label": "Light System Price",
+   "options": "amenity_currency",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "attributes_section",
+   "fieldtype": "Section Break",
+   "label": "Amenity Attributes"
+  },
+  {
+   "fetch_from": "amenity.lines",
+   "fieldname": "lines",
+   "fieldtype": "Int",
+   "label": "Lines",
+   "non_negative": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_xulg",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "annex",
+   "fieldtype": "Link",
+   "label": "Annex",
+   "options": "Annex"
+  },
+  {
+   "fetch_from": "annex.annex_name",
+   "fieldname": "annex_name",
+   "fieldtype": "Data",
+   "label": "Annex Name",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "annex.annex_category",
+   "fieldname": "annex_category",
+   "fieldtype": "Link",
+   "label": "Annex Category",
+   "options": "Annex Category",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_uzti",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "qtn_amenity_price",
+   "fieldtype": "Currency",
+   "hidden": 1,
+   "label": "Amenity Price (Quotation Currency)",
+   "non_negative": 1,
+   "options": "currency",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "base_light_system_price",
+   "fieldtype": "Currency",
+   "label": "Light System Price (Company Currency)",
+   "options": "Company:company:default_currency",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "qtn_light_system_price",
+   "fieldtype": "Currency",
+   "label": "Light System Price (Quotation Currency)",
+   "mandatory_depends_on": "eval:doc.light_system",
+   "non_negative": 1,
+   "options": "currency"
+  },
+  {
+   "fieldname": "light_system_amount",
+   "fieldtype": "Currency",
+   "label": "Light System Amount",
+   "non_negative": 1,
+   "options": "amenity_currency",
+   "precision": "2",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_qzvc",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "column_break_rqow",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "base_light_system_amount",
+   "fieldtype": "Currency",
+   "label": "Light System Amount (Company Currency)",
+   "options": "Company:company:default_currency",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "qtn_light_system_amount",
+   "fieldtype": "Currency",
+   "label": "Light System Amount (Quotation Currency)",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "annex_section",
+   "fieldtype": "Section Break",
+   "label": "Annex"
+  },
+  {
+   "fieldname": "sound_system_section",
+   "fieldtype": "Section Break",
+   "label": "Sound System"
+  },
+  {
+   "fieldname": "sound_system_price",
+   "fieldtype": "Currency",
+   "label": "Sound System Price",
+   "non_negative": 1,
+   "options": "amenity_currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sound_system_amount",
+   "fieldtype": "Currency",
+   "label": "Sound System Amount",
+   "non_negative": 1,
+   "options": "amenity_currency",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "qtn_sound_system_amount",
+   "fieldtype": "Currency",
+   "label": "Sound System Amount (Quotation Currency)",
+   "non_negative": 1,
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "base_sound_system_amount",
+   "fieldtype": "Currency",
+   "label": "Sound System Amount (Company Currency)",
+   "non_negative": 1,
+   "options": "Company:company:default_currency",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_hfok",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_rrwn",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "base_sound_system_price",
+   "fieldtype": "Currency",
+   "label": "Sound System Price (Company Currency)",
+   "non_negative": 1,
+   "options": "Company:company:default_currency",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "qtn_sound_system_price",
+   "fieldtype": "Currency",
+   "label": "Sound System Price (Quotation Currency)",
+   "non_negative": 1,
+   "options": "currency"
+  },
+  {
+   "fetch_from": "annex.manufacturer",
+   "fieldname": "manufacturer",
+   "fieldtype": "Data",
+   "label": "Manufacturer",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fetch_from": "annex.warranty",
+   "fieldname": "warranty",
    "fieldtype": "Float",
-   "label": "Exchange Rate",
+   "label": "Warranty",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fetch_from": "annex.warranty_uom",
+   "fieldname": "warranty_uom",
+   "fieldtype": "Select",
+   "label": "Warranty UOM",
+   "options": "\nYears\nMonths\nWeeks\nDays",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_gaov",
+   "fieldtype": "Section Break",
+   "label": "Annex Quantity and Price"
+  },
+  {
+   "fieldname": "column_break_ektr",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_jzok",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "annex_price",
+   "fieldtype": "Currency",
+   "label": "Annex Price",
+   "non_negative": 1,
+   "options": "amenity_currency",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "annex_amount",
+   "fieldtype": "Currency",
+   "label": "Annex Amount",
+   "options": "amenity_currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "annex_quantity",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Annex Quantity",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "annex_uom",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Annex UOM",
+   "options": "UOM"
+  },
+  {
+   "fieldname": "section_break_nwyx",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "qtn_annex_price",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Annex Price (Quotation Currency)",
+   "non_negative": 1,
+   "options": "currency"
+  },
+  {
+   "fieldname": "column_break_tdnx",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "qtn_exchange_rate",
+   "fieldtype": "Float",
+   "label": "Exchange Rate (Quotation Currency)",
    "non_negative": 1,
    "precision": "9",
    "print_hide": 1,
    "read_only": 1
   },
   {
-   "fieldname": "standard_rate",
-   "fieldtype": "Currency",
-   "hidden": 1,
-   "label": "Standard Rate",
+   "fieldname": "base_exchange_rate",
+   "fieldtype": "Float",
+   "label": "Exchange Rate (Company Currency)",
    "non_negative": 1,
+   "precision": "9",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "qtn_amenity_net_price",
+   "fieldtype": "Currency",
+   "label": "Amenity Net Price (Quotation Currency)",
    "options": "currency",
    "print_hide": 1,
    "read_only": 1
+  },
+  {
+   "fieldname": "qtn_amenity_amount",
+   "fieldtype": "Currency",
+   "label": "Amenity Amount (Quotation Currency)",
+   "options": "currency",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "qtn_amenity_net_amount",
+   "fieldtype": "Currency",
+   "label": "Amenity Net Amount (Quotation Currency)",
+   "options": "currency",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "base_amenity_net_price",
+   "fieldtype": "Currency",
+   "label": "Amenity Net Price (Company Currency)",
+   "options": "Company:company:default_currency",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "base_amenity_amount",
+   "fieldtype": "Currency",
+   "label": "Amenity Amount (Company Currency)",
+   "options": "Company:company:default_currency",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "base_amenity_net_amount",
+   "fieldtype": "Currency",
+   "label": "Amenity Net Amount (Company Currency)",
+   "options": "Company:company:default_currency",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "amenity_qty",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Amenity Quantity",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "annex_stock_uom",
+   "fieldtype": "Link",
+   "label": "Annex Stock UOM",
+   "options": "UOM",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "conversion_factor",
+   "fieldtype": "Float",
+   "label": "UOM Conversion Factor",
+   "precision": "9",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "floor_pricing_section",
+   "fieldtype": "Section Break",
+   "label": "Floor Pricing"
+  },
+  {
+   "fieldname": "floor_price",
+   "fieldtype": "Currency",
+   "label": "Floor Price",
+   "options": "amenity_currency",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_ndal",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "floor_qty",
+   "fieldtype": "Int",
+   "label": "Floor Quantity",
+   "non_negative": 1,
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "floor_amount",
+   "fieldtype": "Currency",
+   "label": "Floor Amount",
+   "options": "amenity_currency",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "qtn_floor_price",
+   "fieldtype": "Currency",
+   "label": "Floor Price (Quotation Currency)",
+   "non_negative": 1,
+   "options": "currency"
+  },
+  {
+   "fieldname": "qtn_floor_amount",
+   "fieldtype": "Currency",
+   "label": "Floor Amount (Quotation Currency)",
+   "options": "currency",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_rpod",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "base_floor_price",
+   "fieldtype": "Currency",
+   "label": "Floor Price (Company Currency)",
+   "options": "Company:company:default_currency",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "base_floor_amount",
+   "fieldtype": "Currency",
+   "label": "Floor Amount (Company Currency)",
+   "options": "Company:company:default_currency",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "base_annex_price",
+   "fieldtype": "Currency",
+   "label": "Annex Price (Company Currency)",
+   "options": "Company:company:default_currency",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "base_annex_net_price",
+   "fieldtype": "Currency",
+   "label": "Annex Net Price (Company Currency)",
+   "options": "Company:company:default_currency",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "base_annex_amount",
+   "fieldtype": "Currency",
+   "label": "Annex Amount (Company Currency)",
+   "options": "Company:company:default_currency",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "base_annex_net_amount",
+   "fieldtype": "Currency",
+   "label": "Annex Net Amount (Company Currency)",
+   "options": "Company:company:default_currency",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "qtn_annex_net_price",
+   "fieldtype": "Currency",
+   "label": "Annex Net Price (Quotation Currency)",
+   "options": "currency",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "qtn_annex_amount",
+   "fieldtype": "Currency",
+   "label": "Annex Amount (Quotation Currency)",
+   "options": "currency",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "qtn_annex_net_amount",
+   "fieldtype": "Currency",
+   "label": "Annex Net Amount (Quotation Currency)",
+   "options": "currency",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "has_sound_system",
+   "fieldtype": "Check",
+   "label": "Has Sound System"
+  },
+  {
+   "fieldname": "annex_price_list",
+   "fieldtype": "Link",
+   "label": "Annex Price List",
+   "options": "Annex Price"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-06-24 10:29:40.539613",
+ "modified": "2026-09-07 13:24:05.014765",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Butler Quotation Item",
