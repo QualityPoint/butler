@@ -597,11 +597,13 @@
   },
   {
    "default": "1",
+   "description": "Set from the Facility Builder — one placement per row, summed on consolidation.",
    "fieldname": "amenity_qty",
    "fieldtype": "Float",
    "in_list_view": 1,
    "label": "Amenity Quantity",
-   "non_negative": 1
+   "non_negative": 1,
+   "read_only": 1
   },
   {
    "fieldname": "annex_stock_uom",

@@ -679,7 +679,6 @@ frappe.ui.form.on("Butler Quotation Item", {
     qtn_light_system_price: (frm) => recalculate_quotation(frm),
     qtn_sound_system_price: (frm) => recalculate_quotation(frm),
     qtn_floor_price: (frm) => recalculate_quotation(frm),
-    amenity_qty: (frm) => recalculate_quotation(frm),
     annex: (frm) => recalculate_quotation(frm),
     annex_quantity: (frm) => recalculate_quotation(frm),
     annex_uom: (frm) => recalculate_quotation(frm),
