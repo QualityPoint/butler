@@ -123,6 +123,7 @@ frappe.ui.form.on("Butler Quotation", {
         frm.trigger("set_label");
         frm.trigger("set_dynamic_field_label");
         frm.trigger("toggle_currency_fields");
+        render_amenities_editor(frm);
 
         // A template was picked but the schedule is empty (e.g. a doc saved before this
         // field existed) — mirrors ERPNext's transaction.js refresh safeguard.
@@ -640,9 +641,28 @@ function recalculate_quotation(frm) {
                 // discount → re-run the show/hide logic so the table (and net_total,
                 // base_* fields) appears without waiting for a save.
                 frm.trigger("toggle_currency_fields");
+                // the server may also have reshaped the rows (seeded annexes,
+                // consolidated groups), so redraw the editor from what came back
+                if (frm.amenities_editor) frm.amenities_editor.refresh();
             },
         });
     }, 300);
+}
+
+// Mount the line editor into the `amenities_html` field. The `amenities` table itself is
+// hidden and read-only — it holds two different row types that a flat grid can't present
+// (see docs/quotation_pricing/annexes.md), so this renders it grouped floor → amenity →
+// annexes instead. Mirrors how user.js mounts frappe.RoleEditor into roles_html.
+function render_amenities_editor(frm) {
+    const wrapper = frm.fields_dict.amenities_html && frm.fields_dict.amenities_html.wrapper;
+    if (!wrapper) return;
+
+    if (!frm.amenities_editor) {
+        frm.amenities_editor = new butler.ui.AmenitiesEditor($("<div>").appendTo(wrapper), frm, {
+            on_change: () => recalculate_quotation(frm),
+        });
+    }
+    frm.amenities_editor.refresh();
 }
 
 // --- Amenity lines — recompute amount/totals on any pricing input change. ------------

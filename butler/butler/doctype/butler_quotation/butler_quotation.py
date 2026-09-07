@@ -1401,6 +1401,46 @@ def apply_governance_action(action, *, message, title, override_role=None):
 
 
 @frappe.whitelist()
+def get_amenity_options(amenities):
+    """What each amenity offers, so the line editor knows which controls to render.
+
+    An amenity only shows a light-system picker if it configures light systems, a sound
+    toggle if it carries a sound price, and a floor extra if it is floor-dependent — the
+    quotation row can't answer that on its own once the fields are blank. Batched to one
+    round trip because the editor needs it for every amenity on the quotation.
+    """
+    if isinstance(amenities, str):
+        amenities = frappe.parse_json(amenities)
+
+    options = {}
+    for name in set(amenities or []):
+        if not name:
+            continue
+        amenity = frappe.get_cached_doc("Amenity", name)
+        options[name] = {
+            "currency": amenity.currency,
+            "lines": cint(amenity.lines),
+            "depends_on_floor_count": cint(amenity.depends_on_floor_count),
+            "floor_extra_price": flt(amenity.floor_extra_price),
+            "sound_system_price": flt(amenity.sound_system_price),
+            "light_systems": [
+                {
+                    "system_name": row.system_name,
+                    "used_lines": cint(row.used_lines),
+                    "price": flt(row.price),
+                    "pricing_mode": row.pricing_mode,
+                }
+                for row in amenity.light_systems
+            ],
+            "annexes": [
+                {"annex": row.annex, "qty": flt(row.qty), "uom": row.uom}
+                for row in amenity.annexes
+            ],
+        }
+    return options
+
+
+@frappe.whitelist()
 def get_amenity_pricing(amenity, facility_type=None):
     """An amenity's standard price for a facility type, composed from its annexes.
 
