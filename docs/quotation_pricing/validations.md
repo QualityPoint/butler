@@ -22,25 +22,48 @@ governed action has a `Stop`-gated override role.
 
 | Setting | Override role |
 |---|---|
-| `maintain_standard_price_action` | `role_to_override_standard_price_stop_action` |
+| `maintain_annex_price_action` | `role_to_override_annex_price_stop_action` |
 | `action_if_bundle_items_unfulfilled` | `role_to_override_unfulfilled_stop_action` |
 
 ---
 
-## Standard price — `maintain_standard_price_action`
+## Row types
 
-The governed subject depends on order type:
+The `amenities` table holds **two row types** in one doctype (see
+[annexes.md](./annexes.md)), so the mandatory flags that would normally express this
+can't live on the fields — `annex_uom` as `reqd` would block every amenity row. They are
+enforced in `validate_row_types()` instead:
+
+| Row type | Must have | Must not have |
+|---|---|---|
+| Amenity (`annex` empty) | `amenity`, `floor_type`, `amenity_qty > 0` | annex fields |
+| Annex (`annex` set) | `annex_quantity > 0`, `annex_uom`, a resolvable amenity row | the per-amenity add-on fields |
+
+Fields belonging to the *other* row type are **cleared**, not rejected
+(`clear_row_type_fields` in `before_validate`) — they are stale data, not a user error.
+Two things do throw: an annex row matching no amenity row (unattached), and an annex that
+isn't one of its amenity's own configured annexes.
+
+---
+
+## Annex price — `maintain_annex_price_action`
+
+`qtn_annex_price` is the only editable price with a published standard, so it is the only
+one governed. The standard is the **Annex Price** for `(annex, amenity, facility_type)`,
+falling back to the facility-type-agnostic row.
 
 | `order_type` | Checks (runs in `validate`) |
 |---|---|
-| **Amenities** / Quotation | **every** line whose `rate ≠ amenity_price` |
-| **Bundle** | (a) `bundle_price` discounted past `max_discount` vs `default_bundle_price`; **and** (b) only **ticked additional** rows whose `rate ≠ amenity_price` |
+| **Amenities** / Quotation | **every** annex row whose `qtn_annex_price` deviates from its Annex Price standard by more than `0.005` |
+| **Bundle** | the same, **plus** `bundle_price` discounted past `max_discount` vs `default_bundle_price` |
 
-For Bundle (a): the **line-level** discount — `(default_bundle_price − bundle_price) /
+The light system, sound system and floor prices are also editable but are **not**
+governed — they have no published per-facility-type standard to deviate from.
+
+For Bundle: the **line-level** discount — `(default_bundle_price − bundle_price) /
 default_bundle_price × 100` (ERPNext item-discount style) — must be `≤ max_discount`;
 otherwise governance fires. This is the bundle's own discount, **not** the document
-`discount_mode` discount (which `max_discount` does not govern). The **included** bundle
-lines aren't checked — they're covered by the flat `bundle_price`. See
+`discount_mode` discount (which `max_discount` does not govern). See
 [bundle.md](./bundle.md#max-discount-floor).
 
 ---
@@ -91,7 +114,8 @@ present. Independent of the pricing governance above.
 | Check | `validate` | `before_submit` |
 |---|---|---|
 | `calculate_totals` (prices) | ✅ | — |
-| Standard price / `bundle_price` discount | ✅ warn/throw per setting | — |
+| Row types (`validate_row_types`) | ✅ throws | — |
+| Annex price / `bundle_price` discount | ✅ warn/throw per setting | — |
 | Unfulfilled composition | ✅ **warn only** | ✅ governed (warn/throw) |
 | Undesignated overflow | ✅ warn (names categories) | ✅ governed (warn/throw) |
 | Dependencies | — | ✅ |

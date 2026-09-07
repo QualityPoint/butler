@@ -5,9 +5,10 @@
 
 A bundle has a fixed composition (e.g. `Spa: 3`, from `bundle_items`). When the client
 wants **more** than that — or amenities from a category the bundle doesn't cover —
-those extras are priced **exactly like the Amenities order type** (standard price,
-floor multiplier, rate, and the discount) and charged on top, into `additional_total`
-/ `additional_net_total`. The flat `bundle_price` covers everything else.
+those extras are priced **exactly like the Amenities order type** (composed from the
+amenity's annexes and add-ons, then the discount) and charged on top, into
+`additional_total` / `additional_net_total`. The flat `bundle_price` covers everything
+else.
 
 ---
 
@@ -34,28 +35,29 @@ Safeguards:
 
 ## The algorithm
 
-Floors apply in every case (`floors = floor_count` when the amenity
-`depends_on_floor_count`, else `1`).
+Counted over **amenity rows only** — an annex is priced into its amenity and is never
+charged separately. The amenity's unit price already contains its floor extra, so there
+is no separate floors multiplier here any more.
 
 ### Category is NOT in the bundle  → auto-additional (no tick)
 
 ```
-for every row in the category:
-    additional_total += row.amount      (= floors × rate × qty — the whole row)
+for every amenity row in the category:
+    additional_total += row.qtn_amenity_amount      (the whole row)
 ```
 
 ### Category IS in the bundle  → tick required for the overflow
 
-Only the **overflow** is charged; the ticked row supplies the **rate & floors**, the
+Only the **overflow** is charged; the ticked row supplies the **unit price**, the
 category supplies the **quantity**:
 
 ```
-excess = total_qty(category) − configured_count(category)
-additional_total += floors × ticked_row.rate × excess
+excess = Σ amenity_qty(category) − configured_count(category)
+additional_total += ticked_row.qtn_amenity_price × excess
 ```
 
-If several rows in one overflowing category are ticked, the **first** ticked row's
-rate/floors are used.
+If several rows in one overflowing category are ticked, the **first** ticked row's unit
+price is used.
 
 ---
 
@@ -92,9 +94,9 @@ See [validations.md](./validations.md#2-undesignated-extras).
 Bundle **"Wellness"**: `Spa: 3`, `Gym: 2`. User places (2 distinct floors; Spa
 `depends_on_floor_count`):
 
-| Category | In bundle | total_qty | configured | ticked row | Additional charge |
+| Category | In bundle | Σ amenity_qty | configured | ticked row | Additional charge |
 |---|---|---|---|---|---|
-| Spa | yes (3) | 5 | 3 | Spa @ rate 400, floors 2 | `2 × 400 × (5−3) = 1600` |
+| Spa | yes (3) | 5 | 3 | Spa @ unit price 800 | `800 × (5−3) = 1600` |
 | Gym | yes (2) | 2 | 2 | — | `0` (no overflow) |
 | Pool | no | 1 | — | Pool, amount 600 | `600` (whole row) |
 

@@ -33,23 +33,62 @@ Quick lookup for the fields and functions the pricing engine touches. `*` = _Pla
 
 ## Butler Quotation Item (line)
 
+One table, **two row types** — an amenity row (`annex` empty) and its annex rows. See
+[annexes.md](./annexes.md). Every price exists in three tiers, by naming convention:
+
+| Prefix | Currency | `options` |
+|---|---|---|
+| _(none)_ | the **amenity's** own | `amenity_currency` |
+| `qtn_` | the **quotation's** | `currency` |
+| `base_` | the **company's** | `Company:company:default_currency` |
+
+**Shared by both row types**
+
 | Field | Type | Notes |
 |---|---|---|
 | `amenity` | Link → Amenity | reqd |
 | `floor_type` | Link → Floor Type | reqd |
-| `amenity_category` | Link (ro) | `fetch_from` amenity |
-| `qty` | Int | |
+| `additional_amenity` | Check (user-set) | designates an extra/overflow row to charge |
 | `amenity_currency` | Link (ro) | `fetch_from` amenity — the amenity's own currency |
-| `exchange_rate` | Float (ro) | `amenity_currency`→company; mirror of its `exchange_rates` row (so the same currency never drifts per line) |
-| `amenity_price` | Currency (ro) | the amenity's standard price **in its own currency** (`amenity_currency`) — e.g. 100 EUR |
-| `standard_rate` | Currency (ro, hidden) | `amenity_price` converted to **document** currency (`× exchange_rate / conversion_rate`); the reference for rate-default & deviation |
-| `rate` | Currency | defaults to `standard_rate`; document currency; user-overridable |
-| `amount` | Currency (ro) | `floors × rate × qty` |
-| `net_rate` / `net_amount` | Currency (ro) | after the document discount (ERPNext parity) |
-| `base_amenity_price` | Currency (ro) | `amenity_price × exchange_rate` (amenity currency → company) |
-| `base_rate` / `base_net_rate` / `base_amount` / `base_net_amount` | Currency (ro) | company-currency mirrors (`× conversion_rate`) |
-| `additional_amenity` * | Check (user-set) | designates an extra/overflow row to charge |
-| `depends_on_floor_count` / `is_dependant_amenity` / `has_changeable_price` | Check (ro) | `fetch_from` amenity |
+| `qtn_exchange_rate` | Float (ro) | amenity → quotation (`base_exchange_rate ÷ document rate`) |
+| `base_exchange_rate` | Float (ro) | amenity → company; mirror of its `exchange_rates` row |
+| `amenity_category` / `lines` / `image` | (ro) | `fetch_from` amenity |
+| `depends_on_floor_count` / `is_dependant_amenity` | Check (ro) | `fetch_from` amenity |
+
+**Amenity row only** — the price ladder is read-only because it is a roll-up
+
+| Field | Type | Notes |
+|---|---|---|
+| `amenity_qty` | Float | user-set; the multiplier, applied once at the end |
+| `amenity_price` | Currency (ro) | Σ annexes + light + sound + floor — **per unit** |
+| `qtn_amenity_price` / `qtn_amenity_amount` | Currency (ro) | `× qtn_exchange_rate`, then `× amenity_qty` |
+| `qtn_amenity_net_price` / `qtn_amenity_net_amount` | Currency (ro) | pro-rata share of the header discount |
+| `light_system` | Link → Light System | user-set; which of the amenity's systems |
+| `used_lines` / `total_lines` / `light_system_pricing_mode` | (ro) | copied from `Amenity.light_systems` |
+| `light_system_price` / `qtn_light_system_price` | Currency | `qtn_` is editable |
+| `light_system_amount` | Currency (ro) | `0` · `+price` · `−price` per the mode |
+| `has_sound_system` | Check (user-set) | the only "fitted / not fitted" signal |
+| `sound_system_price` / `qtn_sound_system_price` | Currency | flat; `qtn_` is editable |
+| `floor_price` / `qtn_floor_price` | Currency | from `Amenity.floor_extra_price`; `qtn_` is editable |
+| `floor_qty` | Int (ro) | `floor_count` when floor-dependent, else `0` |
+| `floor_amount` | Currency (ro) | `floor_price × floor_qty` |
+| `base_*` twins | Currency (ro) | company-currency mirrors |
+
+**Annex row only**
+
+| Field | Type | Notes |
+|---|---|---|
+| `annex` | Link → Annex | present ⇒ this is an annex row |
+| `annex_quantity` | Float | user-set; **per amenity unit** |
+| `annex_uom` | Link → UOM | user-set; defaults from Annex Price, else the Item |
+| `annex_stock_uom` / `conversion_factor` | (ro) | via the Annex's Item; **stock qty only, never the money** |
+| `annex_price_list` | Link → Annex Price | which record supplied the standard |
+| `annex_price` | Currency (ro) | the standard, amenity currency, per `annex_uom` |
+| `qtn_annex_price` | Currency | **the one user-authoritative price**; deviation is governed |
+| `qtn_annex_amount` | Currency (ro) | `qtn_annex_price × annex_quantity` |
+| `qtn_annex_net_price` / `qtn_annex_net_amount` | Currency (ro) | pro-rata discount share (guidance only) |
+| `annex_name` / `annex_category` / `manufacturer` / `warranty` / `warranty_uom` | (ro) | `fetch_from` annex |
+| `base_*` twins | Currency (ro) | company-currency mirrors |
 
 ## Composition tables
 
@@ -71,21 +110,40 @@ Quick lookup for the fields and functions the pricing engine touches. `*` = _Pla
 
 ## Amenity (pricing fields)
 
+An amenity has **no flat price** — it is composed from its annexes.
+
 | Field | Type | Notes |
 |---|---|---|
-| `standard_price` | Currency | base price |
-| `has_changeable_price` | Check | enables `facility_type_prices` |
-| `facility_type_prices` | Table | per-facility-type price overrides |
-| `depends_on_floor_count` | Check | price scales by distinct floor count |
+| `amenity` | Link → Item | the Item it is sold as (was `amenity_item`); used for Sales Order mapping |
+| `currency` | Link → Currency | the currency everything on the amenity is priced in |
+| `annexes` | Table → Amenity Annex Item | `annex`, `qty`, `uom`, `rate` — the composition |
+| `total` | Currency (ro) | `Σ qty × rate` over `annexes` — **annexes only**, no add-ons |
+| `light_systems` | Table → Amenity Light System | `system_name`, `used_lines`, `price`, `pricing_mode` |
+| `sound_system_price` | Currency | a single flat price; no mode, nothing to choose |
+| `depends_on_floor_count` | Check | enables `floor_extra_price` |
+| `floor_extra_price` | Currency | multiplied by the floor count and **added** to the price |
+| `lines` | Int | how many lines the amenity has, for the light system |
 | `amenity_category` | Link → Amenity Category | |
-| `amenity_item` | Link → Item | for Sales Order mapping |
+
+## Annex Price (per-facility-type pricing)
+
+Replaces the old `Amenity.facility_type_prices`. Keyed **(annex, amenity, facility_type)**;
+`facility_type = ""` is the standard price. Written by `Amenity.on_update`
+(`upsert_annex_price`), read by `get_annex_price`.
+
+| Field | Type | Notes |
+|---|---|---|
+| `annex` / `amenity` | Link | reqd — the pair being priced |
+| `facility_type` | Link → Facility Type | blank = the standard price |
+| `rate` | Currency | in the amenity's currency, per `uom` |
+| `uom` | Link → UOM | the unit the rate is quoted in |
 
 ## Butler Settings
 
 | Field | Type | Options / Notes |
 |---|---|---|
-| `maintain_standard_price_action` | Select | `Stop` / `Warn` |
-| `role_to_override_standard_price_stop_action` | Link → Role | shown when action = `Stop` |
+| `maintain_annex_price_action` | Select | `Stop` / `Warn` |
+| `role_to_override_annex_price_stop_action` | Link → Role | shown when action = `Stop` |
 | `action_if_bundle_items_unfulfilled` | Select | `Stop` / `Warn` |
 | `role_to_override_unfulfilled_stop_action` | Link → Role | shown when action = `Stop` |
 | `disable_amenity_consolidation` | Check | skip merging duplicate lines |
@@ -100,10 +158,20 @@ the bundle carries its own currency. Every price pivots through the company curr
 (ERPNext cross-rate, [get_item_details.py:1055](../../../erpnext/erpnext/stock/get_item_details.py)):
 
 ```
-standard_rate[doc]  = amenity_price  × exchange_rate            / conversion_rate
-default_bundle[doc] = bundle_price   × bundle_conversion_rate  / conversion_rate
-base_<x>            = <x>[doc] × conversion_rate               (company currency)
+base_exchange_rate  = amenity_currency → company            (from the exchange_rates table)
+qtn_exchange_rate   = base_exchange_rate / document rate    (amenity → quotation)
+
+qtn_<x>             = <x> × qtn_exchange_rate               (quotation currency)
+base_<x>            = qtn_<x> × document rate               (company currency)
+default_bundle[doc] = bundle_price × bundle_conversion_rate / conversion_rate
 ```
+
+**Only `qtn_annex_price` is user-authoritative.** While it still equals the previous
+standard it keeps *tracking* it, so a currency or rate change re-converts it instead of
+leaving a stale figure; once genuinely overridden it is preserved and **back-converted**
+into `annex_price` (the amenity-currency tier), and the deviation is governed. Everything
+above the annex derives upward in amenity currency and is then projected out to `qtn_` and
+`base_` — a derived `qtn_` value is never round-tripped back down.
 
 **The `exchange_rates` table is the single editable source of rates.** `sync_exchange_rates`
 maintains one row per **distinct** non-company currency on the quotation (the document

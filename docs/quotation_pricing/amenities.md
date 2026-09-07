@@ -1,8 +1,8 @@
 # Amenities Order Type
 
-`order_type == "Amenities"`. The quotation is priced **bottom-up**: every amenity
-line is priced from its standard price (with optional manual override), and the
-header totals are the sum of the lines.
+`order_type == "Amenities"`. The quotation is priced **bottom-up**: every annex is priced
+from its standard, each amenity is the sum of its annexes plus its add-ons, and the header
+totals are the sum of the amenity rows.
 
 All logic is in `ButlerQuotation.calculate_totals()`, run during `validate`.
 
@@ -11,87 +11,100 @@ All logic is in `ButlerQuotation.calculate_totals()`, run during `validate`.
 > **Quotation** (it cannot become a Sales Order). See
 > [README.md](./README.md#downstream--the-post-submit-create-action).
 
----
-
-## Step 1 — Resolve the standard price
-
-```
-get_amenity_pricing(amenity, facility_type)
-        │
-        ├─ price = Amenity.standard_price
-        │
-        └─ if Amenity.has_changeable_price and facility_type:
-               price = facility_type_prices row matching facility_type   (if any)
-
-   returns { amenity_price, depends_on_floor_count }
-```
-
-`facility_type` comes from the quotation's `facility_type`, falling back to the
-linked `Facility.facility_type`. The same function backs the client form, so the
-standard price shown live and the one used server-side are always identical.
+> A line is a **group** of rows — one amenity row and its annex rows — not a single row.
+> Read [annexes.md](./annexes.md) first; this page covers what happens above that.
 
 ---
 
-## Step 2 — Per-line amount
+## Step 1 — Resolve the rates
 
-For each row in `amenities`:
+```
+rate_map = sync_exchange_rates(company_currency)     # one rate per currency → company
+
+per amenity group:
+    base_exchange_rate = rate_map[amenity_currency]              # amenity → company
+    qtn_exchange_rate  = base_exchange_rate / rate_map[currency] # amenity → quotation
+```
+
+Both are read-only mirrors of the **`exchange_rates` table**, the single editable rate
+source, so one currency can never carry two different rates across rows. The annex rows
+inherit their group's rates.
+
+---
+
+## Step 2 — Per-group amount
+
+For each amenity group (see [annexes.md](./annexes.md) for each component's formula):
 
 | Field | Set to |
 |---|---|
-| `amenity_price` | the resolved standard price (reference only) |
-| `rate` | kept as entered; **defaults to `amenity_price`** when empty |
-| `amount` | `floors × rate × qty` |
+| `annex_amount` | `annex_price × annex_quantity` — per annex row |
+| `light_system_amount` | `0` · `+price` · `−price`, per the amenity's `pricing_mode` |
+| `sound_system_amount` | `sound_system_price` when `has_sound_system`, else `0` |
+| `floor_amount` | `floor_price × floor_qty` |
+| `amenity_price` | `Σ annex_amount + light + sound + floor` — **per unit**, amenity currency |
+| `qtn_amenity_price` | `amenity_price × qtn_exchange_rate` |
+| `qtn_amenity_amount` | `qtn_amenity_price × amenity_qty` |
 
 Where:
 
 ```
-floor_count = number of DISTINCT floor_type values across all amenity lines
-floors      = floor_count   if amenity.depends_on_floor_count and floor_count
-              1             otherwise
+floor_count = number of DISTINCT floor_type values across all amenity rows
+floor_qty   = floor_count   if amenity.depends_on_floor_count
+              0             otherwise
 ```
 
-A **price deviation** is recorded when `abs(rate − amenity_price) > 0.005` — i.e.
-the user overrode the standard price. Deviations feed standard-price governance
-(see [validations.md](./validations.md)).
+A **price deviation** is recorded when the user's `qtn_annex_price` differs from the Annex
+Price standard by more than `0.005`. Only the annex price is governed — it is the only
+editable price with a published standard. See
+[validations.md](./validations.md#annex-price--maintain_annex_price_action).
+
+> Floors are **additive** here, not a multiplier on the line. See
+> [annexes.md](./annexes.md#the-per-amenity-add-ons).
 
 ---
 
 ## Step 3 — Header totals
 
 ```
-amenity_count = Σ qty
-total         = Σ amount            (items_total)
-discount_amount, additional_discount_percentage   ← from apply_discount_by
-net_total     = total − discount_amount
+amenity_count = Σ amenity_qty            (amenity rows only)
+total         = Σ qtn_amenity_amount     (quotation currency)
+net_total     = total − discount
 ```
 
-Additional discount (`apply_discount_by`):
+Then taxes, grand/rounded totals and the `base_*` mirrors, unchanged — see
+[discount.md](./discount.md) and [taxes_and_charges.md](./taxes_and_charges.md).
 
-- `Percentage` → `discount_amount = total × additional_discount_percentage / 100`
-- `Amount` → `additional_discount_percentage = discount_amount / total × 100`
-- _(blank)_ → both zeroed
+The header discount is shared back down for display: each amenity row's
+`qtn_amenity_net_amount`, and each annex row's `qtn_annex_net_amount`, are its
+pro-rata share. Those `net_` figures are **guidance only** — nothing is charged from
+them, which is why the split can stay proportional.
 
 ---
 
 ## Standard-price governance
 
-For `Amenities`, the check covers **every** deviating line, governed by
-`maintain_standard_price_action`. See [validations.md](./validations.md#standard-price).
+Every deviating **annex** price is checked, governed by `maintain_annex_price_action`.
+See [validations.md](./validations.md#annex-price--maintain_annex_price_action).
 
 ---
 
 ## Worked example
 
-Facility has 2 distinct floor types. Amenity **Pool** (`depends_on_floor_count = 1`,
-standard 500), **Reception** (no floor dependency, standard 300).
+Facility is a Villa on 1 floor. Amenity **Lounge** (`depends_on_floor_count = 1`,
+`floor_extra_price = 50`, `sound_system_price = 200`, a `Dimmer` light system priced 80 in
+`Add` mode), composed of 2 annexes. A Villa-scoped **Annex Price** overrides the AC.
 
-| Line | qty | rate | floors | amount |
-|---|---|---|---|---|
-| Pool | 1 | 500 | 2 | `2 × 500 × 1 = 1000` |
-| Reception | 2 | 300 | 1 | `1 × 300 × 2 = 600` |
+| Component | Detail | Amount |
+|---|---|---|
+| Motion Sensors | standard 100 × qty 2 | `200` |
+| AC | Villa override 500 × qty 1 | `500` |
+| Floor extra | 50 × 1 floor | `50` |
+| Light system | Dimmer, `Add` | `+80` |
+| Sound system | opted in | `200` |
 
 ```
-amenity_count = 3
-total         = 1600
-net_total     = 1600 − discount
+amenity_price      = 200 + 500 + 50 + 80 + 200 = 1030      (per unit)
+qtn_amenity_amount = 1030 × amenity_qty 2      = 2060
+total                                          = 2060
 ```

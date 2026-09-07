@@ -82,6 +82,12 @@ for each item:
 
 ## Butler specifics
 
+- **The discount is applied at the header, not per row.** Unlike ERPNext's Step 2 above,
+  Butler does not reduce each line's `net_amount` and re-total. It computes the header
+  `net_total`, then shares that ratio back down for **display only**: each amenity row's
+  `qtn_amenity_net_amount`, and each annex row's `qtn_annex_net_amount`, is its pro-rata
+  share. Nothing is charged from those `net_` figures, which is why a proportional split
+  is enough and the discount never has to be reasoned about per annex.
 - **Applies to both** the bundle and the additional amenities: `net_total` (from
   `bundle_price`) **and** `additional_net_total` (from `additional_total`) carry the
   discount share. See [bundle.md](./bundle.md#discount--currency-erpnext-model).
@@ -90,7 +96,7 @@ for each item:
   **line-level** discount — `default_bundle_price` (≈ `price_list_rate`) → `bundle_price`
   (≈ `rate`) — which is the one capped by `Butler Bundle.max_discount`. See
   [bundle.md](./bundle.md#max-discount-floor) and
-  [validations.md](./validations.md#standard-price--maintain_standard_price_action).
+  [validations.md](./validations.md#annex-price--maintain_annex_price_action).
   `max_discount` does **not** apply to this header discount.
 
 ---
