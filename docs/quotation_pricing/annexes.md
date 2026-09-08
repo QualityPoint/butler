@@ -43,18 +43,63 @@ always well-formed rather than trusted from the client.
 | Step (`before_validate`) | Does |
 |---|---|
 | `clear_row_type_fields` | blanks the fields belonging to the *other* row type — stale data, not a user error, so it is cleared rather than rejected |
-| `consolidate_amenities` | merges duplicate amenity groups, summing `amenity_qty`, and **dedupes** their annex rows |
-| `expand_amenity_rows` | seeds an amenity row's annex rows from `Amenity.annexes` when it has none |
+| `rescale_annex_quantities` | scales a row's annex quantities when its `amenity_qty` changed |
+| `expand_amenity_rows` | seeds an amenity row's annex rows from `Amenity.annexes` when it has none, scaled by `amenity_qty` |
+| `consolidate_amenities` | merges duplicate amenity groups, **adding up** both `amenity_qty` and the annex quantities |
 | `order_amenity_rows` | lays the table out group by group and renumbers `idx` |
 
 Because of `expand_amenity_rows`, every entry point — the Facility Builder, a data
 import, the API — only has to send `{amenity, floor_type, amenity_qty}` and gets a fully
-composed, priced line back.
+composed, priced line back. It runs **before** consolidation, so a placement that arrives
+bare is carrying its own annex quantities by the time they are added up.
 
-**Annex quantities are per amenity unit.** `amenity_qty` carries the multiplier, so
-consolidation *dedupes* identical annex rows instead of summing them; doing both would
-square the quantity. An annex whose uom, price or quantity was overridden differs from its
-twin and survives as its own row rather than being folded away.
+### Annex quantities are totals
+
+Two kitchens each holding one display panel are one line of **two kitchens and two
+panels** — the quantity the quotation is actually for, and the quantity a customer reads
+off it. So the annex rows under a line add up to that line's amount:
+
+```
+Security Kitchen                             ×2      16,000
+   Display Panel 4.3    qty 2   6,000        12,000
+   AC                   qty 2   2,000         4,000
+                                            ────────
+                                              16,000   ✓
+```
+
+`amenity_qty` is therefore **not** a multiplier over the annexes. It multiplies only the
+per-amenity add-ons — light system, sound system, floor extra — which are genuinely per
+unit:
+
+```
+amenity_price  = Σ annex_amount / amenity_qty  +  light + sound + floor   # per unit
+amenity_amount = amenity_price × amenity_qty
+               = Σ annex_amount  +  (light + sound + floor) × amenity_qty
+```
+
+`amenity_price` stays per-unit because that is the rate an
+[additional amenity](./additional-amenities.md) overflows at. Where a line's units differ
+from one another, it is their average.
+
+Quantities move in exactly two ways, and both are idempotent — re-saving never compounds:
+
+- **`consolidate_amenities` adds them up.** Two annex rows fold together only when they
+  agree on annex, uom and price, so a unit whose panel count was lowered, or whose price
+  was discounted, contributes its own quantity at its own rate instead of being flattened
+  into its twin. That is also how you price one unit differently from its twin: change it,
+  and it stops folding.
+- **`rescale_annex_quantities` follows a changed `amenity_qty`**, comparing against the
+  stored row so it moves once per real change.
+
+`absorb_annex_rows` handles one wrinkle. `qtn_annex_price` is derived later, in
+`validate`, so a row the Facility Builder has just seeded carries no price and would read
+as a different line from the identical row it duplicates. It folds into the single priced
+row for its annex when there is exactly one; where several sit at different prices, which
+one it belongs to is the very thing not to guess at, so it stands on its own.
+
+> **Pre-existing data.** Quotations written before this changed hold per-unit quantities,
+> and would lose value the next time they were saved. No patch ships for it — Butler is
+> still in development and the data is disposable. One will be needed before release.
 
 ---
 

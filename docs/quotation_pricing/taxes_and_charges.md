@@ -12,13 +12,15 @@ it from `calculate_taxes_and_totals()`). Reference: `erpnext/controllers/taxes_a
 
 ## How the `taxes` table is populated
 
-Three entry points, all client-side in `butler_quotation.js`, all funnelling into the
-same `taxes` child table:
+Three entry points funnelling into the same `taxes` child table. Two are client-side in
+`butler_quotation.js`; the first is also enforced on the server, for the documents that
+never see a form:
 
 ```
 1. New document           get_default_taxes_and_charges(company)  ──► the company's
-   (onload_post_render,       is_default=1 template, with its rows already resolved
-    company change)           (one round trip — no separate row-copy step)
+   (before_validate,         is_default=1 template, with its rows already resolved
+    onload_post_render,      (one round trip — no separate row-copy step)
+    company change)
 
 2. tax_category / party   Tax Rule: get_tax_template(tax_category, party, address,
    change                     company, transaction_date)  ──► taxes_and_charges
@@ -28,13 +30,25 @@ same `taxes` child table:
    or set by 1/2 above)
 ```
 
-- **1. Default template on creation (`apply_default_taxes`, implemented):** fires on a
-  brand-new quotation before any party is picked (`onload_post_render`, guarded to skip
-  once the doc already carries un-templated rows), and again whenever `company` changes.
-  Calls `erpnext.controllers.accounts_controller.get_default_taxes_and_charges`, which
-  looks up the **`is_default=1`** Sales Taxes and Charges Template for that company and
-  returns it pre-populated with its rows — `taxes_and_charges` and `taxes` are set in one
-  call. Exact mirror of ERPNext `transaction.js` `apply_default_taxes`.
+- **1. Default template on creation (implemented twice, deliberately):** calls
+  `erpnext.controllers.accounts_controller.get_default_taxes_and_charges`, which looks up
+  the **`is_default=1`** Sales Taxes and Charges Template for that company and returns it
+  pre-populated with its rows — `taxes_and_charges` and `taxes` are set in one call.
+  Both copies skip a quotation that already has a template, or a `taxes` table filled in
+  by hand with no template behind it.
+  - `apply_default_taxes` in `butler_quotation.js` fires on a brand-new quotation before
+    any party is picked (`onload_post_render`) and again whenever `company` changes. Exact
+    mirror of ERPNext `transaction.js` `apply_default_taxes`.
+  - `set_default_taxes` in `before_validate` does the same server-side. **ERPNext applies
+    this default client-side only**, so any document inserted without a form gets no taxes
+    at all — verified by inserting a stock ERPNext Quotation programmatically on a company
+    that has a default template: `taxes_and_charges` came back `None`. That is fine for
+    ERPNext, whose documents are made on a form; Butler's are also made by the **Facility
+    Builder**, which posts a plain dict to `frappe.client.insert` (`store.js`
+    `create_quotation`) and never opens one. Putting it in `before_validate` — beside
+    `set_default_company` and `set_default_terms`, which exist for the same reason —
+    covers every entry point rather than just the form, and leaves the client copy to
+    no-op when it finds the work already done.
 - **2. Tax Rule resolution (`set_taxes_from_tax_category`, implemented):** changing
   `tax_category` (or the party) calls `erpnext.accounts.party.set_taxes` — which matches
   a **Tax Rule** by tax_category + party + billing address + company +

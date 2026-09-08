@@ -589,6 +589,13 @@ function set_currency_field_labels(frm, company_currency) {
         [null, "amenities", "taxes", "payment_schedule"]
     );
 
+    // in_words / base_in_words are Data, not Currency, so the options-driven pass above
+    // skips them — they'd otherwise sit next to each other both reading "In Words" with
+    // no way to tell which currency each spells out. Named explicitly, the way ERPNext
+    // labels its own non-Currency fields (transaction.js does this for totals_section).
+    frm.set_currency_labels(["in_words"], frm.doc.currency);
+    frm.set_currency_labels(["base_in_words"], company_currency);
+
     // exchange_rates table: name the rate column with the actual company currency, so
     // each row reads "<currency> → Rate to <SAR>" (the rate is to the company currency).
     const ex_grid = frm.fields_dict.exchange_rates && frm.fields_dict.exchange_rates.grid;
@@ -597,6 +604,9 @@ function set_currency_field_labels(frm, company_currency) {
             "conversion_rate", "label", __("Rate to {0}", [company_currency]));
         ex_grid.refresh();
     }
+
+    // repaint, the way ERPNext's set_dynamic_labels finishes and amenity.js already does
+    frm.refresh_fields();
 }
 
 // True when ANY currency in play (the quotation, the bundle, or any amenity) differs
@@ -641,9 +651,10 @@ function recalculate_quotation(frm) {
                 // discount → re-run the show/hide logic so the table (and net_total,
                 // base_* fields) appears without waiting for a save.
                 frm.trigger("toggle_currency_fields");
-                // the server may also have reshaped the rows (seeded annexes,
-                // consolidated groups), so redraw the editor from what came back
-                if (frm.amenities_editor) frm.amenities_editor.refresh();
+                // A live recalc only recomputes numbers — it never reshapes rows, which
+                // happens in before_validate on save. So push the new values into the
+                // existing controls rather than rebuilding every one of them.
+                if (frm.amenities_editor) frm.amenities_editor.sync();
             },
         });
     }, 300);

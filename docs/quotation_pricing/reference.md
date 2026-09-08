@@ -118,11 +118,11 @@ An amenity has **no flat price** — it is composed from its annexes.
 | `currency` | Link → Currency | the currency everything on the amenity is priced in |
 | `annexes` | Table → Amenity Annex Item | `annex`, `qty`, `uom`, `rate` — the composition |
 | `total` | Currency (ro) | `Σ qty × rate` over `annexes` — **annexes only**, no add-ons |
-| `light_systems` | Table → Amenity Light System | `system_name`, `used_lines`, `price`, `pricing_mode` |
+| `light_systems` | Table → Amenity Light System | `system_name`, `used_lines`, `price`, `pricing_mode` — **alternative** ways to wire the amenity; a quotation line picks one |
 | `sound_system_price` | Currency | a single flat price; no mode, nothing to choose |
 | `depends_on_floor_count` | Check | enables `floor_extra_price` |
 | `floor_extra_price` | Currency | multiplied by the floor count and **added** to the price |
-| `lines` | Int | how many lines the amenity has, for the light system |
+| `lines` | Int | how many lines the amenity has. Each light system's `used_lines` must fit within it **on its own** — they are alternatives, never in use at once, so there is no shared budget to add up |
 | `amenity_category` | Link → Amenity Category | |
 
 ## Annex Price (per-facility-type pricing)

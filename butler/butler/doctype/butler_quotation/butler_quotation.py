@@ -90,9 +90,13 @@ def amenity_row_key(row):
 
 
 def annex_row_key(row):
-    """Identity of an annex row within its amenity group. Quantity and price are in the
-    key so an overridden row is never deduped into a differently-priced twin."""
-    return (row.annex, row.annex_uom, flt(row.annex_quantity), flt(row.qtn_annex_price))
+    """Identity of an annex row within its amenity group — what it is and what it costs.
+
+    Quantity is deliberately *not* in the key: it is the thing consolidation adds up.
+    Price is, so a row whose price was overridden keeps its own line rather than having
+    its quantity folded in at somebody else's rate.
+    """
+    return (row.annex, row.annex_uom, flt(row.qtn_annex_price))
 
 
 class ButlerQuotation(Document):
@@ -113,10 +117,14 @@ class ButlerQuotation(Document):
         self.set_default_valid_till()
         self.set_party_from_facility()
         self.set_default_terms()
+        self.set_default_taxes()
         self.clear_additional_amenities()
         self.clear_row_type_fields()
-        self.consolidate_amenities()
+        self.rescale_annex_quantities()
+        # expand first: consolidation adds annex quantities up, so a row the Facility
+        # Builder just added has to arrive carrying its own before it is merged away.
         self.expand_amenity_rows()
+        self.consolidate_amenities()
         self.order_amenity_rows()
 
     def set_party_from_facility(self):
@@ -207,6 +215,35 @@ class ButlerQuotation(Document):
 
         self.tc_name = default_terms
         self.terms = frappe.get_value("Terms and Conditions", self.tc_name, "terms")
+
+    def set_default_taxes(self):
+        """Load the Company's default Sales Taxes and Charges Template when the quotation
+        carries no taxes of its own.
+
+        ERPNext applies this default **client-side only** — transaction.js
+        `onload_post_render` -> `apply_default_taxes` — so a document inserted without a
+        form gets no taxes at all. That is fine for ERPNext, whose documents are made on
+        a form; Butler's are also made by the Facility Builder, which posts a plain dict
+        to `frappe.client.insert` and never opens one. Doing it here instead covers every
+        entry point — the builder, the API, a data import — rather than just the form.
+
+        The guards match `apply_default_taxes`'s own: a template already chosen is left
+        alone, and so is a taxes table filled in by hand with no template behind it —
+        there is nothing to default in either case. `butler_quotation.js` still runs its
+        client-side copy, which now finds the work already done and no-ops.
+        """
+        if self.taxes_and_charges or self.get("taxes") or not self.company:
+            return
+
+        from erpnext.controllers.accounts_controller import get_default_taxes_and_charges
+
+        default = get_default_taxes_and_charges(
+            "Sales Taxes and Charges Template", company=self.company) or {}
+        if not default.get("taxes_and_charges"):
+            return
+
+        self.taxes_and_charges = default["taxes_and_charges"]
+        self.set("taxes", default.get("taxes") or [])
 
     def set_default_company(self):
         """Resolve Company the way ERPNext does when it isn't supplied (e.g. the
@@ -475,6 +512,21 @@ class ButlerQuotation(Document):
                     title=_("Invalid quantity"),
                 )
 
+            # A Subtract light system is a legitimate credit, so the amount it contributes
+            # is allowed to be negative — but it can't be worth more than the amenity it
+            # discounts. Reported here because the field-level non_negative check that
+            # would otherwise catch it names the wrong culprit.
+            if flt(amenity_row.amenity_price) < 0:
+                frappe.throw(
+                    _("Row #{0}: {1} prices out at {2}. Its {3} light system subtracts more "
+                      "than the amenity is worth.").format(
+                        amenity_row.idx, frappe.bold(amenity_row.amenity),
+                        fmt_money(amenity_row.amenity_price),
+                        frappe.bold(amenity_row.light_system_pricing_mode or _("Subtract")),
+                    ),
+                    title=_("Negative amenity price"),
+                )
+
             allowed = {r.annex for r in frappe.get_cached_doc(
                 "Amenity", amenity_row.amenity).annexes}
             for annex_row in annex_rows:
@@ -583,12 +635,18 @@ class ButlerQuotation(Document):
 
     def consolidate_amenities(self):
         """Merge amenity groups that share the same (amenity, floor_type,
-        additional_amenity), summing `amenity_qty`, and dedupe their annex rows.
+        additional_amenity), summing both `amenity_qty` and the annex quantities.
 
-        Annex quantities are **per amenity unit** — `amenity_qty` carries the multiplier —
-        so identical annex rows are deduped, never summed; doing both would square the
-        quantity. An annex whose uom, price or quantity was overridden differs from its
-        twin and is kept as its own row rather than silently folded away.
+        **Annex quantities are totals, not per-unit figures.** Two kitchens each holding
+        one display panel merge into one line of two kitchens and two panels — the
+        quantity a quotation is actually for. `amenity_qty` is therefore *not* a
+        multiplier over the annexes; it only multiplies the per-amenity add-ons, which
+        are genuinely per unit. See docs/quotation_pricing/annexes.md.
+
+        Summing is also what keeps a merge honest when the units are not identical. Two
+        annex rows only fold together when they agree on annex, uom and price, so a unit
+        whose panel count was lowered or whose price was discounted contributes its own
+        quantity at its own rate instead of being flattened into its twin.
 
         Skipped when Butler Settings → "Disable Amenity Consolidation" is on, which is
         precisely the case where a repeated key is intentional.
@@ -607,9 +665,7 @@ class ButlerQuotation(Document):
             else:
                 merged[key] = (amenity_row, {})
 
-            kept_annexes = merged[key][1]
-            for annex_row in annex_rows:
-                kept_annexes.setdefault(annex_row_key(annex_row), annex_row)
+            self.absorb_annex_rows(merged[key][1], annex_rows)
 
         ordered = []
         for amenity_row, kept_annexes in merged.values():
@@ -618,6 +674,63 @@ class ButlerQuotation(Document):
         ordered.extend(orphans)
         self.set_amenity_rows(ordered)
 
+    def absorb_annex_rows(self, kept, annex_rows):
+        """Fold `annex_rows` into `kept` (an annex key -> row map), adding quantities.
+
+        Priced rows go first so that an unpriced one can find them. A row the Facility
+        Builder has just seeded carries no price yet — pricing runs later, in `validate`
+        — and would otherwise read as a different line from the identical row it is a
+        duplicate of, splitting one annex across two lines until the next save. It folds
+        into the single priced row for its annex when there is exactly one; where there
+        are several at different prices, which one it belongs to is the very thing not to
+        guess at, so it stands on its own.
+        """
+        def fold(annex_row, twin):
+            twin.annex_quantity = flt(twin.annex_quantity) + flt(annex_row.annex_quantity)
+
+        unpriced = []
+        for annex_row in annex_rows:
+            if not flt(annex_row.qtn_annex_price):
+                unpriced.append(annex_row)
+                continue
+            twin = kept.get(annex_row_key(annex_row))
+            fold(annex_row, twin) if twin else kept.setdefault(
+                annex_row_key(annex_row), annex_row)
+
+        for annex_row in unpriced:
+            candidates = [row for key, row in kept.items()
+                          if key[:2] == annex_row_key(annex_row)[:2]]
+            if len(candidates) == 1:
+                fold(annex_row, candidates[0])
+            else:
+                kept.setdefault(annex_row_key(annex_row), annex_row)
+
+    def rescale_annex_quantities(self):
+        """Keep a row's annex totals in step when its `amenity_qty` changes.
+
+        Annex quantities are totals across the row's units, so going from two kitchens to
+        three has to take the panels with it. Consolidation covers the case where the
+        count changes by rows merging — it adds their quantities up — and this covers the
+        other one: a count edited in place, or the Facility Builder sending a new one for
+        a placement it already knows about.
+
+        Compared against the *stored* row, so it moves once per real change and re-saving
+        is a no-op. New rows have nothing to compare against and need none: they are
+        seeded at the right scale by `expand_amenity_rows`.
+        """
+        before = self.get_doc_before_save()
+        if not before:
+            return
+        previous = {row.name: flt(row.amenity_qty)
+                    for row in before.amenities if not row.annex}
+
+        for amenity_row, annex_rows in self.group_amenity_rows()[0]:
+            was, now = previous.get(amenity_row.name), flt(amenity_row.amenity_qty)
+            if not was or not now or abs(now - was) <= 0.0001:
+                continue
+            for annex_row in annex_rows:
+                annex_row.annex_quantity = flt(annex_row.annex_quantity) * now / was
+
     def expand_amenity_rows(self):
         """Seed an amenity row's annex rows from its Amenity's own `annexes` table.
 
@@ -625,6 +738,10 @@ class ButlerQuotation(Document):
         send the amenity row (amenity + floor_type) and gets a fully composed quotation
         line back. A group that already carries annex rows is left untouched, so edits
         and deliberate deletions survive a re-save.
+
+        The Amenity states its annex quantities per unit; a quotation row carries totals,
+        so the seed is scaled by `amenity_qty`. Only ever seeded once — a group that
+        already has annex rows is skipped — so this cannot compound.
         """
         groups, orphans = self.group_amenity_rows()
         ordered = []
@@ -635,13 +752,14 @@ class ButlerQuotation(Document):
                 ordered.extend(annex_rows)
                 continue
 
+            units = flt(amenity_row.amenity_qty) or 1.0
             for source in frappe.get_cached_doc("Amenity", amenity_row.amenity).annexes:
                 ordered.append(self.append("amenities", {
                     "amenity": amenity_row.amenity,
                     "floor_type": amenity_row.floor_type,
                     "additional_amenity": amenity_row.additional_amenity,
                     "annex": source.annex,
-                    "annex_quantity": source.qty,
+                    "annex_quantity": flt(source.qty) * units,
                     "annex_uom": source.uom,
                 }))
 
@@ -795,6 +913,8 @@ class ButlerQuotation(Document):
                 if amenity_row.amenity else None
             )
             amenity_row.amenity_qty = flt(amenity_row.amenity_qty) or 1.0
+            # the rate that produced the prices currently on the row, kept before it moves
+            previous_qtn_rate = flt(amenity_row.qtn_exchange_rate) or 1.0
             # Per-row rates, both derived from the exchange_rates table so a currency
             # never carries two different rates: amenity→company, and amenity→quotation
             # as the ratio of the two company rates.
@@ -802,24 +922,34 @@ class ButlerQuotation(Document):
                 rate_map.get(amenity_row.amenity_currency, 1.0)) or 1.0
             amenity_row.qtn_exchange_rate = (
                 flt(amenity_row.base_exchange_rate) / conversion_rate)
+            qtn_rate = flt(amenity_row.qtn_exchange_rate) or 1.0
 
             # --- annexes: the amenity's price is composed from them ---
+            # the rates are set inside price_annex_row, which needs to read the *previous*
+            # ones before overwriting them
             annex_total = 0.0
             for annex_row in annex_rows:
-                annex_row.base_exchange_rate = amenity_row.base_exchange_rate
-                annex_row.qtn_exchange_rate = amenity_row.qtn_exchange_rate
                 annex_total += self.price_annex_row(
-                    annex_row, facility_type, deviations)
+                    annex_row, facility_type, deviations,
+                    flt(amenity_row.base_exchange_rate), flt(amenity_row.qtn_exchange_rate),
+                )
 
             # --- the per-amenity add-ons ---
-            light_amount = self.price_light_system(amenity_row, amenity)
-            sound_amount = self.price_sound_system(amenity_row, amenity)
-            floor_amount = self.price_floor_extra(amenity_row, amenity)
+            rates = (qtn_rate, previous_qtn_rate)
+            light_amount = self.price_light_system(amenity_row, amenity, rates)
+            sound_amount = self.price_sound_system(amenity_row, amenity, rates)
+            floor_amount = self.price_floor_extra(amenity_row, amenity, rates)
 
-            # amenity_price is PER UNIT, in the amenity's own currency; amenity_qty is
-            # the multiplier, applied once when the amount is projected out.
+            # amenity_price is PER UNIT, in the amenity's own currency — the figure the
+            # additional-amenity overflow is charged at, so it has to stay per unit.
+            #
+            # The annexes are already totals across every unit of this row (consolidation
+            # adds their quantities up), so they are divided back down; the add-ons are
+            # genuinely per unit and are not. Multiplying by amenity_qty below therefore
+            # restores the annex total exactly and projects the add-ons out once.
+            units = flt(amenity_row.amenity_qty)
             amenity_row.amenity_price = (
-                annex_total + light_amount + sound_amount + floor_amount)
+                annex_total / units + light_amount + sound_amount + floor_amount)
             amenity_row.qtn_amenity_price = (
                 flt(amenity_row.amenity_price) * flt(amenity_row.qtn_exchange_rate))
             amenity_row.qtn_amenity_amount = (
@@ -871,16 +1001,21 @@ class ButlerQuotation(Document):
         self.set_base_amounts(conversion_rate)
         self.set_total_in_words(company_currency)
 
-    def price_annex_row(self, row, facility_type, deviations):
+    def price_annex_row(self, row, facility_type, deviations, base_rate, qtn_rate):
         """Resolve one annex row's price and amount, returning its amount in the
         amenity's currency (the unit the amenity price is composed in).
 
         The standard comes from the **Annex Price** matching (annex, amenity,
-        facility_type), falling back to the facility-type-agnostic row. `qtn_annex_price`
-        is the one user-authoritative price on the line: while it still equals the
-        previous standard it keeps tracking (so a currency or rate change re-converts it),
-        and once genuinely overridden it is preserved and back-converted into
-        `annex_price`, with the deviation recorded for governance.
+        facility_type), falling back to the facility-type-agnostic row.
+        `qtn_annex_price` is the one user-authoritative price on the line.
+
+        Deciding whether it is still ours to recompute or the user's to keep is the
+        subtle part. The test is against **what tracking would have written last time** —
+        the current standard at the row's *previous* exchange rate — rather than against
+        the standard at today's rate. Comparing at today's rate would misread every
+        untouched row as overridden the moment the quotation currency changed, and
+        comparing against the stored price would lose a real override on the next save,
+        since that price was itself derived from it.
         """
         from butler.butler.doctype.annex_price.annex_price import get_annex_price
 
@@ -894,27 +1029,46 @@ class ButlerQuotation(Document):
         row.annex_stock_uom, row.conversion_factor = get_annex_uom_conversion(
             row.annex, row.annex_uom)
 
-        qtn_rate = flt(row.qtn_exchange_rate) or 1.0
+        # the rate that produced the price currently on the row, before we move it on
+        previous_qtn_rate = flt(row.qtn_exchange_rate) or qtn_rate
+        row.base_exchange_rate, row.qtn_exchange_rate = base_rate, qtn_rate
+
         resolved = flt(standard.get("rate"))          # amenity currency, per annex_uom
-        previous_standard = flt(row.annex_price)
-        row.annex_price = resolved
-
         qtn_standard = resolved * qtn_rate
-        previous_qtn_standard = previous_standard * qtn_rate
-        if not row.qtn_annex_price or abs(
-            flt(row.qtn_annex_price) - previous_qtn_standard
-        ) <= 0.005:
-            row.qtn_annex_price = qtn_standard
-        elif abs(flt(row.qtn_annex_price) - qtn_standard) > 0.005:
-            # a genuine override: it wins, and the amenity-currency price follows it
-            row.annex_price = flt(row.qtn_annex_price) / qtn_rate
-            deviations.append((row, qtn_standard))
 
+        if not row.qtn_annex_price or abs(
+            flt(row.qtn_annex_price) - resolved * previous_qtn_rate
+        ) <= 0.005:
+            row.qtn_annex_price = qtn_standard        # still ours — re-derive it
+        elif abs(flt(row.qtn_annex_price) - qtn_standard) > 0.005:
+            deviations.append((row, qtn_standard))    # a real override — leave it alone
+
+        # annex_price mirrors whatever price is in force, so amount = price x qty holds
+        # whether the row is at its standard or overridden
+        row.annex_price = flt(row.qtn_annex_price) / qtn_rate
         row.annex_amount = flt(row.annex_price) * flt(row.annex_quantity)
         row.qtn_annex_amount = flt(row.qtn_annex_price) * flt(row.annex_quantity)
         return flt(row.annex_amount)
 
-    def price_light_system(self, row, amenity):
+    def track_add_on_price(self, row, qtn_field, previous_standard, standard, rates):
+        """Settle an add-on's quotation-currency price against its standard.
+
+        The same rule `price_annex_row` follows: while the stored price still equals what
+        tracking wrote last time — the *previous* standard at the *previous* rate — it is
+        re-derived, so switching to a light system that costs something else, or changing
+        the quotation currency, actually moves the price. Once the user has typed their
+        own figure it is left alone.
+
+        Without this, the price stayed on whatever the first-chosen system cost and every
+        later choice was silently mispriced.
+        """
+        qtn_rate, previous_qtn_rate = rates
+        stored = flt(row.get(qtn_field))
+        if not stored or abs(stored - flt(previous_standard) * previous_qtn_rate) <= 0.005:
+            row.set(qtn_field, flt(standard) * qtn_rate)
+        return flt(row.get(qtn_field))
+
+    def price_light_system(self, row, amenity, rates):
         """Mirror the chosen Light System's per-amenity configuration onto the row and
         return its contribution, in the amenity's currency.
 
@@ -938,19 +1092,18 @@ class ButlerQuotation(Document):
         row.used_lines = cint(config.used_lines)
         row.total_lines = cint(amenity.lines)
         row.light_system_pricing_mode = config.pricing_mode
-        row.light_system_price = flt(config.price)
 
-        qtn_rate = flt(row.qtn_exchange_rate) or 1.0
-        qtn_standard = flt(row.light_system_price) * qtn_rate
-        if not row.qtn_light_system_price:
-            row.qtn_light_system_price = qtn_standard
+        previous_standard = flt(row.light_system_price)
+        row.light_system_price = flt(config.price)
+        qtn_price = self.track_add_on_price(
+            row, "qtn_light_system_price", previous_standard, row.light_system_price, rates)
 
         sign = {"Add": 1.0, "Subtract": -1.0}.get(config.pricing_mode, 0.0)
-        row.light_system_amount = sign * flt(row.qtn_light_system_price) / qtn_rate
-        row.qtn_light_system_amount = sign * flt(row.qtn_light_system_price)
+        row.light_system_amount = sign * qtn_price / (rates[0] or 1.0)
+        row.qtn_light_system_amount = sign * qtn_price
         return flt(row.light_system_amount)
 
-    def price_sound_system(self, row, amenity):
+    def price_sound_system(self, row, amenity, rates):
         """The Amenity's flat sound-system price, charged only when the row opts in.
 
         Flat by design: unlike the light system there is nothing to choose and no mode —
@@ -962,16 +1115,16 @@ class ButlerQuotation(Document):
             row.qtn_sound_system_price = row.qtn_sound_system_amount = 0
             return 0.0
 
+        previous_standard = flt(row.sound_system_price)
         row.sound_system_price = flt(amenity.sound_system_price)
-        qtn_rate = flt(row.qtn_exchange_rate) or 1.0
-        if not row.qtn_sound_system_price:
-            row.qtn_sound_system_price = flt(row.sound_system_price) * qtn_rate
+        qtn_price = self.track_add_on_price(
+            row, "qtn_sound_system_price", previous_standard, row.sound_system_price, rates)
 
-        row.sound_system_amount = flt(row.qtn_sound_system_price) / qtn_rate
-        row.qtn_sound_system_amount = flt(row.qtn_sound_system_price)
+        row.sound_system_amount = qtn_price / (rates[0] or 1.0)
+        row.qtn_sound_system_amount = qtn_price
         return flt(row.sound_system_amount)
 
-    def price_floor_extra(self, row, amenity):
+    def price_floor_extra(self, row, amenity, rates):
         """The Amenity's floor extra, charged once per distinct floor on the quotation.
 
         Additive, per `Amenity.floor_extra_price`'s own definition — "multiplied by the
@@ -984,14 +1137,14 @@ class ButlerQuotation(Document):
             row.floor_qty = 0
             return 0.0
 
+        previous_standard = flt(row.floor_price)
         row.floor_price = flt(amenity.floor_extra_price)
         row.floor_qty = cint(self.floor_count)
-        qtn_rate = flt(row.qtn_exchange_rate) or 1.0
-        if not row.qtn_floor_price:
-            row.qtn_floor_price = flt(row.floor_price) * qtn_rate
+        qtn_price = self.track_add_on_price(
+            row, "qtn_floor_price", previous_standard, row.floor_price, rates)
 
-        row.floor_amount = flt(row.qtn_floor_price) / qtn_rate * flt(row.floor_qty)
-        row.qtn_floor_amount = flt(row.qtn_floor_price) * flt(row.floor_qty)
+        row.floor_amount = qtn_price / (rates[0] or 1.0) * flt(row.floor_qty)
+        row.qtn_floor_amount = qtn_price * flt(row.floor_qty)
         return flt(row.floor_amount)
 
     def sync_exchange_rates(self, company_currency):

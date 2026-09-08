@@ -22,15 +22,20 @@ class Amenity(Document):
         self.calculate_totals()
 
     def validate_light_systems(self):
-        """The light systems have to describe a coherent split of the amenity's lines:
-        each Light System appears once, every row consumes at least one line, and the
-        rows together can't claim more lines than the amenity has.
+        """Every light system has to be a coherent way of wiring the amenity on its own:
+        it appears once, it consumes at least one line, and it fits within the amenity's
+        line count.
+
+        Per row, deliberately not as a total. The rows are **alternatives** — a quotation
+        line picks exactly one (`Butler Quotation Item.light_system`) — so they never draw
+        on the lines at the same time and have no shared budget to exhaust. Summing them
+        made a well-formed amenity unsavable as soon as it offered a few ways to wire the
+        same lines.
 
         A negative `used_lines` is already refused by the field's non_negative flag, and
         zero is not — `reqd` accepts 0 on an Int — hence the explicit floor here.
         """
         seen = set()
-        used_lines = 0
 
         for row in self.light_systems:
             # an empty system_name is left to the mandatory check to report
@@ -49,15 +54,14 @@ class Amenity(Document):
                     title=_("Invalid Used Lines"),
                 )
 
-            used_lines += cint(row.used_lines)
-
-        if used_lines > cint(self.lines):
-            frappe.throw(
-                _("The light systems use {0} lines in total, but this amenity only has {1}.").format(
-                    frappe.bold(used_lines), frappe.bold(cint(self.lines))
-                ),
-                title=_("Too many lines used"),
-            )
+            if cint(row.used_lines) > cint(self.lines):
+                frappe.throw(
+                    _("Row #{0}: {1} uses {2} lines, but this amenity only has {3}.").format(
+                        row.idx, frappe.bold(row.system_name or _("this light system")),
+                        frappe.bold(cint(row.used_lines)), frappe.bold(cint(self.lines)),
+                    ),
+                    title=_("Too many lines used"),
+                )
 
     def calculate_totals(self):
         # Authoritative recompute, mirroring erpnext.controllers.taxes_and_totals —

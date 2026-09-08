@@ -202,7 +202,8 @@
    "fieldname": "bundle_price",
    "fieldtype": "Currency",
    "label": "Bundle Price",
-   "mandatory_depends_on": "eval:doc.order_type===\"Bundle\";"
+   "mandatory_depends_on": "eval:doc.order_type===\"Bundle\";",
+   "options": "currency"
   },
   {
    "fieldname": "column_break_htvt",
@@ -617,7 +618,7 @@
   {
    "fieldname": "base_total",
    "fieldtype": "Currency",
-   "label": "Total (Company Currency)",
+   "label": "Total",
    "options": "Company:company:default_currency",
    "print_hide": 1,
    "read_only": 1
@@ -625,7 +626,7 @@
   {
    "fieldname": "base_net_total",
    "fieldtype": "Currency",
-   "label": "Net Total (Company Currency)",
+   "label": "Net Total",
    "options": "Company:company:default_currency",
    "print_hide": 1,
    "read_only": 1
@@ -633,7 +634,7 @@
   {
    "fieldname": "base_grand_total",
    "fieldtype": "Currency",
-   "label": "Grand Total (Company Currency)",
+   "label": "Grand Total",
    "options": "Company:company:default_currency",
    "print_hide": 1,
    "read_only": 1
@@ -642,7 +643,7 @@
    "depends_on": "eval:!doc.disable_rounded_total",
    "fieldname": "base_rounding_adjustment",
    "fieldtype": "Currency",
-   "label": "Rounding Adjustment (Company Currency)",
+   "label": "Rounding Adjustment",
    "no_copy": 1,
    "options": "Company:company:default_currency",
    "print_hide": 1,
@@ -651,7 +652,7 @@
   {
    "fieldname": "base_rounded_total",
    "fieldtype": "Currency",
-   "label": "Rounded Total (Company Currency)",
+   "label": "Rounded Total",
    "options": "Company:company:default_currency",
    "print_hide": 1,
    "read_only": 1
@@ -659,7 +660,7 @@
   {
    "fieldname": "base_in_words",
    "fieldtype": "Data",
-   "label": "In Words (Company Currency)",
+   "label": "In Words",
    "length": 240,
    "print_hide": 1,
    "read_only": 1
@@ -686,7 +687,7 @@
    "depends_on": "eval:doc.order_type===\"Bundle\";",
    "fieldname": "base_additional_total",
    "fieldtype": "Currency",
-   "label": "Additional Amenity Total (Company Currency)",
+   "label": "Additional Amenity Total",
    "options": "Company:company:default_currency",
    "print_hide": 1,
    "read_only": 1
@@ -695,7 +696,7 @@
    "depends_on": "eval:doc.order_type===\"Bundle\";",
    "fieldname": "base_additional_net_total",
    "fieldtype": "Currency",
-   "label": "Additional Amenity Net Total (Company Currency)",
+   "label": "Additional Amenity Net Total",
    "options": "Company:company:default_currency",
    "print_hide": 1,
    "read_only": 1
@@ -705,6 +706,7 @@
    "fieldname": "default_bundle_price",
    "fieldtype": "Currency",
    "label": "Default Bundle Price",
+   "options": "currency",
    "read_only": 1
   },
   {
@@ -724,7 +726,7 @@
    "depends_on": "eval:doc.order_type==\"Bundle\";",
    "fieldname": "base_bundle_price",
    "fieldtype": "Currency",
-   "label": "Bundle Price (Company Currency)",
+   "label": "Bundle Price",
    "options": "Company:company:default_currency",
    "print_hide": 1,
    "read_only": 1
@@ -740,7 +742,7 @@
    "depends_on": "eval:doc.order_type==\"Bundle\";",
    "fieldname": "base_default_bundle_price",
    "fieldtype": "Currency",
-   "label": "Default Bundle Price (Company Currency)",
+   "label": "Default Bundle Price",
    "options": "Company:company:default_currency",
    "print_hide": 1,
    "read_only": 1
@@ -809,7 +811,7 @@
   {
    "fieldname": "base_total_taxes_and_charges",
    "fieldtype": "Currency",
-   "label": "Total Taxes and Charges (Company Currency)",
+   "label": "Total Taxes and Charges",
    "non_negative": 1,
    "options": "Company:company:default_currency",
    "print_hide": 1,
@@ -818,7 +820,7 @@
   {
    "fieldname": "base_discount_amount",
    "fieldtype": "Currency",
-   "label": "Additional Discount Amount (Company Currency)",
+   "label": "Additional Discount Amount",
    "non_negative": 1,
    "options": "Company:company:default_currency",
    "print_hide": 1,

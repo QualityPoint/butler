@@ -60,14 +60,16 @@ before_validate ──────────► validate ───────
   │ • default valid          │ • calculate_totals       │ • validate_bundle_amenities
   │ • clear add. flag        │ • annex-price WARN/STOP  │   (unfulfilled / undesignated)
   │ • clear_row_type_fields  │ • validate_row_types     │
-  │ • consolidate_amenities  │ • validate_valid_till    │
+  │ • rescale_annex_quantit. │ • validate_valid_till    │
   │ • expand_amenity_rows    │                          │
+  │ • consolidate_amenities  │                          │
   │ • order_amenity_rows     │                          │
 ```
 
 `before_validate` is where the two row types are shaped: wrong-type fields are cleared,
-duplicate amenity groups merged, missing annex rows seeded from the Amenity, and the
-table re-laid-out as `amenity row → its annex rows`. See [annexes.md](./annexes.md).
+missing annex rows seeded from the Amenity, duplicate amenity groups merged — adding up
+their quantities, since annex quantities are totals rather than per-unit figures — and
+the table re-laid-out as `amenity row → its annex rows`. See [annexes.md](./annexes.md).
 
 Rule of thumb: **`validate` calculates and warns; `before_submit` blocks.**
 Amounts are recomputed on every save so the form always shows correct numbers;

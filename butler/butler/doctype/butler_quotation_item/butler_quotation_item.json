@@ -15,7 +15,7 @@
   "has_sound_system",
   "additional_amenity",
   "attributes_section",
-  "description",
+  "amenity_description",
   "lines",
   "amenity_category",
   "section_break_hzon",
@@ -70,6 +70,10 @@
   "manufacturer",
   "warranty",
   "warranty_uom",
+  "section_break_zsnb",
+  "annex_description",
+  "column_break_yhgn",
+  "annex_icon",
   "section_break_gaov",
   "column_break_jzok",
   "annex_quantity",
@@ -154,13 +158,6 @@
    "print_hide": 1
   },
   {
-   "fieldname": "description",
-   "fieldtype": "Text Editor",
-   "label": "Description",
-   "print_width": "300px",
-   "width": "300px"
-  },
-  {
    "columns": 2,
    "fieldname": "amenity",
    "fieldtype": "Link",
@@ -172,8 +169,7 @@
   {
    "fieldname": "amenity_price",
    "fieldtype": "Currency",
-   "label": "Amenity Price",
-   "non_negative": 1,
+   "label": "Amenity Price (Amenity Currency)",
    "options": "amenity_currency",
    "print_hide": 1,
    "read_only": 1
@@ -205,8 +201,7 @@
   {
    "fieldname": "base_amenity_price",
    "fieldtype": "Currency",
-   "label": "Amenity Price (Company Currency)",
-   "non_negative": 1,
+   "label": "Amenity Price",
    "options": "Company:company:default_currency",
    "print_hide": 1,
    "read_only": 1
@@ -270,7 +265,7 @@
   {
    "fieldname": "light_system_price",
    "fieldtype": "Currency",
-   "label": "Light System Price",
+   "label": "Light System Price (Amenity Currency)",
    "options": "amenity_currency",
    "print_hide": 1,
    "read_only": 1
@@ -322,8 +317,7 @@
    "fieldname": "qtn_amenity_price",
    "fieldtype": "Currency",
    "hidden": 1,
-   "label": "Amenity Price (Quotation Currency)",
-   "non_negative": 1,
+   "label": "Amenity Price",
    "options": "currency",
    "print_hide": 1,
    "read_only": 1
@@ -331,7 +325,7 @@
   {
    "fieldname": "base_light_system_price",
    "fieldtype": "Currency",
-   "label": "Light System Price (Company Currency)",
+   "label": "Light System Price",
    "options": "Company:company:default_currency",
    "print_hide": 1,
    "read_only": 1
@@ -339,7 +333,7 @@
   {
    "fieldname": "qtn_light_system_price",
    "fieldtype": "Currency",
-   "label": "Light System Price (Quotation Currency)",
+   "label": "Light System Price",
    "mandatory_depends_on": "eval:doc.light_system",
    "non_negative": 1,
    "options": "currency"
@@ -347,8 +341,7 @@
   {
    "fieldname": "light_system_amount",
    "fieldtype": "Currency",
-   "label": "Light System Amount",
-   "non_negative": 1,
+   "label": "Light System Amount (Amenity Currency)",
    "options": "amenity_currency",
    "precision": "2",
    "print_hide": 1,
@@ -365,7 +358,7 @@
   {
    "fieldname": "base_light_system_amount",
    "fieldtype": "Currency",
-   "label": "Light System Amount (Company Currency)",
+   "label": "Light System Amount",
    "options": "Company:company:default_currency",
    "print_hide": 1,
    "read_only": 1
@@ -373,7 +366,7 @@
   {
    "fieldname": "qtn_light_system_amount",
    "fieldtype": "Currency",
-   "label": "Light System Amount (Quotation Currency)",
+   "label": "Light System Amount",
    "options": "currency",
    "read_only": 1
   },
@@ -390,7 +383,7 @@
   {
    "fieldname": "sound_system_price",
    "fieldtype": "Currency",
-   "label": "Sound System Price",
+   "label": "Sound System Price (Amenity Currency)",
    "non_negative": 1,
    "options": "amenity_currency",
    "read_only": 1
@@ -398,7 +391,7 @@
   {
    "fieldname": "sound_system_amount",
    "fieldtype": "Currency",
-   "label": "Sound System Amount",
+   "label": "Sound System Amount (Amenity Currency)",
    "non_negative": 1,
    "options": "amenity_currency",
    "print_hide": 1,
@@ -407,7 +400,7 @@
   {
    "fieldname": "qtn_sound_system_amount",
    "fieldtype": "Currency",
-   "label": "Sound System Amount (Quotation Currency)",
+   "label": "Sound System Amount",
    "non_negative": 1,
    "options": "currency",
    "read_only": 1
@@ -415,7 +408,7 @@
   {
    "fieldname": "base_sound_system_amount",
    "fieldtype": "Currency",
-   "label": "Sound System Amount (Company Currency)",
+   "label": "Sound System Amount",
    "non_negative": 1,
    "options": "Company:company:default_currency",
    "print_hide": 1,
@@ -432,7 +425,7 @@
   {
    "fieldname": "base_sound_system_price",
    "fieldtype": "Currency",
-   "label": "Sound System Price (Company Currency)",
+   "label": "Sound System Price",
    "non_negative": 1,
    "options": "Company:company:default_currency",
    "print_hide": 1,
@@ -441,7 +434,7 @@
   {
    "fieldname": "qtn_sound_system_price",
    "fieldtype": "Currency",
-   "label": "Sound System Price (Quotation Currency)",
+   "label": "Sound System Price",
    "non_negative": 1,
    "options": "currency"
   },
@@ -486,7 +479,7 @@
   {
    "fieldname": "annex_price",
    "fieldtype": "Currency",
-   "label": "Annex Price",
+   "label": "Annex Price (Amenity Currency)",
    "non_negative": 1,
    "options": "amenity_currency",
    "print_hide": 1,
@@ -495,7 +488,7 @@
   {
    "fieldname": "annex_amount",
    "fieldtype": "Currency",
-   "label": "Annex Amount",
+   "label": "Annex Amount (Amenity Currency)",
    "options": "amenity_currency",
    "read_only": 1
   },
@@ -521,7 +514,7 @@
    "fieldname": "qtn_annex_price",
    "fieldtype": "Currency",
    "in_list_view": 1,
-   "label": "Annex Price (Quotation Currency)",
+   "label": "Annex Price",
    "non_negative": 1,
    "options": "currency"
   },
@@ -550,7 +543,7 @@
   {
    "fieldname": "qtn_amenity_net_price",
    "fieldtype": "Currency",
-   "label": "Amenity Net Price (Quotation Currency)",
+   "label": "Amenity Net Price",
    "options": "currency",
    "print_hide": 1,
    "read_only": 1
@@ -558,7 +551,7 @@
   {
    "fieldname": "qtn_amenity_amount",
    "fieldtype": "Currency",
-   "label": "Amenity Amount (Quotation Currency)",
+   "label": "Amenity Amount",
    "options": "currency",
    "print_hide": 1,
    "read_only": 1
@@ -566,7 +559,7 @@
   {
    "fieldname": "qtn_amenity_net_amount",
    "fieldtype": "Currency",
-   "label": "Amenity Net Amount (Quotation Currency)",
+   "label": "Amenity Net Amount",
    "options": "currency",
    "print_hide": 1,
    "read_only": 1
@@ -574,7 +567,7 @@
   {
    "fieldname": "base_amenity_net_price",
    "fieldtype": "Currency",
-   "label": "Amenity Net Price (Company Currency)",
+   "label": "Amenity Net Price",
    "options": "Company:company:default_currency",
    "print_hide": 1,
    "read_only": 1
@@ -582,7 +575,7 @@
   {
    "fieldname": "base_amenity_amount",
    "fieldtype": "Currency",
-   "label": "Amenity Amount (Company Currency)",
+   "label": "Amenity Amount",
    "options": "Company:company:default_currency",
    "print_hide": 1,
    "read_only": 1
@@ -590,14 +583,14 @@
   {
    "fieldname": "base_amenity_net_amount",
    "fieldtype": "Currency",
-   "label": "Amenity Net Amount (Company Currency)",
+   "label": "Amenity Net Amount",
    "options": "Company:company:default_currency",
    "print_hide": 1,
    "read_only": 1
   },
   {
    "default": "1",
-   "description": "Set from the Facility Builder — one placement per row, summed on consolidation.",
+   "description": "Set from the Facility Builder \u2014 one placement per row, summed on consolidation.",
    "fieldname": "amenity_qty",
    "fieldtype": "Float",
    "in_list_view": 1,
@@ -629,7 +622,7 @@
   {
    "fieldname": "floor_price",
    "fieldtype": "Currency",
-   "label": "Floor Price",
+   "label": "Floor Price (Amenity Currency)",
    "options": "amenity_currency",
    "print_hide": 1,
    "read_only": 1
@@ -649,7 +642,7 @@
   {
    "fieldname": "floor_amount",
    "fieldtype": "Currency",
-   "label": "Floor Amount",
+   "label": "Floor Amount (Amenity Currency)",
    "options": "amenity_currency",
    "print_hide": 1,
    "read_only": 1
@@ -657,14 +650,14 @@
   {
    "fieldname": "qtn_floor_price",
    "fieldtype": "Currency",
-   "label": "Floor Price (Quotation Currency)",
+   "label": "Floor Price",
    "non_negative": 1,
    "options": "currency"
   },
   {
    "fieldname": "qtn_floor_amount",
    "fieldtype": "Currency",
-   "label": "Floor Amount (Quotation Currency)",
+   "label": "Floor Amount",
    "options": "currency",
    "print_hide": 1,
    "read_only": 1
@@ -676,7 +669,7 @@
   {
    "fieldname": "base_floor_price",
    "fieldtype": "Currency",
-   "label": "Floor Price (Company Currency)",
+   "label": "Floor Price",
    "options": "Company:company:default_currency",
    "print_hide": 1,
    "read_only": 1
@@ -684,7 +677,7 @@
   {
    "fieldname": "base_floor_amount",
    "fieldtype": "Currency",
-   "label": "Floor Amount (Company Currency)",
+   "label": "Floor Amount",
    "options": "Company:company:default_currency",
    "print_hide": 1,
    "read_only": 1
@@ -692,7 +685,7 @@
   {
    "fieldname": "base_annex_price",
    "fieldtype": "Currency",
-   "label": "Annex Price (Company Currency)",
+   "label": "Annex Price",
    "options": "Company:company:default_currency",
    "print_hide": 1,
    "read_only": 1
@@ -700,7 +693,7 @@
   {
    "fieldname": "base_annex_net_price",
    "fieldtype": "Currency",
-   "label": "Annex Net Price (Company Currency)",
+   "label": "Annex Net Price",
    "options": "Company:company:default_currency",
    "print_hide": 1,
    "read_only": 1
@@ -708,7 +701,7 @@
   {
    "fieldname": "base_annex_amount",
    "fieldtype": "Currency",
-   "label": "Annex Amount (Company Currency)",
+   "label": "Annex Amount",
    "options": "Company:company:default_currency",
    "print_hide": 1,
    "read_only": 1
@@ -716,7 +709,7 @@
   {
    "fieldname": "base_annex_net_amount",
    "fieldtype": "Currency",
-   "label": "Annex Net Amount (Company Currency)",
+   "label": "Annex Net Amount",
    "options": "Company:company:default_currency",
    "print_hide": 1,
    "read_only": 1
@@ -724,7 +717,7 @@
   {
    "fieldname": "qtn_annex_net_price",
    "fieldtype": "Currency",
-   "label": "Annex Net Price (Quotation Currency)",
+   "label": "Annex Net Price",
    "options": "currency",
    "print_hide": 1,
    "read_only": 1
@@ -732,7 +725,7 @@
   {
    "fieldname": "qtn_annex_amount",
    "fieldtype": "Currency",
-   "label": "Annex Amount (Quotation Currency)",
+   "label": "Annex Amount",
    "options": "currency",
    "print_hide": 1,
    "read_only": 1
@@ -740,7 +733,7 @@
   {
    "fieldname": "qtn_annex_net_amount",
    "fieldtype": "Currency",
-   "label": "Annex Net Amount (Quotation Currency)",
+   "label": "Annex Net Amount",
    "options": "currency",
    "print_hide": 1,
    "read_only": 1
@@ -756,13 +749,44 @@
    "fieldtype": "Link",
    "label": "Annex Price List",
    "options": "Annex Price"
+  },
+  {
+   "fieldname": "section_break_zsnb",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fetch_from": "annex.description",
+   "fetch_if_empty": 1,
+   "fieldname": "annex_description",
+   "fieldtype": "Small Text",
+   "label": "Annex Description"
+  },
+  {
+   "fieldname": "column_break_yhgn",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fetch_from": "annex.icon",
+   "fieldname": "annex_icon",
+   "fieldtype": "Icon",
+   "label": "Annex Icon",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "amenity.description",
+   "fetch_if_empty": 1,
+   "fieldname": "amenity_description",
+   "fieldtype": "Text Editor",
+   "label": "Ameniy Description",
+   "print_width": "300px",
+   "width": "300px"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-09-07 13:24:05.014765",
+ "modified": "2026-09-08 12:05:02.553029",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Butler Quotation Item",
