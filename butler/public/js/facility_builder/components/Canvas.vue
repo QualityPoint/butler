@@ -43,30 +43,31 @@
 				<v-image v-if="blueprintImage" :config="blueprintConfig" @dragend="onBlueprintChange" @transformend="onBlueprintChange" />
 			</v-layer>
 
-			<!-- rooms; interactive only on the Drawing layer -->
+			<!-- rooms + their transformer; interactive only on the Drawing layer.
+			     One layer, because Konva expects a Transformer to sit in the same layer
+			     as the node it is attached to — and every Konva layer is its own canvas,
+			     so they are worth pooling (the stage warns past 5). -->
 			<v-layer ref="roomsLayerRef" :config="{ listening: isDrawingLayer }">
 				<RoomShape v-for="room in rooms" :key="room.id" :room="room" />
-			</v-layer>
-
-			<!-- room transformer (drawing layer) -->
-			<v-layer :config="{ listening: isDrawingLayer }">
 				<v-transformer ref="transformerRef" :config="transformerConfig" />
 			</v-layer>
 
-			<!-- marquee (rubber-band) selection rectangle -->
-			<v-layer :config="{ listening: false }">
-				<v-rect v-if="marquee.active" :config="marqueeConfig" />
-			</v-layer>
-
-			<!-- blueprint transformer (blueprint layer, not while calibrating) -->
+			<!-- Top overlays, in the order they used to be stacked: marquee, blueprint
+			     transformer, calibration. Only the transformer is ever interactive, so
+			     the layer listens on the Blueprint layer and the other two opt out
+			     individually — they were on non-listening layers before. -->
 			<v-layer :config="{ listening: isBlueprintLayer }">
+				<v-rect v-if="marquee.active" :config="marqueeConfig" :listening="false" />
 				<v-transformer ref="bpTransformerRef" :config="bpTransformerConfig" />
-			</v-layer>
-
-			<!-- calibration overlay (dashed line follows the cursor after the first point) -->
-			<v-layer v-if="store.calibrating.value" :config="{ listening: false }">
-				<v-line v-if="calLinePoints" :config="calLineConfig" />
-				<v-circle v-for="(p, i) in calPoints" :key="i" :config="calPointConfig(p)" />
+				<template v-if="store.calibrating.value">
+					<v-line v-if="calLinePoints" :config="calLineConfig" :listening="false" />
+					<v-circle
+						v-for="(p, i) in calPoints"
+						:key="i"
+						:config="calPointConfig(p)"
+						:listening="false"
+					/>
+				</template>
 			</v-layer>
 		</v-stage>
 	</div>

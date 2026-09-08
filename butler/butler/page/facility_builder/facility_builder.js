@@ -5,6 +5,16 @@ frappe.pages["facility-builder"].on_page_load = function (wrapper) {
 		single_column: true,
 	});
 
+	// Re-pin the sidebar after every route change, not just on page show.
+	//
+	// Frappe re-resolves the sidebar on each route change (Sidebar.setup_events ->
+	// set_workspace_sidebar), and its handler is registered at boot — so it runs BEFORE
+	// on_page_show and its answer is the one left standing. Registering here, once, puts
+	// ours after it. Guarded to this page so it costs nothing anywhere else.
+	frappe.router.on("change", () => {
+		if (frappe.get_route()[0] === "facility-builder") pin_sidebar();
+	});
+
 	// hot reload in development
 	if (frappe.boot.developer_mode) {
 		frappe.hot_update = frappe.hot_update || [];
@@ -26,12 +36,19 @@ frappe.pages["facility-builder"].on_page_show = function (wrapper) {
 	load_facility_builder(wrapper);
 };
 
-// Keep the desk Workspace Sidebar in sync. Frappe resolves the active sidebar
-// reliably for DocType routes but not for this Page: the `<mode>/<name>` sub-route
-// makes its route→sidebar matcher read the mode ("quotation"/"facility") as the
-// entity, and the page's module ("Butler") doesn't equal the sidebar title
-// ("Smart Homes") so the module fallback misses too. So pin it explicitly here
-// (covers reload / deep-link, where the launch buttons' route_options didn't run).
+// Keep the desk Workspace Sidebar on "Smart Homes" for this page.
+//
+// Frappe resolves the sidebar from the route, which it gets wrong here:
+// `entity_from_route` reads the SUB-ROUTE MODE of facility-builder/<mode>/<name> as the
+// entity, so it looks for a sidebar linking to "quotation" or "facility", finds none,
+// and falls back to the page's module — and `workspace_sidebar_item["butler"]` does
+// exist (it is keyed by module, not by workspace title). So it swaps the 13-item
+// "Smart Homes" sidebar for the 10-item "Butler" module one, which is what looked like
+// the icons going messy.
+//
+// Only re-setup when the title is actually wrong: each setup() leaves its old
+// SidebarItem objects in Sidebar.items — empty() clears the markup, not the array — so
+// they accumulate (8 -> 16 -> 24) and get_item() can match a detached one by label.
 function pin_sidebar() {
 	const sb = frappe.app?.sidebar;
 	if (!sb) return;

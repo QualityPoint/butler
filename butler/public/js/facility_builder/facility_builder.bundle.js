@@ -1,6 +1,22 @@
 import { createApp, watch } from "vue";
-import VueKonva from "vue-konva";
+import VueKonva, * as konva_components from "vue-konva";
 import FacilityBuilderComponent from "./components/FacilityBuilder.vue";
+
+// vue-konva declares `inheritAttrs: false` on Stage and nowhere else. Every other node
+// component (Group, Layer, Rect, …) renders its slot, so its root is a fragment — and
+// Vue's dev build then warns that our Konva listeners "could not be automatically
+// inherited because component renders fragment or text root nodes".
+//
+// They are wired, though: vue-konva reads `on*` attrs in its own mount/update hooks and
+// calls `node.on("dragstart.vue-konva-event", …)` on the Konva node. Vue just can't see
+// that from the render, so the warning is a false alarm. Opting the components out of
+// attribute fallthrough silences it without changing how a single event is bound —
+// nothing could fall through to a fragment root anyway.
+for (const component of Object.values(konva_components)) {
+	if (component && typeof component === "object" && component.name) {
+		component.inheritAttrs = false;
+	}
+}
 
 class FacilityBuilder {
 	constructor({ wrapper, page, mode, name }) {
