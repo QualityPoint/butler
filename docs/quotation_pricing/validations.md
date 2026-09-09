@@ -36,7 +36,7 @@ enforced in `validate_row_types()` instead:
 
 | Row type | Must have | Must not have |
 |---|---|---|
-| Amenity (`annex` empty) | `amenity`, `floor_type`, `amenity_qty > 0` | annex fields |
+| Amenity (`annex` empty) | `amenity`, `floor_type`, a `placement_id` (backfilled) | annex fields |
 | Annex (`annex` set) | `annex_quantity > 0`, `annex_uom`, a resolvable amenity row | the per-amenity add-on fields |
 
 Fields belonging to the *other* row type are **cleared**, not rejected

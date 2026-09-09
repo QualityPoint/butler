@@ -55,7 +55,7 @@ const live = (row) => (row && locals[row.doctype] && locals[row.doctype][row.nam
 // Bumped whenever this file changes, so a stale bundle can be identified from the browser
 // console rather than guessed at: butler.ui.AmenitiesEditor.BUILD
 butler.ui.AmenitiesEditor = class AmenitiesEditor {
-    static BUILD = "2026-09-07-check-vcenter";
+    static BUILD = "2026-09-09-grouped";
 
     constructor(wrapper, frm, { on_change } = {}) {
         this.$wrapper = $(wrapper);
@@ -65,28 +65,30 @@ butler.ui.AmenitiesEditor = class AmenitiesEditor {
         this.options = {};           // amenity name -> what that Amenity offers
         this.cards = new Map();      // amenity row docname -> AmenityCard  (≈ grid_rows_by_docname)
         this.tab_syncers = [];
+        this.heading_syncers = [];
         this.active_floor = null;    // one floor shown at a time, like the Facility Builder
+        this.group_by_amenity = false;
+        this.headings = new Map();   // amenity -> its heading node, kept the way cards are
+        this.collapsed = new Set();  // amenity names folded away under their heading
     }
 
-    // Group the flat table the way the server does: an amenity row opens a group, and
-    // each following annex row with the same key belongs to it. Position breaks the tie
-    // when the key repeats (consolidation off) — the server keeps groups contiguous.
+    // Group the flat table the way the server does (group_amenity_rows): every row
+    // carries the `placement_id` of the drawn amenity it belongs to, so an amenity row
+    // opens a group and each annex row joins the one it names. Row order no longer
+    // decides anything — two placements of one amenity on one floor are simply two
+    // groups, which is the normal case now rather than the exception.
     get_groups() {
-        // JSON, not a joined string: a docname may itself contain the separator, so
-        // ["A B","C"] and ["A","B C"] must not collapse to the same key
-        const key = (row) =>
-            JSON.stringify([row.amenity, row.floor_type, row.additional_amenity ? 1 : 0]);
         const groups = [];
-        const latest = {};
+        const at = {};
 
         for (const row of this.frm.doc.amenities || []) {
             if (!row.annex) {
-                latest[key(row)] = groups.length;
+                at[row.placement_id] = groups.length;
                 groups.push({ amenity_row: row, annex_rows: [] });
                 continue;
             }
-            const at = latest[key(row)];
-            if (at !== undefined) groups[at].annex_rows.push(row);
+            const position = at[row.placement_id];
+            if (position !== undefined) groups[position].annex_rows.push(row);
         }
         return groups;
     }
@@ -120,6 +122,7 @@ butler.ui.AmenitiesEditor = class AmenitiesEditor {
         this.$root.toggle(groups.length > 0);
         if (!groups.length) {
             this.retire_cards(new Set());
+            this.retire_headings(new Set());
             return;
         }
 
@@ -136,6 +139,7 @@ butler.ui.AmenitiesEditor = class AmenitiesEditor {
         if (!floors.has(this.active_floor)) this.active_floor = floors.keys().next().value;
 
         this.render_floor_tabs(floors);
+        this.paint_group_toggle();
 
         // Only the active floor's cards exist, the way a grid only builds its current
         // page (Grid.render_result_rows honours grid_pagination). Switching floors is
@@ -144,25 +148,125 @@ butler.ui.AmenitiesEditor = class AmenitiesEditor {
         const shown = floors.get(this.active_floor) || [];
         const keep = new Set();
         for (const group of shown) {
-            const name = group.amenity_row.name;
+            // keyed by placement, not docname: a Facility Builder save replaces the whole
+            // child table, so docnames churn and every card would be torn down and rebuilt
+            const name = group.amenity_row.placement_id;
             keep.add(name);
             const card = this.cards.get(name);
             if (card) card.refresh(group);
             else this.cards.set(name, new butler.ui.AmenityCard({ editor: this, group }));
         }
         this.retire_cards(keep);
-        this.reorder(shown);
+        this.reorder(this.lay_out(shown));
 
         this.sync();
+    }
+
+    // What the panel should contain, in order: the cards on their own, or each amenity's
+    // run of placements behind a heading. `shown` already arrives clustered — the server's
+    // order_amenity_rows keeps every placement of one amenity together — so a run is just
+    // consecutive groups with the same amenity, no sorting needed here.
+    lay_out(shown) {
+        this.heading_syncers = [];
+        const node_of = (group) => this.cards.get(group.amenity_row.placement_id).$card;
+
+        if (!this.group_by_amenity) {
+            this.retire_headings(new Set());
+            return shown.map((group) => node_of(group).show().get(0));
+        }
+
+        const runs = new Map();
+        for (const group of shown) {
+            const amenity = group.amenity_row.amenity || __("Unassigned");
+            if (!runs.has(amenity)) runs.set(amenity, []);
+            runs.get(amenity).push(group);
+        }
+
+        const nodes = [];
+        for (const [amenity, groups] of runs) {
+            nodes.push(this.heading(amenity, groups));
+            const folded = this.collapsed.has(amenity);
+            for (const group of groups) nodes.push(node_of(group).toggle(!folded).get(0));
+        }
+        this.retire_headings(new Set(runs.keys()));
+        return nodes;
+    }
+
+    // One heading per amenity, kept across renders for the same reason cards are: it holds
+    // the fold state, and rebuilding it would make the panel flicker on every recalc.
+    heading(amenity, groups) {
+        let $heading = this.headings.get(amenity);
+        if (!$heading) {
+            $heading = $(`
+                <div class="butler-amenity-group" style="
+                    display:flex;align-items:center;gap:.5rem;cursor:pointer;
+                    margin:.75rem 0 .35rem;padding-bottom:.25rem;
+                    border-bottom:1px solid var(--border-color)">
+                    <span class="butler-group-caret" style="width:1rem;color:var(--text-muted)"></span>
+                    <span class="butler-group-name" style="font-weight:600"></span>
+                    <span class="butler-group-count" style="font-size:var(--text-xs);border-radius:8px;
+                        padding:0 6px;background:var(--subtle-accent);color:var(--text-muted)"></span>
+                    <span class="butler-group-total" style="margin-left:auto;font-weight:600"></span>
+                </div>
+            `);
+            $heading.on("click", () => {
+                if (this.collapsed.has(amenity)) this.collapsed.delete(amenity);
+                else this.collapsed.add(amenity);
+                this.render();
+            });
+            this.headings.set(amenity, $heading);
+        }
+
+        const folded = this.collapsed.has(amenity);
+        $heading.find(".butler-group-caret").text(folded ? "▸" : "▾"); // as the cards do
+        $heading.find(".butler-group-name").text(__(amenity));
+        $heading.find(".butler-group-count").text(groups.length);
+
+        const $total = $heading.find(".butler-group-total");
+        const rows = groups.map((g) => g.amenity_row);
+        const currency = this.frm.doc.currency;
+        this.heading_syncers.push(() =>
+            $total.text(format_currency(
+                rows.reduce((sum, r) => sum + flt(live(r).qtn_amenity_amount), 0), currency))
+        );
+
+        return $heading.get(0);
+    }
+
+    retire_headings(keep) {
+        for (const [amenity, $heading] of this.headings) {
+            if (keep.has(amenity)) continue;
+            $heading.remove();
+            this.headings.delete(amenity);
+        }
     }
 
     // Built once and kept: the tabs and the panel outlive every render.
     make_skeleton() {
         if (this.$root) return;
         this.$root = $(`<div class="butler-lines"></div>`).appendTo(this.$wrapper);
-        this.$tabs = $(`
-            <div class="butler-floor-tabs" style="display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--border-color);padding-bottom:6px"></div>
+        // The floors take the width they need and scroll sideways when there are more
+        // than fit; the toggle keeps its place at the far end rather than being pushed
+        // off with them.
+        const $bar = $(`
+            <div class="butler-floor-bar" style="display:flex;align-items:center;gap:8px;
+                border-bottom:1px solid var(--border-color);padding-bottom:6px"></div>
         `).appendTo(this.$root);
+        this.$tabs = $(`
+            <div class="butler-floor-tabs" style="display:flex;gap:4px;flex:1;min-width:0;
+                overflow-x:auto;scrollbar-width:thin;padding-bottom:2px"></div>
+        `).appendTo($bar);
+        this.$group_toggle = $(`
+            <button type="button" class="butler-group-toggle" style="
+                flex-shrink:0;white-space:nowrap;cursor:pointer;
+                border-radius:var(--border-radius);padding:4px 10px;font-size:var(--text-sm)">
+                ${__("Group By Amenity")}
+            </button>
+        `).appendTo($bar);
+        this.$group_toggle.on("click", () => {
+            this.group_by_amenity = !this.group_by_amenity;
+            this.render();
+        });
         this.$panel = $(`
             <div class="butler-floor-panel" style="padding-top:.75rem"></div>
         `).appendTo(this.$root);
@@ -182,19 +286,18 @@ butler.ui.AmenitiesEditor = class AmenitiesEditor {
     // Move only what actually moved. jQuery's append() on an attached node detaches and
     // reinserts it, which drops focus and closes any open picker — so, like
     // Grid.render_result_rows, reorder from the first mismatch and leave the rest alone.
-    reorder(groups) {
-        const nodes = this.$panel.children().get();
-        const node_of = (group) => this.cards.get(group.amenity_row.name).$card.get(0);
+    reorder(wanted) {
+        const current = this.$panel.children().get();
 
         let from = -1;
-        for (let i = 0; i < groups.length; i++) {
-            if (nodes[i] !== node_of(groups[i])) {
+        for (let i = 0; i < wanted.length; i++) {
+            if (current[i] !== wanted[i]) {
                 from = i;
                 break;
             }
         }
         if (from === -1) return;
-        for (let i = from; i < groups.length; i++) this.$panel.append(node_of(groups[i]));
+        for (let i = from; i < wanted.length; i++) this.$panel.append(wanted[i]);
     }
 
     // Rule 4 — push the model's values back into the controls that already exist. A live
@@ -202,7 +305,21 @@ butler.ui.AmenitiesEditor = class AmenitiesEditor {
     // on save), so nothing has to be rebuilt to show its result.
     sync() {
         for (const syncer of this.tab_syncers) syncer();
+        for (const syncer of this.heading_syncers) syncer();
         for (const card of this.cards.values()) card.sync();
+    }
+
+    // The same treatment the active floor tab gets, so "grouped" reads as a state rather
+    // than as a button you press each time.
+    paint_group_toggle() {
+        const on = this.group_by_amenity;
+        this.$group_toggle.css({
+            border: `1px solid ${on ? "var(--btn-primary, #1f272e)" : "var(--border-color)"}`,
+            background: on ? "var(--btn-primary, #1f272e)" : "var(--card-bg, #fff)",
+            color: on ? "var(--bg-color, #fff)" : "inherit",
+            "font-weight": on ? 600 : 400,
+        });
+        this.$group_toggle.attr("aria-pressed", on ? "true" : "false");
     }
 
     // One floor at a time, switched by a tab — the same model the Facility Builder uses
@@ -270,7 +387,7 @@ butler.ui.AmenityCard = class AmenityCard {
         this.annex_key = AmenityCard.key(group.annex_rows);
 
         this.make();
-        this.toggle(editor.expanded.has(this.row.name));
+        this.toggle(editor.expanded.has(this.row.placement_id));
     }
 
     // Identifies the *shape* of the annex list, not its values — the body's table only has
@@ -287,7 +404,6 @@ butler.ui.AmenityCard = class AmenityCard {
                     <span class="butler-caret" style="width:1rem;color:var(--text-muted)"></span>
                     <span class="butler-amenity-name" style="flex:1;font-weight:500"></span>
                     <span class="butler-annex-count text-muted" style="font-size:.85em"></span>
-                    <span class="butler-qty text-muted" style="font-size:.85em" title="${__("Set from the Facility Builder")}"></span>
                     <span class="butler-amount" style="min-width:8rem;text-align:right;font-weight:600"></span>
                 </div>
                 <div class="butler-amenity-body" style="display:none;border-top:1px solid var(--border-color);padding:.75rem"></div>
@@ -300,11 +416,8 @@ butler.ui.AmenityCard = class AmenityCard {
         const $caret = this.$card.find(".butler-caret");
         const $name = this.$card.find(".butler-amenity-name");
         const $count = this.$card.find(".butler-annex-count");
-        const $qty = this.$card.find(".butler-qty");
         const $amount = this.$card.find(".butler-amount");
 
-        // amenity_qty is read-only here: it counts placements made in the Facility
-        // Builder (one row each, summed on consolidation), so it is shown, not edited.
         this.head_syncers.push(() => {
             // Closed, the head *is* the card, so it carries the card's full radius; open,
             // only its top corners are round and the body squares off the bottom. Done
@@ -315,7 +428,6 @@ butler.ui.AmenityCard = class AmenityCard {
             $caret.text(this.open ? "▾" : "▸");
             $name.text(this.row.amenity || __("(no amenity)"));
             $count.text(__("{0} annexes", [this.annex_rows.length]));
-            $qty.html(`&times;&nbsp;${format_number(this.row.amenity_qty)}`);
             $amount.text(format_currency(this.row.qtn_amenity_amount, this.frm.doc.currency));
         });
 
@@ -329,8 +441,8 @@ butler.ui.AmenityCard = class AmenityCard {
     // other card hears about it, and this one is never torn down.
     toggle(open) {
         this.open = open;
-        if (open) this.editor.expanded.add(this.row.name);
-        else this.editor.expanded.delete(this.row.name);
+        if (open) this.editor.expanded.add(this.row.placement_id);
+        else this.editor.expanded.delete(this.row.placement_id);
 
         if (open && !this.built) this.build_body();
         this.$body.toggle(open);
@@ -568,6 +680,17 @@ butler.ui.AmenityCard = class AmenityCard {
         });
     }
 
+    // Composition belongs to the Facility Builder, price belongs to the quotation.
+    //
+    // A builder save replaces this whole table, so a composition edit made here would be
+    // silently overwritten the next time anyone opened the canvas. carry_forward_overrides
+    // protects the prices across that rebuild; it deliberately does not protect these,
+    // because the layout is their source of truth. Locking them makes the split visible
+    // instead of leaving a trap.
+    static BUILDER_OWNED = new Set([
+        "annex_quantity", "annex_uom", "light_system", "has_sound_system",
+    ]);
+
     // One editable control, bound to the model the way a grid cell is. `bare` drops the
     // label, for the annex table where the column header already names the field.
     make_field($slot, doc_of, df, { bare = false } = {}) {
@@ -591,11 +714,13 @@ butler.ui.AmenityCard = class AmenityCard {
             df = { ...df, options: code, label: `${df.label} (${code})` };
         }
 
+        const builder_owned = AmenityCard.BUILDER_OWNED.has(df.fieldname);
         const control = frappe.ui.form.make_control({
             parent: $slot.get(0),
             df: {
                 ...df,
-                read_only: this.frm.doc.docstatus !== 0,
+                read_only: this.frm.doc.docstatus !== 0 || builder_owned,
+                description: builder_owned ? __("Set in the Facility Builder") : df.description,
                 // `change` is the control-agnostic hook: every control routes an edit
                 // through validate_and_set_in_model, which calls it. A DOM "change"
                 // listener only catches typed fields — a Link picked from its dropdown
@@ -634,6 +759,9 @@ butler.ui.AmenityCard = class AmenityCard {
         // which is a box with nothing to write a placeholder into
         if (bare && df.fieldtype !== "Check") {
             control.$input && control.$input.attr("placeholder", df.label);
+        }
+        if (builder_owned) {
+            control.$input && control.$input.attr("title", __("Set in the Facility Builder"));
         }
         return control;
     }

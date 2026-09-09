@@ -1,7 +1,10 @@
 <template>
 	<div v-if="ready" ref="rootEl" class="facility-builder" :style="rootStyle">
+		<!-- the palette draws amenities; on the Features layer you are not drawing, so the
+		     same space configures what the selected amenity contains -->
 		<div class="fb-sidebar">
-			<AmenityPalette />
+			<FeaturesPanel v-if="isFeatureLayer" />
+			<AmenityPalette v-else />
 		</div>
 		<div class="fb-main">
 			<FloorTabs />
@@ -21,6 +24,7 @@
 import { computed, ref, onMounted, onBeforeUnmount, nextTick, provide } from "vue";
 import { getStore } from "../store";
 import AmenityPalette from "./AmenityPalette.vue";
+import FeaturesPanel from "./FeaturesPanel.vue";
 import FloorTabs from "./FloorTabs.vue";
 import Toolbar from "./Toolbar.vue";
 import Canvas from "./Canvas.vue";
@@ -45,6 +49,8 @@ function measureHeight() {
 
 // provide the store instance to the whole subtree
 provide("$store", $store.value);
+
+const isFeatureLayer = computed(() => $store.value.active_layer.value === "features");
 
 onMounted(() => {
 	$store.value.fetch().then(() => {
@@ -94,5 +100,17 @@ defineExpose({ $store });
 	justify-content: center;
 	height: 100%;
 	color: var(--text-muted);
+}
+</style>
+
+<!-- Unscoped on purpose: this has to reach the dropdowns of every mounted Frappe control
+     in the builder, in any child component. Awesomplete ships `z-index: 1` (its own
+     stylesheet), which loses to the sidebar border, the toolbar and the canvas — so a
+     Link's suggestions appear underneath them. Frappe raises it per-context elsewhere
+     (grid.scss does the same for grid cells); the builder needs it builder-wide. -->
+<style>
+.facility-builder .awesomplete > ul,
+.facility-builder .dropdown-menu {
+	z-index: 1000;
 }
 </style>

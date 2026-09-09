@@ -9,6 +9,8 @@
  "field_order": [
   "amenity",
   "floor_type",
+  "placement_id",
+  "annexes_customised",
   "column_break_wfcb",
   "is_dependant_amenity",
   "depends_on_floor_count",
@@ -149,6 +151,23 @@
    "label": "Floor",
    "options": "Floor Type",
    "reqd": 1
+  },
+  {
+   "description": "The Facility Builder shape this row was drawn from. Machine key — never hand-edited.",
+   "fieldname": "placement_id",
+   "fieldtype": "Data",
+   "label": "Placement",
+   "length": 20,
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "description": "Set once this placement's annexes are edited. While it is off the server seeds them from the Amenity.",
+   "fieldname": "annexes_customised",
+   "fieldtype": "Check",
+   "label": "Annexes Customised",
+   "read_only": 1
   },
   {
    "fieldname": "image_view",
@@ -590,7 +609,7 @@
   },
   {
    "default": "1",
-   "description": "Set from the Facility Builder \u2014 one placement per row, summed on consolidation.",
+   "description": "Set from the Facility Builder — one placement per row, summed on consolidation.",
    "fieldname": "amenity_qty",
    "fieldtype": "Float",
    "in_list_view": 1,
@@ -786,7 +805,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-09-08 12:05:02.553029",
+ "modified": "2026-09-08 14:10:00.000000",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Butler Quotation Item",

@@ -15,7 +15,7 @@ Quick lookup for the fields and functions the pricing engine touches. `*` = _Pla
 | `bundle_currency` | Link → Currency (ro) | from the bundle |
 | `bundle_items` | Table → Bundle Item (ro) | composition breakup |
 | `amenities` | Table → Butler Quotation Item | the lines |
-| `amenity_count` | Int (ro) | Σ qty |
+| `amenity_count` | Int (ro) | number of amenity rows = drawn placements |
 | `floor_count` | Int (ro) | distinct floor types |
 | `total` | Currency (ro) | bundle: `bundle_price`; amenities: Σ amount |
 | `currency` | Link | transaction (document) currency |
@@ -48,7 +48,7 @@ One table, **two row types** — an amenity row (`annex` empty) and its annex ro
 |---|---|---|
 | `amenity` | Link → Amenity | reqd |
 | `floor_type` | Link → Floor Type | reqd |
-| `additional_amenity` | Check (user-set) | designates an extra/overflow row to charge |
+| `additional_amenity` | Check (user-set) | this placement is beyond the bundle and is charged on top |
 | `amenity_currency` | Link (ro) | `fetch_from` amenity — the amenity's own currency |
 | `qtn_exchange_rate` | Float (ro) | amenity → quotation (`base_exchange_rate ÷ document rate`) |
 | `base_exchange_rate` | Float (ro) | amenity → company; mirror of its `exchange_rates` row |
@@ -59,9 +59,11 @@ One table, **two row types** — an amenity row (`annex` empty) and its annex ro
 
 | Field | Type | Notes |
 |---|---|---|
-| `amenity_qty` | Float | user-set; the multiplier, applied once at the end |
-| `amenity_price` | Currency (ro) | Σ annexes + light + sound + floor — **per unit** |
-| `qtn_amenity_price` / `qtn_amenity_amount` | Currency (ro) | `× qtn_exchange_rate`, then `× amenity_qty` |
+| `placement_id` | Data (ro) | the drawn amenity this row belongs to — the Facility Builder's `room.id`, backfilled for rows from anywhere else |
+| `annexes_customised` | Check (ro) | this placement's annexes are its own; stops `expand_amenity_rows` re-seeding them |
+| `amenity_qty` | Float (ro) | always `1` — one row is one placement |
+| `amenity_price` | Currency (ro) | Σ annexes + light + sound + floor, for this placement |
+| `qtn_amenity_price` / `qtn_amenity_amount` | Currency (ro) | `× qtn_exchange_rate` |
 | `qtn_amenity_net_price` / `qtn_amenity_net_amount` | Currency (ro) | pro-rata share of the header discount |
 | `light_system` | Link → Light System | user-set; which of the amenity's systems |
 | `used_lines` / `total_lines` / `light_system_pricing_mode` | (ro) | copied from `Amenity.light_systems` |
@@ -79,7 +81,7 @@ One table, **two row types** — an amenity row (`annex` empty) and its annex ro
 | Field | Type | Notes |
 |---|---|---|
 | `annex` | Link → Annex | present ⇒ this is an annex row |
-| `annex_quantity` | Float | user-set; **per amenity unit** |
+| `annex_quantity` | Float | user-set; how many of this annex the placement has |
 | `annex_uom` | Link → UOM | user-set; defaults from Annex Price, else the Item |
 | `annex_stock_uom` / `conversion_factor` | (ro) | via the Annex's Item; **stock qty only, never the money** |
 | `annex_price_list` | Link → Annex Price | which record supplied the standard |
@@ -146,7 +148,6 @@ Replaces the old `Amenity.facility_type_prices`. Keyed **(annex, amenity, facili
 | `role_to_override_annex_price_stop_action` | Link → Role | shown when action = `Stop` |
 | `action_if_bundle_items_unfulfilled` | Select | `Stop` / `Warn` |
 | `role_to_override_unfulfilled_stop_action` | Link → Role | shown when action = `Stop` |
-| `disable_amenity_consolidation` | Check | skip merging duplicate lines |
 | `default_valid_till` | Int | default validity days |
 
 ---

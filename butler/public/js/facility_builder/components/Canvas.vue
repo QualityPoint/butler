@@ -47,9 +47,16 @@
 			     One layer, because Konva expects a Transformer to sit in the same layer
 			     as the node it is attached to — and every Konva layer is its own canvas,
 			     so they are worth pooling (the stage warns past 5). -->
-			<v-layer ref="roomsLayerRef" :config="{ listening: isDrawingLayer }">
+			<v-layer ref="roomsLayerRef" :config="{ listening: isDrawingLayer || isFeatureLayer }">
 				<RoomShape v-for="room in rooms" :key="room.id" :room="room" />
 				<v-transformer ref="transformerRef" :config="transformerConfig" />
+			</v-layer>
+
+			<!-- Features layer: the annexes each placed amenity is composed of, drawn
+			     over it. Display-only for now, and the rooms layer stops listening the
+			     moment this layer is active, so nothing here can be moved or selected. -->
+			<v-layer v-if="isFeatureLayer && store.show_annex_icons.value" :config="{ listening: false }">
+				<RoomAnnexes v-for="room in rooms" :key="room.id" :room="room" />
 			</v-layer>
 
 			<!-- Top overlays, in the order they used to be stacked: marquee, blueprint
@@ -76,6 +83,7 @@
 <script setup>
 import { inject, computed, ref, reactive, watch, nextTick, onMounted, onBeforeUnmount } from "vue";
 import RoomShape from "./RoomShape.vue";
+import RoomAnnexes from "./RoomAnnexes.vue";
 import { load_blueprint } from "../blueprint";
 
 const store = inject("$store");
@@ -97,6 +105,7 @@ const stagePos = reactive({ x: 0, y: 0 });
 
 const isBlueprintLayer = computed(() => store.active_layer.value === "blueprint");
 const isDrawingLayer = computed(() => store.active_layer.value === "drawing");
+const isFeatureLayer = computed(() => store.active_layer.value === "features");
 
 const rooms = computed(() => store.active_floor.value?.rooms || []);
 
@@ -461,6 +470,11 @@ function onStageMouseDown(e) {
 		return;
 	}
 
+	if (isFeatureLayer.value) {
+		// select-only: no marquee, no drawing. Clicking bare canvas deselects.
+		if (e.target === e.target.getStage()) store.clear_selection();
+		return;
+	}
 	if (!isDrawingLayer.value) return;
 
 	const tool = store.active_tool.value;

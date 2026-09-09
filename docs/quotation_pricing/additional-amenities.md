@@ -20,16 +20,18 @@ the overflow when an included category has several amenity rows.
 
 - **Non-bundle categories are auto-additional** — every row in a category that isn't in
   `bundle_items` is charged as additional with **no tick required**.
-- **In-bundle overflow needs a tick** — when an included category has more than its
-  configured count, the user ticks the row whose rate should price the excess.
+- **In-bundle overflow needs a tick** — when an included category holds more placements
+  than its configured count, the user ticks the ones that are extra. Each ticked
+  placement is charged at its own price.
 
 Safeguards:
 
 - `before_validate` **clears** `additional_amenity` on every row when
   `order_type != "Bundle"`.
-- `consolidate_amenities` includes `additional_amenity` in its merge key, so an
-  *included* unit and an *additional* unit of the same `amenity + floor_type` stay on
-  separate rows.
+- Every drawn amenity is its own row, so an *included* placement and an *additional* one
+  are separate rows by construction — there is nothing to keep apart.
+- `carry_forward_overrides` restores the tick after a Facility Builder save, which would
+  otherwise rebuild the table and silently un-designate every extra.
 
 ---
 
@@ -46,18 +48,20 @@ for every amenity row in the category:
     additional_total += row.qtn_amenity_amount      (the whole row)
 ```
 
-### Category IS in the bundle  → tick required for the overflow
+### Category IS in the bundle  → tick each extra
 
-Only the **overflow** is charged; the ticked row supplies the **unit price**, the
-category supplies the **quantity**:
+Only the **ticked** placements are charged, each at its own amount:
 
 ```
-excess = Σ amenity_qty(category) − configured_count(category)
-additional_total += ticked_row.qtn_amenity_price × excess
+for every ticked amenity row in the category:
+    additional_total += row.qtn_amenity_amount
 ```
 
-If several rows in one overflowing category are ticked, the **first** ticked row's unit
-price is used.
+> This used to be `first_ticked.qtn_amenity_price × excess` — a consequence of
+> consolidation, where N placements had collapsed into one row so there was nothing
+> per-placement to tick and one row had to stand in for the rest. It also mispriced:
+> three extras of different amenities were all billed at the first one's rate. With one
+> row per placement, the honest rule is also the simpler one.
 
 ---
 
@@ -75,8 +79,10 @@ base_additional_total / base_additional_net_total = ÷ conversion_rate
 
 ## Designation is validated (overflow only)
 
-Only the **in-bundle overflow** needs designation. If an included category's placed qty
-exceeds its configured count but no row is ticked, the overflow can't be priced:
+Only the **in-bundle overflow** needs designation. What the bundle covers is
+`included = placed − ticked`; if that still exceeds the configured count, the surplus
+can't be priced. Counting the ticks (rather than noting that a category has at least one)
+is what stops a single tick licensing an overflow of any size:
 
 ```
 validate       →  WARN  (msgprint, names the in-bundle categories holding undesignated extras)
@@ -94,9 +100,9 @@ See [validations.md](./validations.md#2-undesignated-extras).
 Bundle **"Wellness"**: `Spa: 3`, `Gym: 2`. User places (2 distinct floors; Spa
 `depends_on_floor_count`):
 
-| Category | In bundle | Σ amenity_qty | configured | ticked row | Additional charge |
+| Category | In bundle | placed | configured | ticked | Additional charge |
 |---|---|---|---|---|---|
-| Spa | yes (3) | 5 | 3 | Spa @ unit price 800 | `800 × (5−3) = 1600` |
+| Spa | yes (3) | 5 | 3 | 2 (@ 800 and 950) | `800 + 950 = 1750` |
 | Gym | yes (2) | 2 | 2 | — | `0` (no overflow) |
 | Pool | no | 1 | — | Pool, amount 600 | `600` (whole row) |
 

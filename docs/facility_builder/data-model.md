@@ -35,7 +35,14 @@ A hidden, read-only `JSON` field on the **Butler Quotation** doctype. Holds the 
           "w": 200, "h": 150,            // rect only
           "rotation": 0,
           "area": 12.0,                  // m², precomputed (see canvas.md)
-          "remarks": ""
+          "remarks": "",
+
+          // --- Features layer, all OPTIONAL; absent means "inherit the Amenity" ---
+          "annexes": [                   // present only once edited; must keep >= 1 entry
+            { "annex": "AC", "qty": 2, "uom": "Nos" }
+          ],
+          "light_system": "DALI",        // one of the Amenity's own light_systems
+          "has_sound_system": 1
         }
       ]
     }
@@ -81,12 +88,31 @@ A room is one of five shapes. `x, y` is the top-left origin for `rect`/`ellipse`
 
 ## 1b. `Butler Quotation.amenities` — Derived Rollup (written on save)
 
-On every save the builder writes the `amenities` table as **one row per placement** — `{amenity, floor_type, qty: 1}` only (the three reqd fields: `amenity`, `floor_type`, `qty`). It does **not** consolidate or price on the client; the **server** does both:
+On every save the builder writes the `amenities` table as **one row per placement**, each
+carrying that placement's **`placement_id`** (the room's own `id`) plus whatever the
+Features layer configured. It does **not** price on the client; the **server** does:
 
-- **Consolidation** — `ButlerQuotation.consolidate_amenities()` (in `before_validate`) merges rows sharing the same **`(amenity, floor_type, additional_amenity)`** key, summing `qty`. Including `additional_amenity` in the key keeps an *included* unit and an *additional* unit of the same amenity+floor on separate rows (a Bundle requirement). Skippable via **Butler Settings → Disable Amenity Consolidation**.
-- **Pricing & flags** — `calculate_totals()` (in `validate`, which runs before Frappe's mandatory-field gate) fills `rate` (from `get_amenity_pricing`, in document currency), `amount`, `amenity_currency`/`exchange_rate`, and the base mirrors. `amenity_category`, `image`, and the flags (`is_dependant_amenity`, `has_changeable_price`, `depends_on_floor_count`) come via `fetch_from` on the Amenity. This is why the client can safely send `qty: 1` rows with no price.
+- **Composition** — a row whose `annexes_customised` is unset gets its annex rows seeded
+  from `Amenity.annexes` (`expand_amenity_rows`). A room only sends annex rows once
+  someone has edited them, so an unvisited Features layer can never empty a quotation.
+  A placement may drop *some* of its annexes but not all — an amenity is what it is
+  composed of, and the master makes that table mandatory.
+- **Preservation** — `carry_forward_overrides` copies the quotation's own figures back
+  onto the rebuilt rows, matched on `placement_id`: the negotiated `qtn_*` prices, their
+  standard mirrors, `qtn_exchange_rate`, and the `additional_amenity` tick. Without it a
+  builder save would wipe every price anyone had negotiated.
+- **Pricing** — `calculate_totals()` (in `validate`) resolves each annex against **Annex
+  Price**, applies the light/sound/floor add-ons, and fills the three currency tiers and
+  the base mirrors.
 
-The builder also writes back `order_type` / `bundle_type`. The `amenities` table is **regenerated** from geometry each save — don't hand-edit it expecting the builder to preserve it.
+**One row per placement, always.** `amenity_qty` is pinned to `1`; Butler no longer merges
+placements of one amenity on one floor (the old `consolidate_amenities` and its
+**Disable Amenity Consolidation** setting are both gone), because per-placement
+configuration and consolidation cannot both be true.
+
+The `amenities` table is **regenerated** from geometry each save. Composition is therefore
+read-only on the quotation form — the builder owns *what is sold*, the quotation owns
+*what it costs*.
 
 > **Facility mode** doesn't update an existing quotation — its Save **inserts a new draft Butler Quotation** (with this same rollup) and routes to it. See [persistence.md](persistence.md).
 

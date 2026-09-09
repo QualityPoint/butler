@@ -27,3 +27,24 @@ export function colorFor(name) {
 export function resolveColor(key, colorMap) {
 	return (colorMap && colorMap[key]) || colorFor(key);
 }
+
+// A darker version of a color, for drawing on top of it — the annex icons inside a room
+// are stroked in the room's own color darkened, so they read as part of that amenity
+// instead of as generic black marks on it.
+export function darken(hex, amount = 0.55) {
+	const m = /^#?([\da-f]{3}|[\da-f]{6})$/i.exec(String(hex || "").trim());
+	if (!m) return hex;
+	const full =
+		m[1].length === 3
+			? m[1]
+					.split("")
+					.map((c) => c + c)
+					.join("")
+			: m[1];
+	const n = parseInt(full, 16);
+	const scale = (c) => Math.round(c * (1 - amount));
+	const r = scale((n >> 16) & 255);
+	const g = scale((n >> 8) & 255);
+	const b = scale(n & 255);
+	return "#" + ((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1);
+}

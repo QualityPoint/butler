@@ -14,6 +14,7 @@ The interactive surface. Konva is chosen because it is purpose-built for draggab
       <RoomShape v-for room ... />
   <v-layer name="ui">             ← Transformer (resize/rotate) for the selected room
   <v-layer name="bp-ui">          ← Transformer for the blueprint (align mode only)
+  <v-layer name="features">       ← annex icons per room (Features layer only)
 ```
 
 One floor is rendered at a time. Switching `FloorTabs` swaps which floor's `rooms` array feeds the rooms layer. Other floors stay in the store, just not drawn.
@@ -155,7 +156,9 @@ Whole-room drag vs. vertex/handle interaction are disambiguated via `e.cancelBub
 
 ## Two Layers (Photoshop-style)
 
-The builder has **two layers**, switched from a `[ Blueprint | Drawing ]` selector in the Toolbar (`store.active_layer` = `"blueprint" | "drawing"`). Only the active layer is interactive (`listening`); the other is visible but locked, so the two never fight for clicks.
+The builder has **three layers**, switched from a `[ Blueprint | Drawing | Features ]` selector in the Toolbar (`store.active_layer` = `"blueprint" | "drawing" | "features"`). Only the active layer is interactive (`listening`); the others are visible but locked, so they never fight for clicks.
+
+**Features is select-only.** Rooms listen there so one can be picked, but everything geometric is off: no drag (`RoomShape` gates `draggable` on the drawing layer), no transformer, no vertex handles, no marquee, and delete / nudge / paste are all guarded. Selection is not a modification — it is how you choose which amenity to configure — and it carries between Drawing and Features so a room you just drew is the one you configure.
 
 | Active layer | Interactive | Toolbar controls |
 |---|---|---|

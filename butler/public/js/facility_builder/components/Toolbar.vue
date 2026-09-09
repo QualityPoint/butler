@@ -1,20 +1,28 @@
 <template>
 	<div class="fb-toolbar">
-		<!-- layer selector (Photoshop-style) -->
-		<div class="btn-group" role="group">
+		<!-- Layer selector (Photoshop-style), styled as a segmented control: an inset
+		     track with the active layer raised as a card, rather than three adjacent
+		     buttons. Radio semantics, so it reads to a screen reader as one choice of
+		     three and arrow keys move between them. -->
+		<div
+			class="fb-segmented"
+			role="radiogroup"
+			:aria-label="__('Layer')"
+			@keydown.left.prevent="stepLayer(-1)"
+			@keydown.right.prevent="stepLayer(1)"
+		>
 			<button
-				class="btn btn-xs"
-				:class="store.active_layer.value === 'blueprint' ? 'btn-primary' : 'btn-default'"
-				@click="store.set_active_layer('blueprint')"
+				v-for="layer in LAYERS"
+				:key="layer.value"
+				type="button"
+				class="fb-segment"
+				:class="{ 'fb-segment-on': store.active_layer.value === layer.value }"
+				role="radio"
+				:aria-checked="store.active_layer.value === layer.value"
+				:tabindex="store.active_layer.value === layer.value ? 0 : -1"
+				@click="store.set_active_layer(layer.value)"
 			>
-				{{ __("Blueprint") }}
-			</button>
-			<button
-				class="btn btn-xs"
-				:class="store.active_layer.value === 'drawing' ? 'btn-primary' : 'btn-default'"
-				@click="store.set_active_layer('drawing')"
-			>
-				{{ __("Drawing") }}
+				{{ layer.label }}
 			</button>
 		</div>
 
@@ -66,6 +74,56 @@
 			</template>
 			<span v-else class="fb-hint">
 				{{ __("Upload a blueprint for {0}", [store.active_floor_type.value || __("this floor")]) }}
+			</span>
+		</template>
+
+		<!-- ===== FEATURES LAYER ===== -->
+		<!-- Layer-wide controls only; what a single amenity contains is edited in the
+		     sidebar panel, which has the room for it. -->
+		<template v-else-if="store.active_layer.value === 'features'">
+			<div class="d-flex align-items-center" :title="__('Draw each amenity\'s annexes on the plan')">
+				<span style="color: var(--text-light); margin: 0px 6px;">{{ __("Icons") }}</span>
+				<label class="switch">
+					<input
+						type="checkbox"
+						:checked="store.show_annex_icons.value"
+						@change="store.show_annex_icons.value = $event.target.checked"
+					/>
+					<span class="slider round"></span>
+				</label>
+			</div>
+
+			<div class="fb-toolbar-group">
+				<label>{{ __("Opacity") }}</label>
+				<input
+					type="range"
+					min="0.1"
+					max="1"
+					step="0.05"
+					:value="store.rooms_opacity.value"
+					@input="store.set_rooms_opacity($event.target.value)"
+				/>
+			</div>
+
+			<div class="fb-spacer" />
+
+			<template v-if="room">
+				<span class="fb-room-label">
+					{{ __(room.amenity) }} &middot;
+					{{ __("{0} annexes", [store.effective_annexes(room).length]) }}
+				</span>
+				<button
+					class="btn btn-xs btn-default"
+					:disabled="store.read_only.value || !similarCount"
+					:title="__('Copy this amenity\'s annexes, light and sound onto every other placement of it')"
+					@click="applyToSimilar"
+				>
+					{{ __("Apply to all like this") }}
+					<span v-if="similarCount" class="text-muted">({{ similarCount }})</span>
+				</button>
+			</template>
+			<span v-else class="fb-hint">
+				{{ __("Select an amenity to configure it. Shapes are locked on this layer.") }}
 			</span>
 		</template>
 
@@ -181,7 +239,46 @@ const store = inject("$store");
 const room = computed(() => store.selected_room.value);
 // length (metres) of the selected line, for the toolbar readout
 const lineLength = computed(() => (room.value ? room_length_m(room.value, store.ppm.value) : 0));
+const LAYERS = [
+	{ value: "blueprint", label: __("Blueprint") },
+	{ value: "drawing", label: __("Drawing") },
+	{ value: "features", label: __("Features") },
+];
+
+function stepLayer(delta) {
+	const at = LAYERS.findIndex((l) => l.value === store.active_layer.value);
+	const next = LAYERS[(at + delta + LAYERS.length) % LAYERS.length];
+	store.set_active_layer(next.value);
+}
+
 const isDrawing = computed(() => store.active_layer.value === "drawing");
+
+// how many OTHER placements of the selected amenity would a bulk apply touch
+const similarCount = computed(() => {
+	if (!room.value) return 0;
+	let n = 0;
+	for (const floor of store.design.value?.floors || []) {
+		for (const r of floor.rooms || []) {
+			if (r.id !== room.value.id && r.amenity === room.value.amenity) n++;
+		}
+	}
+	return n;
+});
+
+function applyToSimilar() {
+	const amenity = __(room.value.amenity);
+	frappe.confirm(
+		__("Copy the annexes, light system and sound setting of this {0} onto the other {1}?",
+			[amenity, __("{0} placements", [similarCount.value])]),
+		() => {
+			const touched = store.apply_features_to_similar(room.value.id);
+			frappe.show_alert({
+				message: __("Applied to {0} placements.", [touched]),
+				indicator: "green",
+			});
+		}
+	);
+}
 // the point controls edit the selected point if there is one, else the tool's defaults
 const pointRoom = computed(() => (room.value?.shape === "point" ? room.value : null));
 // show the point style controls when drawing points OR when a point is selected to edit
@@ -368,6 +465,54 @@ function toggleCalibrate() {
 </script>
 
 <style scoped>
+/* Segmented control, after Radix Themes' SegmentedControl at size 2: a low-contrast
+   inset track, and the selected item raised on it as a small card. The distinction it
+   draws is "which one of these am I in", which suits a layer switch better than three
+   buttons where the active one is a saturated primary. */
+.fb-segmented {
+	display: inline-flex;
+	align-items: center;
+	gap: 2px;
+	padding: 2px;
+	background: var(--control-bg);
+	border-radius: var(--border-radius-md);
+	box-shadow: inset 0 0 0 1px var(--border-color);
+	flex-shrink: 0;
+}
+.fb-segment {
+	appearance: none;
+	border: 0;
+	background: transparent;
+	color: var(--text-muted);
+	font-size: var(--text-sm);
+	font-weight: 500;
+	line-height: 1;
+	height: 26px;
+	padding: 0 12px;
+	border-radius: calc(var(--border-radius-md) - 2px);
+	cursor: pointer;
+	white-space: nowrap;
+	transition: background 100ms ease, color 100ms ease, box-shadow 100ms ease;
+}
+.fb-segment:hover:not(.fb-segment-on) {
+	color: var(--text-color);
+}
+.fb-segment:focus-visible {
+	outline: 2px solid var(--primary);
+	outline-offset: 1px;
+}
+/* The raised "thumb". Black rather than Radix's white card, matching the active floor
+   tab in the quotation's line editor so "where you are" looks the same in both places.
+   --btn-primary is Frappe's own near-black (gray-900), and pairing it with --bg-color for
+   the text inverts correctly in dark mode, where the two swap to gray-300 on gray-900. */
+.fb-segment-on {
+	background: var(--btn-primary);
+	color: var(--bg-color);
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+.fb-segment-on:hover {
+	color: var(--bg-color);
+}
 .fb-toolbar {
 	display: flex;
 	align-items: center;

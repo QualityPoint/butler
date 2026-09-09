@@ -141,3 +141,82 @@ class Amenity(Document):
 
         for annex in removed_annexes:
             frappe.db.delete("Annex Price", {"annex": annex, "amenity": self.name})
+
+
+@frappe.whitelist()
+def get_amenity_annexes(amenities):
+    """What each amenity is composed of, with the icon to draw each annex by.
+
+    The Facility Builder's Annexes layer shows an amenity's composition on the canvas, so
+    it needs the same list `expand_amenity_rows` seeds a quotation from — plus each
+    Annex's `icon`, which lives on the Annex master rather than on the composition row.
+
+    Batched: the builder asks once for every amenity on the floor plan, and the icons for
+    all of them are fetched in a single query rather than one per amenity.
+    """
+    if isinstance(amenities, str):
+        amenities = frappe.parse_json(amenities)
+
+    compositions = {
+        name: frappe.get_cached_doc("Amenity", name).annexes
+        for name in {a for a in (amenities or []) if a}
+    }
+
+    annexes = {row.annex for rows in compositions.values() for row in rows if row.annex}
+    masters = {
+        row.name: row
+        for row in frappe.get_all(
+            "Annex",
+            filters={"name": ("in", list(annexes))},
+            fields=["name", "annex_name", "icon", "annex_item"],
+        )
+    } if annexes else {}
+    uoms = _annex_uoms(masters)
+
+    return {
+        name: [
+            {
+                "annex": row.annex,
+                "annex_name": masters.get(row.annex, {}).get("annex_name") or row.annex,
+                "icon": masters.get(row.annex, {}).get("icon"),
+                "qty": flt(row.qty),
+                "uom": row.uom,
+                "uoms": uoms.get(row.annex) or [],
+            }
+            for row in rows
+            if row.annex
+        ]
+        for name, rows in compositions.items()
+    }
+
+
+def _annex_uoms(masters):
+    """`annex -> [uom]`, the UOMs each annex's Item is convertible in.
+
+    The Features panel picks a UOM from a plain `<select>` rather than a Link, so the whole
+    list has to travel with the composition. Same rule as
+    `butler.utils.queries.get_annex_uom_query` — the Item's UOM Conversion Detail rows, in
+    their configured order — resolved for every annex in one query instead of one lookup
+    per open dropdown.
+    """
+    items = {row.annex_item for row in masters.values() if row.annex_item}
+    if not items:
+        return {}
+
+    detail = frappe.qb.DocType("UOM Conversion Detail")
+    by_item = {}
+    for parent, uom in (
+        frappe.qb.from_(detail)
+        .select(detail.parent, detail.uom)
+        .where(detail.parent.isin(list(items)))
+        .orderby(detail.parent)
+        .orderby(detail.idx)
+        .run()
+    ):
+        by_item.setdefault(parent, []).append(uom)
+
+    return {
+        annex: by_item.get(row.annex_item, [])
+        for annex, row in masters.items()
+        if row.annex_item
+    }

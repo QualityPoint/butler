@@ -48,7 +48,10 @@ export function getStore(mode, target_name) {
 	let active_floor_type = ref(null); // Floor Type currently shown
 	let selected_ids = ref([]); // selected room ids (multi-select)
 	let dirty = ref(false);
-	let active_layer = ref("drawing"); // "drawing" | "blueprint" (Photoshop-style)
+	let active_layer = ref("drawing"); // "drawing" | "blueprint" | "features" (Photoshop-style)
+	let annexes_by_amenity = ref({}); // amenity name -> its annexes, for the Features layer
+	let amenity_options = ref({}); // amenity name -> what it offers (light systems, sound)
+	let show_annex_icons = ref(true); // draw the annex icons on the Features layer
 	let calibrating = ref(false); // measurement calibration in progress
 	let blueprint_fit_nonce = ref(0); // bump to ask the canvas to re-fit the blueprint
 	let blueprint_page_count = ref(1); // pages in the active blueprint (PDF)
@@ -344,21 +347,44 @@ export function getStore(mode, target_name) {
 	}
 
 	// --- save ---
-	// aggregate placements into DISTINCT (amenity + floor_type) rows, qty = placement count
+	// One amenity row per drawn placement, carrying the room's own id so the server can
+	// tell which shape each row came from, and whatever features have been configured on
+	// it. Pricing stays server-side — the builder says what is fitted, never what it costs.
+	//
+	// A room only carries `annexes` once someone has edited them; until then it sends no
+	// annex rows and no `annexes_customised`, and the server seeds from the Amenity master
+	// exactly as it does for a form or import row. That way an unvisited Features layer
+	// can never empty a quotation, and `[]` still means "deliberately none".
 	function build_amenity_rows() {
-		// One amenity row per placement (qty 1). The server fills in the rest: it seeds
-		// each amenity's annex rows from the Amenity master (expand_amenity_rows) and then
-		// consolidates placements in before_validate per Butler Settings — so the builder
-		// never has to know how an amenity is composed or priced.
 		const rows = [];
 		for (const floor of design.value.floors) {
 			for (const r of floor.rooms) {
-				if (r.amenity) {
+				if (!r.amenity) continue;
+				const customised = Array.isArray(r.annexes);
+				rows.push({
+					doctype: "Butler Quotation Item",
+					placement_id: r.id,
+					amenity: r.amenity,
+					floor_type: floor.floor_type,
+					amenity_qty: 1,
+					light_system: r.light_system || null,
+					has_sound_system: r.has_sound_system ? 1 : 0,
+					annexes_customised: customised ? 1 : 0,
+				});
+				if (!customised) continue;
+				for (const a of r.annexes) {
 					rows.push({
 						doctype: "Butler Quotation Item",
+						placement_id: r.id,
 						amenity: r.amenity,
 						floor_type: floor.floor_type,
-						amenity_qty: 1,
+						annex: a.annex,
+						// the panel refuses a non-positive quantity, so this only catches
+						// hand-edited or otherwise corrupt geometry. 1 is the recoverable
+						// choice: the row shows up and can be fixed, where sending 0 would
+						// fail the save with a row number nobody can trace to a room.
+						annex_quantity: flt(a.qty) || 1,
+						annex_uom: a.uom,
 					});
 				}
 			}
@@ -385,6 +411,12 @@ export function getStore(mode, target_name) {
 		return false;
 	}
 
+	// Every save path below returns a NATIVE promise, deliberately. `frappe.call` resolves
+	// a jQuery Deferred, which has `.then` but no `.finally` — and Frappe's
+	// `Page.btn_disable_enable` (page.js:596) tests for `.then` first and then calls
+	// `.finally` on it. Handing it a Deferred throws "response.finally is not a function"
+	// and leaves the Save button stuck disabled. `Promise.resolve` adopts the thenable and
+	// gives Frappe the shape it already assumes it has.
 	function save_changes() {
 		return is_facility_mode ? create_quotation() : save_quotation();
 	}
@@ -408,13 +440,12 @@ export function getStore(mode, target_name) {
 		quotation.value.bundle_type = order_type.value === "Bundle" ? bundle_type.value : null;
 		quotation.value.amenities = build_amenity_rows();
 
-		return frappe
-			.call("frappe.client.save", { doc: quotation.value })
-			.then(() => {
+		return Promise.resolve(
+			frappe.call("frappe.client.save", { doc: quotation.value }).then(() => {
 				frappe.show_alert({ message: __("Quotation saved."), indicator: "green" });
 				return fetch();
 			})
-			.always(() => frappe.dom.unfreeze());
+		).finally(() => frappe.dom.unfreeze());
 	}
 
 	// facility mode: a placed amenity spawns a brand-new draft Butler Quotation
@@ -431,9 +462,8 @@ export function getStore(mode, target_name) {
 			geometry: JSON.stringify(design.value),
 			amenities: build_amenity_rows(),
 		};
-		return frappe
-			.call("frappe.client.insert", { doc })
-			.then((r) => {
+		return Promise.resolve(
+			frappe.call("frappe.client.insert", { doc }).then((r) => {
 				const name = r.message?.name;
 				if (name) {
 					frappe.show_alert({
@@ -444,7 +474,7 @@ export function getStore(mode, target_name) {
 					frappe.set_route("facility-builder", "quotation", name);
 				}
 			})
-			.always(() => frappe.dom.unfreeze());
+		).finally(() => frappe.dom.unfreeze());
 	}
 
 	function reset_changes() {
@@ -455,12 +485,11 @@ export function getStore(mode, target_name) {
 	function save_facility() {
 		if (!facility.value) return Promise.resolve();
 		frappe.dom.freeze(__("Saving blueprint..."));
-		return frappe
-			.call("frappe.client.save", { doc: facility.value })
-			.then((r) => {
+		return Promise.resolve(
+			frappe.call("frappe.client.save", { doc: facility.value }).then((r) => {
 				if (r.message) facility.value = r.message;
 			})
-			.always(() => frappe.dom.unfreeze());
+		).finally(() => frappe.dom.unfreeze());
 	}
 
 	// --- floor mutations ---
@@ -935,8 +964,152 @@ export function getStore(mode, target_name) {
 
 	function set_active_layer(layer) {
 		active_layer.value = layer;
-		if (layer === "blueprint") clear_selection(); // hide room selection
+		// Drawing and Features both act on a selected room — one edits its shape, the
+		// other its contents — so the selection carries between them. Blueprint has
+		// nothing to do with rooms, so it drops it rather than leave a stale highlight.
+		if (layer === "blueprint") clear_selection();
 		if (layer !== "blueprint") calibrating.value = false;
+		if (layer === "features") load_amenity_catalogue();
+	}
+
+	// What each placed amenity OFFERS: its annexes (with icons) and its light/sound
+	// configuration. Two endpoints because they already exist and are used elsewhere —
+	// get_amenity_annexes carries the icons the canvas draws, get_amenity_options the
+	// light systems and sound price the panel edits. Both cached per amenity, so this
+	// costs one pair of round trips per session however often the layer is opened.
+	function load_amenity_catalogue() {
+		const placed = new Set();
+		for (const floor of design.value?.floors || []) {
+			for (const room of floor.rooms || []) {
+				if (room.amenity) placed.add(room.amenity);
+			}
+		}
+		const annexes = [...placed].filter((a) => !(a in annexes_by_amenity.value));
+		const options = [...placed].filter((a) => !(a in amenity_options.value));
+
+		return Promise.all([
+			annexes.length
+				? frappe
+						.xcall("butler.butler.doctype.amenity.amenity.get_amenity_annexes", {
+							amenities: annexes,
+						})
+						.then((r) => {
+							annexes_by_amenity.value = { ...annexes_by_amenity.value, ...(r || {}) };
+						})
+				: Promise.resolve(),
+			options.length
+				? frappe
+						.xcall(
+							"butler.butler.doctype.butler_quotation.butler_quotation.get_amenity_options",
+							{ amenities: options }
+						)
+						.then((r) => {
+							amenity_options.value = { ...amenity_options.value, ...(r || {}) };
+						})
+				: Promise.resolve(),
+		]);
+	}
+
+	// [] rather than undefined for an amenity we haven't loaded yet, so callers can render
+	// without guarding — the icons appear when the fetch lands.
+	function annexes_for(amenity) {
+		return annexes_by_amenity.value[amenity] || [];
+	}
+
+	function options_for(amenity) {
+		return amenity_options.value[amenity] || {};
+	}
+
+	// What this placement actually has. A room carries `annexes` only once edited;
+	// until then it inherits the Amenity's own composition — which is also what the
+	// server would seed. `[]` is a real answer (every annex removed), `undefined` is not.
+	function effective_annexes(room) {
+		if (Array.isArray(room?.annexes)) return room.annexes;
+		return annexes_for(room?.amenity).map((a) => ({
+			annex: a.annex,
+			qty: flt(a.qty) || 1,
+			uom: a.uom,
+		}));
+	}
+
+	// --- per-placement features (Features layer) ---
+	// Thin named wrappers over update_room, the way set_point_style is, so the rule that
+	// editing materialises the inherited list lives here rather than in the component.
+	function set_room_features(id, patch) {
+		update_room(id, patch); // { annexes?, light_system?, has_sound_system? }
+	}
+
+	function set_room_annexes(id, list) {
+		update_room(id, { annexes: list });
+	}
+
+	function add_room_annex(id, annex) {
+		const room = active_floor.value?.rooms.find((r) => r.id === id);
+		if (!room || !annex) return;
+		const list = effective_annexes(room).slice();
+		if (list.some((a) => a.annex === annex)) return; // one line per annex
+		const source = annexes_for(room.amenity).find((a) => a.annex === annex) || {};
+		list.push({ annex, qty: flt(source.qty) || 1, uom: source.uom });
+		set_room_annexes(id, list);
+	}
+
+	// An amenity is what it is composed of — the Amenity master makes `annexes` mandatory,
+	// and the server refuses a placement with none. Refuse the last one here too, so the
+	// rule is felt where the action is rather than as a throw on save.
+	function remove_room_annex(id, annex) {
+		const room = active_floor.value?.rooms.find((r) => r.id === id);
+		if (!room) return false;
+		const rest = effective_annexes(room).filter((a) => a.annex !== annex);
+		if (!rest.length) return false;
+		set_room_annexes(id, rest);
+		return true;
+	}
+
+	function set_room_annex(id, annex, patch) {
+		const room = active_floor.value?.rooms.find((r) => r.id === id);
+		if (!room) return;
+		set_room_annexes(
+			id,
+			effective_annexes(room).map((a) => (a.annex === annex ? { ...a, ...patch } : a))
+		);
+	}
+
+	// Back to whatever the Amenity says — drops the override rather than copying the
+	// master in, so a later change to the Amenity flows through again.
+	function reset_room_features(id) {
+		update_room(id, { annexes: undefined, light_system: null, has_sound_system: 0 });
+	}
+
+	function has_custom_features(room) {
+		return Boolean(
+			Array.isArray(room?.annexes) || room?.light_system || room?.has_sound_system
+		);
+	}
+
+	// Copy one placement's features onto every other placement of the same amenity, on
+	// every floor. Without consolidation this is the difference between 1 edit and 20.
+	function apply_features_to_similar(id) {
+		const source = active_floor.value?.rooms.find((r) => r.id === id);
+		if (!source || read_only.value) return 0;
+		const features = {
+			annexes: Array.isArray(source.annexes)
+				? source.annexes.map((a) => ({ ...a }))
+				: undefined,
+			light_system: source.light_system || null,
+			has_sound_system: source.has_sound_system ? 1 : 0,
+		};
+		let touched = 0;
+		for (const floor of design.value?.floors || []) {
+			for (const room of floor.rooms || []) {
+				if (room.id === id || room.amenity !== source.amenity) continue;
+				Object.assign(room, {
+					...features,
+					annexes: features.annexes ? features.annexes.map((a) => ({ ...a })) : undefined,
+				});
+				touched++;
+			}
+		}
+		return touched;
 	}
 
 	function start_calibration() {
@@ -1032,6 +1205,13 @@ export function getStore(mode, target_name) {
 		active_blueprint_page,
 		active_blueprint,
 		active_layer,
+		annexes_by_amenity,
+		annexes_for,
+		amenity_options,
+		options_for,
+		show_annex_icons,
+		effective_annexes,
+		has_custom_features,
 		calibrating,
 		blueprint_fit_nonce,
 		blueprint_page_count,
@@ -1074,6 +1254,14 @@ export function getStore(mode, target_name) {
 		clear_blueprint_placement,
 		request_blueprint_fit,
 		set_active_layer,
+		load_amenity_catalogue,
+		set_room_features,
+		set_room_annexes,
+		add_room_annex,
+		remove_room_annex,
+		set_room_annex,
+		reset_room_features,
+		apply_features_to_similar,
 		set_blueprint_file,
 		start_calibration,
 		cancel_calibration,

@@ -14,8 +14,8 @@ and an **amenity row** when it isn't.
 
 | | Amenity row | Annex row |
 |---|---|---|
-| Identifies | `amenity` + `floor_type` | the same, plus `annex` |
-| Owns | `amenity_qty`, light system, sound system, floor extra | `annex_quantity`, `annex_uom`, `qtn_annex_price` |
+| Identifies | `placement_id` (+ `amenity`, `floor_type`) | the same, plus `annex` |
+| Owns | light system, sound system, floor extra, `annexes_customised` | `annex_quantity`, `annex_uom`, `qtn_annex_price` |
 | Price | **derived** — the sum of its group | resolved from **Annex Price** |
 
 The amenity row's price ladder is read-only precisely because it is a roll-up: editing it
@@ -23,83 +23,97 @@ would contradict the annexes it is made of. What the user edits is one level dow
 
 ### How an annex row finds its amenity row
 
-By the **`(amenity, floor_type, additional_amenity)` key** — the same triple
-`consolidate_amenities` merges on. Including `additional_amenity` keeps an *included* and
-an *additional* unit of one amenity on a floor apart.
+By its **`placement_id`** — the id of the drawn amenity it belongs to. Every row carries
+one, and the pairing is explicit, so nothing depends on where a row sits in the table.
 
-That key is ambiguous in exactly one case: Butler Settings →
-**Disable Amenity Consolidation** deliberately lets the same amenity sit on a floor more
-than once, so the key repeats. There, **position** decides — an annex row belongs to the
-*nearest preceding* amenity row carrying its key. `order_amenity_rows()` rewrites the
-table on every save as `amenity row → its annex rows`, group after group, so adjacency is
-always well-formed rather than trusted from the client.
+`placement_id` is the Facility Builder's `room.id`, sent with each row and stored in
+`geometry`, which is what lets a quotation row be traced back to the shape that produced
+it. Rows arriving any other way — the form, a data import, `frappe.client.insert` — never
+carry one, so **`ensure_placement_ids` backfills them on every save**: an amenity row
+without an id is given one, and an annex row whose id is missing (or names no amenity row
+on the document) is adopted by the *nearest preceding* amenity row. That is also why no
+migration was needed when the field was introduced — the migration is each document's
+next save.
 
-> **Consequence:** with consolidation off, two otherwise identical amenity rows on one
-> floor are told apart only by row order. Re-sorting the table outside
-> `order_amenity_rows` would reassign their annexes.
+`order_amenity_rows()` still lays the table out as `amenity row → its annex rows`, but
+now only so it reads well in a grid. Re-sorting the table can no longer reassign anything.
+
+It also **keeps every placement of one amenity together**. One row per placement means a
+plan drawn kitchen → office → kitchen would otherwise read back that way, and two lines of
+the same amenity separated by a third is what makes a long quotation hard to check. The
+clustering is by **first appearance** — floor first, then amenity within it — not by name,
+so the table still follows the order things were actually drawn in; it only pulls the
+duplicates together. Ranking the floor separately is what keeps a floor's lines
+contiguous: keying on the `(floor, amenity)` pair alone would let a second floor's amenity
+slot in between two of the first's.
 
 ### The rows are built server-side
 
 | Step (`before_validate`) | Does |
 |---|---|
 | `clear_row_type_fields` | blanks the fields belonging to the *other* row type — stale data, not a user error, so it is cleared rather than rejected |
-| `rescale_annex_quantities` | scales a row's annex quantities when its `amenity_qty` changed |
-| `expand_amenity_rows` | seeds an amenity row's annex rows from `Amenity.annexes` when it has none, scaled by `amenity_qty` |
-| `consolidate_amenities` | merges duplicate amenity groups, **adding up** both `amenity_qty` and the annex quantities |
+| `ensure_placement_ids` | gives every row an id and re-homes any annex row pointing at a placement that isn't there |
+| `expand_amenity_rows` | seeds an amenity row's annex rows from `Amenity.annexes` when it has none and isn't flagged `annexes_customised` — it fills an empty group, it does not top up a short one |
+| `carry_forward_overrides` | restores what the quotation owns onto rows a Facility Builder save has just rebuilt |
 | `order_amenity_rows` | lays the table out group by group and renumbers `idx` |
 
 Because of `expand_amenity_rows`, every entry point — the Facility Builder, a data
-import, the API — only has to send `{amenity, floor_type, amenity_qty}` and gets a fully
-composed, priced line back. It runs **before** consolidation, so a placement that arrives
-bare is carrying its own annex quantities by the time they are added up.
+import, the API — only has to send `{amenity, floor_type}` and gets a fully composed,
+priced line back.
 
-### Annex quantities are totals
+### One row per placement
 
-Two kitchens each holding one display panel are one line of **two kitchens and two
-panels** — the quantity the quotation is actually for, and the quantity a customer reads
-off it. So the annex rows under a line add up to that line's amount:
-
-```
-Security Kitchen                             ×2      16,000
-   Display Panel 4.3    qty 2   6,000        12,000
-   AC                   qty 2   2,000         4,000
-                                            ────────
-                                              16,000   ✓
-```
-
-`amenity_qty` is therefore **not** a multiplier over the annexes. It multiplies only the
-per-amenity add-ons — light system, sound system, floor extra — which are genuinely per
-unit:
+**Every drawn amenity is its own quotation row.** Two kitchens on the ground floor are two
+rows, each with its own annexes, its own light system and its own sound setting — which is
+the whole point: they can differ. `amenity_qty` is therefore always `1`, pinned in
+`calculate_totals`, and a row's price is simply what that one placement contains:
 
 ```
-amenity_price  = Σ annex_amount / amenity_qty  +  light + sound + floor   # per unit
-amenity_amount = amenity_price × amenity_qty
-               = Σ annex_amount  +  (light + sound + floor) × amenity_qty
+amenity_price = Σ annex_amount  +  light + sound + floor
 ```
 
-`amenity_price` stays per-unit because that is the rate an
-[additional amenity](./additional-amenities.md) overflows at. Where a line's units differ
-from one another, it is their average.
+> Butler used to merge placements of one amenity on one floor into a single row, summing
+> `amenity_qty`, with **Butler Settings → Disable Amenity Consolidation** to turn it off.
+> Both are gone. Consolidation and per-placement configuration are mutually exclusive, and
+> the [Features layer](../facility_builder/README.md) needs the latter.
 
-Quantities move in exactly two ways, and both are idempotent — re-saving never compounds:
+### A placement must keep at least one annex
 
-- **`consolidate_amenities` adds them up.** Two annex rows fold together only when they
-  agree on annex, uom and price, so a unit whose panel count was lowered, or whose price
-  was discounted, contributes its own quantity at its own rate instead of being flattened
-  into its twin. That is also how you price one unit differently from its twin: change it,
-  and it stops folding.
-- **`rescale_annex_quantities` follows a changed `amenity_qty`**, comparing against the
-  stored row so it moves once per real change.
+`Amenity.annexes` is a **mandatory** table on the master: an amenity is defined as what it
+is composed of. So `validate_row_types` refuses a placement with none — it would be a line
+worth nothing, contradicting the very thing it is a placement of. `annexes_customised`
+lets a placement drop *some* of its annexes, never all of them; the Features panel greys
+out the last remove button and says so.
 
-`absorb_annex_rows` handles one wrinkle. `qtn_annex_price` is derived later, in
-`validate`, so a row the Facility Builder has just seeded carries no price and would read
-as a different line from the identical row it duplicates. It folds into the single priced
-row for its annex when there is exactly one; where several sit at different prices, which
-one it belongs to is the very thing not to guess at, so it stands on its own.
+> This is not the same as "priced at zero": a placement stripped of annexes but fitted
+> with a sound system still prices at the sound price. The rule is about composition, not
+> about the total.
 
-> **Pre-existing data.** Quotations written before this changed hold per-unit quantities,
-> and would lose value the next time they were saved. No patch ships for it — Butler is
-> still in development and the data is disposable. One will be needed before release.
+### What survives a Facility Builder save
+
+The builder replaces the whole `amenities` table on every save — it is a projection of
+`geometry`, rebuilt each time. `carry_forward_overrides` is what stops that being
+destructive: matching on `placement_id` (and, for annex rows, `(placement_id, annex,
+annex_uom)` paired in order, so a placement holding the same annex twice is not
+collapsed), it copies back onto each incoming row:
+
+| Row | Carried |
+|---|---|
+| Amenity | `qtn_light_system_price`, `qtn_sound_system_price`, `qtn_floor_price` — **and** their standard mirrors `light_system_price`, `sound_system_price`, `floor_price` |
+| Annex | `qtn_annex_price` |
+| Both | `qtn_exchange_rate` |
+| Amenity | `additional_amenity`, on Bundle orders only |
+
+It only fills what the incoming row left blank, so a form save that genuinely sets a new
+price still wins.
+
+**The standard mirrors are not optional, and the reason is easy to miss.**
+`track_add_on_price` decides whether a price is a negotiated override or a standard to
+re-derive by comparing it against `previous_standard × previous_qtn_rate` — and it reads
+`previous_standard` off the row. Carry only the `qtn_` price and `previous_standard`
+arrives as `0`, the comparison fails, and an ordinary standard price is misread as
+negotiated and **frozen for good**: it stops following its master forever. The carry does
+not decide anything itself; it just supplies the value the existing rule compares against.
 
 ---
 
@@ -164,13 +178,13 @@ mode and nothing to choose, so `has_sound_system` is the only thing distinguishi
 
 ```
 amenity_price      = Σ annex_amount + light_system_amount
-                       + sound_system_amount + floor_amount      # amenity currency, PER UNIT
+                       + sound_system_amount + floor_amount      # amenity currency
 qtn_amenity_price  = amenity_price × qtn_exchange_rate           # quotation currency
-qtn_amenity_amount = qtn_amenity_price × amenity_qty
+qtn_amenity_amount = qtn_amenity_price × amenity_qty             # amenity_qty is 1
 ```
 
-`amenity_qty` is applied **once**, at the end — which is why everything beneath it is a
-per-unit figure.
+`amenity_qty` is kept at `1` and the multiplication left in place, so the arithmetic still
+adds up if a row ever carries another quantity.
 
 Header totals then follow [amenities.md](./amenities.md#step-3--header-totals).
 
@@ -183,11 +197,14 @@ as `reqd` would block every amenity row):
 
 | Row type | Must have | Must not have |
 |---|---|---|
-| Amenity | `amenity`, `floor_type`, `amenity_qty > 0` | annex fields (cleared automatically) |
+| Amenity | `amenity`, `floor_type`, a `placement_id` (backfilled if absent) | annex fields (cleared automatically) |
 | Annex | `annex_quantity > 0`, `annex_uom`, a resolvable amenity row | the add-on fields (cleared automatically) |
 
-An annex must also be one of its amenity's own configured annexes, and an annex row that
-matches no amenity row is rejected as unattached.
+An annex must also be one of its amenity's own configured annexes — which is why the
+Features layer's "add annex" picker only offers what the Amenity configures; anything else
+would have no Annex Price and would be refused here. An annex row that matches no amenity
+row is rejected as unattached, though `ensure_placement_ids` re-homes the recoverable
+cases first.
 
 Price deviations are governed separately — see
 [validations.md](./validations.md#annex-price--maintain_annex_price_action).

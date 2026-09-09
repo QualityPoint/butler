@@ -9,7 +9,16 @@
 		>
 			{{ __(floor.floor_type) }}
 			<span class="fb-tab-count">{{ floor.rooms.length }}</span>
-			<span v-if="!store.read_only.value" class="fb-tab-remove" @click.stop="confirm_remove(floor.floor_type)">×</span>
+			<!-- the same icon and the same red wash as the annex remove button, so removing
+			     means the same thing wherever it appears -->
+			<span
+				v-if="!store.read_only.value"
+				class="fb-tab-remove"
+				:title="__('Remove this floor')"
+				@click.stop="confirm_remove(floor.floor_type)"
+			>
+				<svg class="icon icon-xs"><use href="#icon-x"></use></svg>
+			</span>
 		</button>
 		<button v-if="!store.read_only.value" class="btn btn-xs btn-primary fb-tab-add" @click="add_floor">
 			<svg class="icon icon-sm"><use href="#icon-add"></use></svg>
@@ -85,12 +94,21 @@ function confirm_remove(floor_type) {
 	padding: 0 6px;
 }
 .fb-tab-remove {
-	color: var(--text-muted);
-	font-size: var(--text-lg);
-	line-height: 1;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 18px;
+	height: 18px;
+	border-radius: var(--border-radius-tiny, 4px);
+	--icon-stroke: var(--red-500, #e03636);
+	background: rgba(224, 54, 54, 0.12);
 }
 .fb-tab-remove:hover {
-	color: var(--red-500, #e24c4c);
+	background: rgba(224, 54, 54, 0.24);
+}
+.fb-tab-remove .icon {
+	display: block;
+	margin: 0;
 }
 .fb-tab-add {
 	display: inline-flex;

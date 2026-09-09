@@ -13,9 +13,9 @@ Scope: the two pricing **order types**, `Amenities` and `Bundle`. The third type
 
 | `order_type` | Priced as | Charged on |
 |---|---|---|
-| **Amenities** | Sum of the amenity rows | Each group's `(Σ annexes + add-ons) × amenity_qty` |
+| **Amenities** | Sum of the amenity rows | Each placement's `Σ annexes + add-ons` |
 | **Bundle** | A flat bundle price, **plus** any extra amenities | `bundle_price` + `additional_total` |
-| **Quotation** | **Same as Amenities** (sum of the rows) | Each group's `(Σ annexes + add-ons) × amenity_qty` |
+| **Quotation** | **Same as Amenities** (sum of the rows) | Each placement's `Σ annexes + add-ons` |
 
 `Quotation` and `Amenities` are priced by the **same** code path — they differ only in
 the post-submit **Create** target (see below).
@@ -39,7 +39,7 @@ Amenities engine.
 **Currency on Create → Sales Order.** A Sales Order is single-currency, and every
 `qtn_amenity_price` is **already converted to the document currency** at the quotation
 stage, so the SO only needs one rate. Only **amenity rows** are mapped — one Sales Order
-Item each, via `Amenity.amenity`, at `qty = amenity_qty` and `rate = qtn_amenity_price`;
+Item each, via `Amenity.amenity`, one SO line per placement at `rate = qtn_amenity_price`;
 annex rows are quotation-only detail, already priced into their amenity. `_make_sales_order` therefore carries: `currency` = the
 quotation's; `conversion_rate` = the quotation's **document→company** rate (its
 `exchange_rates` row for the document currency, else 1) — set *after* `set_missing_values`
@@ -60,16 +60,17 @@ before_validate ──────────► validate ───────
   │ • default valid          │ • calculate_totals       │ • validate_bundle_amenities
   │ • clear add. flag        │ • annex-price WARN/STOP  │   (unfulfilled / undesignated)
   │ • clear_row_type_fields  │ • validate_row_types     │
-  │ • rescale_annex_quantit. │ • validate_valid_till    │
+  │ • ensure_placement_ids   │ • validate_valid_till    │
   │ • expand_amenity_rows    │                          │
-  │ • consolidate_amenities  │                          │
+  │ • carry_forward_overrid. │                          │
   │ • order_amenity_rows     │                          │
 ```
 
 `before_validate` is where the two row types are shaped: wrong-type fields are cleared,
-missing annex rows seeded from the Amenity, duplicate amenity groups merged — adding up
-their quantities, since annex quantities are totals rather than per-unit figures — and
-the table re-laid-out as `amenity row → its annex rows`. See [annexes.md](./annexes.md).
+every row is given the `placement_id` of the drawn amenity it belongs to, missing annex
+rows are seeded from the Amenity, whatever the quotation owns is carried back onto rows a
+builder save has just rebuilt, and the table is re-laid-out as `amenity row → its annex
+rows`. See [annexes.md](./annexes.md).
 
 Rule of thumb: **`validate` calculates and warns; `before_submit` blocks.**
 Amounts are recomputed on every save so the form always shows correct numbers;
@@ -78,7 +79,7 @@ the governance throws are deferred to where the spec requires them.
 **Live recompute (no save):** Butler has no client-side calc mirror — the server is the
 single source of truth. So the form calls the whitelisted `recalculate` method (which
 runs `calculate_totals` **without** the governance throws) on any pricing input change —
-an annex price, annex quantity or uom, `amenity_qty`, the light/sound/floor prices, the
+an annex price, annex quantity or uom, the light/sound/floor prices, the
 amenity or floor type, a tax row, discount, bundle price, currency rate, or the
 `disable_rounded_total` toggle (stricter than ERPNext's own Quotation, which has no
 field trigger for that checkbox either). The recomputed doc is synced back and the
@@ -98,7 +99,7 @@ These are used by both order types — see [amenities.md](./amenities.md) for de
   composed by summing its annexes at their `get_annex_price` rates. Used by the server
   **and** the client form.
 - **`floor_count`** — number of *distinct* `floor_type`s across the amenity rows.
-- **Group amount** — `(Σ annex_amount + light + sound + floor) × amenity_qty`, where the
+- **Group amount** — `Σ annex_amount + light + sound + floor`, where the
   floor extra is `floor_extra_price × floor_count` only when the amenity
   `depends_on_floor_count` (else `0`). See [annexes.md](./annexes.md).
 

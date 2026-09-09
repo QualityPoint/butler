@@ -1,6 +1,8 @@
 # Copyright (c) 2026, QualityPoint and contributors
 # For license information, please see license.txt
 
+from collections import deque
+
 import erpnext
 import frappe
 from butler.butler.doctype.annex.annex import get_annex_default_uom
@@ -83,20 +85,23 @@ def get_annex_uom_conversion(annex, uom):
     return stock_uom, flt(get_conversion_factor(item, uom).get("conversion_factor")) or 1.0
 
 
-def amenity_row_key(row):
-    """Identity of the amenity group a row belongs to. `additional_amenity` is part of it
-    so an included and an additional unit of the same amenity on one floor stay apart."""
-    return (row.amenity, row.floor_type, cint(row.additional_amenity))
+# What a re-save must NOT throw away. The Facility Builder replaces the whole amenities
+# table on every save, so anything the quotation itself owns has to be carried across from
+# the stored rows or it is destroyed — see carry_forward_overrides.
+#
+# The standard mirrors are in here for a reason that is easy to miss: track_add_on_price
+# decides keep-or-re-derive by comparing the stored price against `previous_standard x
+# previous_qtn_rate`, and it reads previous_standard off the row. Carry only the qtn_ price
+# and previous_standard arrives as 0, the comparison fails, and an ordinary standard price
+# is misread as a negotiated one and frozen for good.
+AMENITY_CARRY_FIELDS = (
+    "qtn_light_system_price", "light_system_price",
+    "qtn_sound_system_price", "sound_system_price",
+    "qtn_floor_price", "floor_price",
+    "qtn_exchange_rate",
+)
 
-
-def annex_row_key(row):
-    """Identity of an annex row within its amenity group — what it is and what it costs.
-
-    Quantity is deliberately *not* in the key: it is the thing consolidation adds up.
-    Price is, so a row whose price was overridden keeps its own line rather than having
-    its quantity folded in at somebody else's rate.
-    """
-    return (row.annex, row.annex_uom, flt(row.qtn_annex_price))
+ANNEX_CARRY_FIELDS = ("qtn_annex_price", "qtn_exchange_rate")
 
 
 class ButlerQuotation(Document):
@@ -120,11 +125,9 @@ class ButlerQuotation(Document):
         self.set_default_taxes()
         self.clear_additional_amenities()
         self.clear_row_type_fields()
-        self.rescale_annex_quantities()
-        # expand first: consolidation adds annex quantities up, so a row the Facility
-        # Builder just added has to arrive carrying its own before it is merged away.
+        self.ensure_placement_ids()
         self.expand_amenity_rows()
-        self.consolidate_amenities()
+        self.carry_forward_overrides()
         self.order_amenity_rows()
 
     def set_party_from_facility(self):
@@ -505,35 +508,30 @@ class ButlerQuotation(Document):
             )
 
         for amenity_row, annex_rows in groups:
-            if flt(amenity_row.amenity_qty) <= 0:
+            # An amenity IS its annexes — `Amenity.annexes` is a mandatory table on the
+            # master, so a placement stripped to none contradicts the very thing it is a
+            # placement of, and prices out at nothing. `annexes_customised` still lets a
+            # placement drop SOME of them; it cannot drop them all.
+            if not annex_rows:
                 frappe.throw(
-                    _("Row #{0}: Amenity Quantity must be greater than zero.").format(
-                        amenity_row.idx),
-                    title=_("Invalid quantity"),
+                    _("Row #{0}: {1} has no annexes. An amenity is what it is composed of "
+                      "— keep at least one, or remove the amenity itself.").format(
+                        amenity_row.idx, frappe.bold(amenity_row.amenity)),
+                    title=_("Nothing fitted"),
                 )
 
-            # A Subtract light system is a legitimate credit, so the amount it contributes
-            # is allowed to be negative — but it can't be worth more than the amenity it
-            # discounts. Reported here because the field-level non_negative check that
-            # would otherwise catch it names the wrong culprit.
-            if flt(amenity_row.amenity_price) < 0:
-                frappe.throw(
-                    _("Row #{0}: {1} prices out at {2}. Its {3} light system subtracts more "
-                      "than the amenity is worth.").format(
-                        amenity_row.idx, frappe.bold(amenity_row.amenity),
-                        fmt_money(amenity_row.amenity_price),
-                        frappe.bold(amenity_row.light_system_pricing_mode or _("Subtract")),
-                    ),
-                    title=_("Negative amenity price"),
-                )
-
+            # The annex rows first, then the price they roll up into. A negative quantity
+            # makes the amenity price negative too, and reporting the roll-up first would
+            # blame the light system for something an annex did.
             allowed = {r.annex for r in frappe.get_cached_doc(
                 "Amenity", amenity_row.amenity).annexes}
             for annex_row in annex_rows:
                 if flt(annex_row.annex_quantity) <= 0:
                     frappe.throw(
-                        _("Row #{0}: Annex Quantity must be greater than zero.").format(
-                            annex_row.idx),
+                        _("Row #{0}: {1} needs a quantity greater than zero. Remove the "
+                          "annex instead of setting it to {2}.").format(
+                            annex_row.idx, frappe.bold(annex_row.annex),
+                            flt(annex_row.annex_quantity)),
                         title=_("Invalid quantity"),
                     )
                 if not annex_row.annex_uom:
@@ -548,6 +546,26 @@ class ButlerQuotation(Document):
                             frappe.bold(amenity_row.amenity)),
                         title=_("Annex not configured"),
                     )
+
+            # A Subtract light system is a legitimate credit, so a line is allowed to carry
+            # a negative amount — but not to end up worth less than nothing. Reported here
+            # rather than by the field's non_negative flag, which names the wrong culprit.
+            if flt(amenity_row.amenity_price) < 0:
+                subtracting = amenity_row.light_system_pricing_mode == "Subtract"
+                frappe.throw(
+                    _("Row #{0}: {1} prices out at {2}. Its {3} light system subtracts more "
+                      "than the amenity is worth.").format(
+                        amenity_row.idx, frappe.bold(amenity_row.amenity),
+                        fmt_money(amenity_row.amenity_price),
+                        frappe.bold(amenity_row.light_system),
+                    ) if subtracting else
+                    _("Row #{0}: {1} prices out at {2}. What it is composed of is worth "
+                      "less than nothing.").format(
+                        amenity_row.idx, frappe.bold(amenity_row.amenity),
+                        fmt_money(amenity_row.amenity_price),
+                    ),
+                    title=_("Negative amenity price"),
+                )
 
     def validate_payment_schedule_dates(self):
         """Reuses ERPNext's own duplicate-due-date / discount-date-ordering checks
@@ -570,30 +588,64 @@ class ButlerQuotation(Document):
     # sound system, floor extra). A row with an `annex` is an ANNEX row belonging to the
     # amenity row above it. See docs/quotation_pricing/annexes.md.
 
-    def group_amenity_rows(self):
-        """Walk the table in order and pair every amenity row with its annex rows.
+    def ensure_placement_ids(self):
+        """Give every row a `placement_id`, and make sure each annex row names one that
+        exists on this document.
 
-        A group is identified by the (amenity, floor_type, additional_amenity) key — the
-        same triple consolidation merges on. When that key legitimately repeats (Butler
-        Settings → "Disable Amenity Consolidation" lets one amenity sit on a floor more
-        than once) the key alone is ambiguous, so the *nearest preceding* amenity row
-        carrying it wins; `order_amenity_rows` keeps each group contiguous so that stays
-        well-defined across saves.
+        A placement id identifies one drawn amenity — the Facility Builder's `room.id`,
+        which it sends with each row. Nothing else does: a row typed into the form, a data
+        import, a `frappe.client.insert` caller. So this is not migration scaffolding, it
+        runs forever, and it is why no patch is needed for documents saved before the
+        field existed — the migration is each document's next save.
+
+        An annex row is adopted by the *nearest preceding* amenity row, which is
+        well-defined because `order_amenity_rows` re-establishes that contiguity on every
+        save. An annex row before any amenity row is left unstamped, so
+        `validate_row_types` still reports it as unattached.
+        """
+        current = None
+        for row in self.amenities:
+            if not row.annex:
+                if not row.placement_id:
+                    row.placement_id = frappe.generate_hash(length=8)
+                current = row.placement_id
+                continue
+            if current and not row.placement_id:
+                row.placement_id = current
+
+        # A stale id is as bad as a missing one: a row edited outside the builder can name
+        # a placement no longer on the document, which would read as an orphan and throw
+        # on a document nobody touched. Re-home those the same way.
+        known = {row.placement_id for row in self.amenities if not row.annex}
+        current = None
+        for row in self.amenities:
+            if not row.annex:
+                current = row.placement_id
+            elif current and row.placement_id not in known:
+                row.placement_id = current
+
+    def group_amenity_rows(self):
+        """Pair every amenity row with its annex rows, by `placement_id`.
+
+        Identity is explicit, so grouping no longer depends on where a row sits in the
+        table: `order_amenity_rows` keeps the layout tidy but is no longer what makes the
+        pairing correct. `ensure_placement_ids` guarantees every row carries a usable id
+        before this runs.
 
         Returns ``(groups, orphans)`` where groups is ``[(amenity_row, [annex_row, ...])]``
         and orphans are annex rows that match no amenity row.
         """
         groups = []
         orphans = []
-        latest = {}  # row key -> index of the most recent group opened for it
+        at = {}  # placement id -> index of its group
 
         for row in self.amenities:
             if not row.annex:
-                latest[amenity_row_key(row)] = len(groups)
+                at[row.placement_id] = len(groups)
                 groups.append((row, []))
                 continue
 
-            position = latest.get(amenity_row_key(row))
+            position = at.get(row.placement_id)
             if position is None:
                 orphans.append(row)
             else:
@@ -607,16 +659,94 @@ class ButlerQuotation(Document):
             row.idx = idx
         self.amenities = rows
 
-    def order_amenity_rows(self):
-        """Lay the table out as amenity row → its annex rows, group after group.
+    def carry_forward_overrides(self):
+        """Carry the quotation's own figures onto rows that have just been rebuilt.
 
-        Contiguity is what makes the (amenity, floor_type, additional_amenity) key
-        unambiguous when consolidation is off and the same key repeats, so it is
-        re-established on every save rather than trusted from the client.
+        The Facility Builder posts a fresh `amenities` table on every save — new rows, no
+        names, no prices. Without this, saving the layout would wipe every negotiated price
+        and every additional-amenity designation on the quotation. `placement_id` is what
+        makes the match possible: it survives the rebuild because the builder sends it.
+
+        This only restores what the incoming row left blank, so a form save that genuinely
+        sets a new price still wins. And it does not decide whether a carried price is an
+        override — `price_annex_row` and `track_add_on_price` already do that, by comparing
+        against the standard at the row's previous rate. All that was missing was the value
+        to compare.
+
+        Runs after `expand_amenity_rows`, so seeded rows are carried onto too.
+        """
+        before = self.get_doc_before_save()
+        if not before:
+            return  # an insert has nothing to carry
+
+        stored_amenity = {}
+        stored_annex = {}
+        for row in before.amenities:
+            if not row.placement_id:
+                continue
+            if not row.annex:
+                stored_amenity[row.placement_id] = row
+                continue
+            # a placement may legitimately hold the same annex twice, so queue them and
+            # pair by order of appearance rather than collapsing them onto one another
+            key = (row.placement_id, row.annex, row.annex_uom)
+            stored_annex.setdefault(key, deque()).append(row)
+
+        # the additional_amenity flag is set on the form and never sent by the builder, so
+        # it needs carrying too — but only where it means anything. clear_additional_
+        # amenities has already blanked it for a non-Bundle order, and it stays blanked.
+        carry_designation = self.order_type == "Bundle"
+
+        for amenity_row, annex_rows in self.group_amenity_rows()[0]:
+            prior = stored_amenity.get(amenity_row.placement_id)
+            if prior:
+                for fieldname in AMENITY_CARRY_FIELDS:
+                    if not flt(amenity_row.get(fieldname)):
+                        amenity_row.set(fieldname, prior.get(fieldname))
+                if carry_designation and not amenity_row.additional_amenity:
+                    amenity_row.additional_amenity = prior.additional_amenity
+
+            for annex_row in annex_rows:
+                queue = stored_annex.get(
+                    (amenity_row.placement_id, annex_row.annex, annex_row.annex_uom))
+                if not queue:
+                    continue
+                prior = queue.popleft()
+                for fieldname in ANNEX_CARRY_FIELDS:
+                    if not flt(annex_row.get(fieldname)):
+                        annex_row.set(fieldname, prior.get(fieldname))
+
+    def order_amenity_rows(self):
+        """Lay the table out as amenity row → its annex rows, group after group, keeping
+        every placement of one amenity together.
+
+        Cosmetic, not load-bearing: `group_amenity_rows` pairs rows by `placement_id`, so
+        nothing depends on the order. But one row per placement means a plan drawn
+        kitchen → office → kitchen reads back that way, and two lines of the same amenity
+        separated by a third is exactly what makes a long quotation hard to check.
+
+        Floor first, then amenity within it, both by **first appearance** rather than by
+        name: the duplicates come together without reordering anything else, so the table
+        still follows the order the floors and amenities were actually drawn in. Ranking
+        the floor separately is what keeps a floor's lines contiguous — keying on the pair
+        alone would let a second floor's amenity slot in between two of the first's.
         """
         groups, orphans = self.group_amenity_rows()
+
+        floor_rank = {}
+        amenity_rank = {}
+        decorated = []
+        for index, (amenity_row, annex_rows) in enumerate(groups):
+            floor = amenity_row.floor_type or ""
+            bucket = (floor, amenity_row.amenity or "")
+            floor_rank.setdefault(floor, len(floor_rank))
+            amenity_rank.setdefault(bucket, len(amenity_rank))
+            decorated.append(
+                (floor_rank[floor], amenity_rank[bucket], index, amenity_row, annex_rows)
+            )
+
         ordered = []
-        for amenity_row, annex_rows in groups:
+        for *_, amenity_row, annex_rows in sorted(decorated, key=lambda d: d[:3]):
             ordered.append(amenity_row)
             ordered.extend(annex_rows)
         ordered.extend(orphans)  # kept so validate_row_types can report them
@@ -633,133 +763,36 @@ class ButlerQuotation(Document):
             for fieldname in (ANNEX_ROW_FIELDS if not row.annex else AMENITY_ROW_FIELDS):
                 row.set(fieldname, None)
 
-    def consolidate_amenities(self):
-        """Merge amenity groups that share the same (amenity, floor_type,
-        additional_amenity), summing both `amenity_qty` and the annex quantities.
-
-        **Annex quantities are totals, not per-unit figures.** Two kitchens each holding
-        one display panel merge into one line of two kitchens and two panels — the
-        quantity a quotation is actually for. `amenity_qty` is therefore *not* a
-        multiplier over the annexes; it only multiplies the per-amenity add-ons, which
-        are genuinely per unit. See docs/quotation_pricing/annexes.md.
-
-        Summing is also what keeps a merge honest when the units are not identical. Two
-        annex rows only fold together when they agree on annex, uom and price, so a unit
-        whose panel count was lowered or whose price was discounted contributes its own
-        quantity at its own rate instead of being flattened into its twin.
-
-        Skipped when Butler Settings → "Disable Amenity Consolidation" is on, which is
-        precisely the case where a repeated key is intentional.
-        """
-        if frappe.db.get_single_value("Butler Settings", "disable_amenity_consolidation"):
-            return
-
-        groups, orphans = self.group_amenity_rows()
-        merged = {}  # row key -> (kept amenity row, {annex key: kept annex row})
-
-        for amenity_row, annex_rows in groups:
-            key = amenity_row_key(amenity_row)
-            if key in merged:
-                target = merged[key][0]
-                target.amenity_qty = flt(target.amenity_qty) + flt(amenity_row.amenity_qty)
-            else:
-                merged[key] = (amenity_row, {})
-
-            self.absorb_annex_rows(merged[key][1], annex_rows)
-
-        ordered = []
-        for amenity_row, kept_annexes in merged.values():
-            ordered.append(amenity_row)
-            ordered.extend(kept_annexes.values())
-        ordered.extend(orphans)
-        self.set_amenity_rows(ordered)
-
-    def absorb_annex_rows(self, kept, annex_rows):
-        """Fold `annex_rows` into `kept` (an annex key -> row map), adding quantities.
-
-        Priced rows go first so that an unpriced one can find them. A row the Facility
-        Builder has just seeded carries no price yet — pricing runs later, in `validate`
-        — and would otherwise read as a different line from the identical row it is a
-        duplicate of, splitting one annex across two lines until the next save. It folds
-        into the single priced row for its annex when there is exactly one; where there
-        are several at different prices, which one it belongs to is the very thing not to
-        guess at, so it stands on its own.
-        """
-        def fold(annex_row, twin):
-            twin.annex_quantity = flt(twin.annex_quantity) + flt(annex_row.annex_quantity)
-
-        unpriced = []
-        for annex_row in annex_rows:
-            if not flt(annex_row.qtn_annex_price):
-                unpriced.append(annex_row)
-                continue
-            twin = kept.get(annex_row_key(annex_row))
-            fold(annex_row, twin) if twin else kept.setdefault(
-                annex_row_key(annex_row), annex_row)
-
-        for annex_row in unpriced:
-            candidates = [row for key, row in kept.items()
-                          if key[:2] == annex_row_key(annex_row)[:2]]
-            if len(candidates) == 1:
-                fold(annex_row, candidates[0])
-            else:
-                kept.setdefault(annex_row_key(annex_row), annex_row)
-
-    def rescale_annex_quantities(self):
-        """Keep a row's annex totals in step when its `amenity_qty` changes.
-
-        Annex quantities are totals across the row's units, so going from two kitchens to
-        three has to take the panels with it. Consolidation covers the case where the
-        count changes by rows merging — it adds their quantities up — and this covers the
-        other one: a count edited in place, or the Facility Builder sending a new one for
-        a placement it already knows about.
-
-        Compared against the *stored* row, so it moves once per real change and re-saving
-        is a no-op. New rows have nothing to compare against and need none: they are
-        seeded at the right scale by `expand_amenity_rows`.
-        """
-        before = self.get_doc_before_save()
-        if not before:
-            return
-        previous = {row.name: flt(row.amenity_qty)
-                    for row in before.amenities if not row.annex}
-
-        for amenity_row, annex_rows in self.group_amenity_rows()[0]:
-            was, now = previous.get(amenity_row.name), flt(amenity_row.amenity_qty)
-            if not was or not now or abs(now - was) <= 0.0001:
-                continue
-            for annex_row in annex_rows:
-                annex_row.annex_quantity = flt(annex_row.annex_quantity) * now / was
-
     def expand_amenity_rows(self):
         """Seed an amenity row's annex rows from its Amenity's own `annexes` table.
 
         Every entry point — the Facility Builder, a data import, the API — only has to
         send the amenity row (amenity + floor_type) and gets a fully composed quotation
-        line back. A group that already carries annex rows is left untouched, so edits
-        and deliberate deletions survive a re-save.
+        line back. Seeded straight from the master: one quotation row is one drawn
+        placement, so the master's quantities need no scaling.
 
-        The Amenity states its annex quantities per unit; a quotation row carries totals,
-        so the seed is scaled by `amenity_qty`. Only ever seeded once — a group that
-        already has annex rows is skipped — so this cannot compound.
+        Skipped for a group that already carries annex rows, and for one flagged
+        `annexes_customised` — that flag is how a placement says "these annexes are mine,
+        including none at all". Without it, emptying a placement's annexes would silently
+        re-seed them on the next save.
         """
         groups, orphans = self.group_amenity_rows()
         ordered = []
 
         for amenity_row, annex_rows in groups:
             ordered.append(amenity_row)
-            if annex_rows or not amenity_row.amenity:
+            if annex_rows or cint(amenity_row.annexes_customised) or not amenity_row.amenity:
                 ordered.extend(annex_rows)
                 continue
 
-            units = flt(amenity_row.amenity_qty) or 1.0
             for source in frappe.get_cached_doc("Amenity", amenity_row.amenity).annexes:
                 ordered.append(self.append("amenities", {
+                    "placement_id": amenity_row.placement_id,
                     "amenity": amenity_row.amenity,
                     "floor_type": amenity_row.floor_type,
                     "additional_amenity": amenity_row.additional_amenity,
                     "annex": source.annex,
-                    "annex_quantity": flt(source.qty) * units,
+                    "annex_quantity": flt(source.qty),
                     "annex_uom": source.uom,
                 }))
 
@@ -776,9 +809,15 @@ class ButlerQuotation(Document):
         orders only:
           • Unfulfilled — an included category has fewer amenities than its configured
             count.
-          • Undesignated overflow — an included category has MORE than configured but
-            no row is ticked additional_amenity, so the overflow can't be priced.
-        Counts sum each line's qty. Both are a non-blocking warning during `validate`
+          • Undesignated overflow — an included category holds MORE than configured once
+            the ticked rows are set aside, so the surplus can't be priced.
+
+        Both are measured on `included = placed − ticked`: every row is one placement, and
+        a ticked one is an extra being charged separately, so what the bundle actually
+        covers is the rest. Counting ticks rather than noting "this category has at least
+        one" is what stops a single tick licensing an overflow of any size.
+
+        Both are a non-blocking warning during `validate`
         (enforce=False), and governed by Butler Settings → action_if_bundle_items_
         unfulfilled (+ override role) at `before_submit` (enforce=True).
         """
@@ -789,7 +828,7 @@ class ButlerQuotation(Document):
 
         # Resolve the category straight from the Amenity (cached) so the count is
         # reliable regardless of when fetch_from runs in the save/submit flow.
-        placed, ticked = {}, set()
+        placed, ticked = {}, {}
         for row in self.amenities:
             if row.annex or not row.amenity:
                 continue  # bundle composition counts amenities, not their annexes
@@ -797,16 +836,17 @@ class ButlerQuotation(Document):
                 "Amenity", row.amenity, "amenity_category")
             if not category:
                 continue
-            placed[category] = placed.get(category, 0) + cint(row.amenity_qty)
+            placed[category] = placed.get(category, 0) + 1
             if row.additional_amenity:
-                ticked.add(category)
+                ticked[category] = ticked.get(category, 0) + 1
+
+        def included(category):
+            return placed.get(category, 0) - ticked.get(category, 0)
 
         unfulfilled = [
-            (c, placed.get(c, 0), n) for c, n in configured.items() if placed.get(c, 0) < n
+            (c, included(c), n) for c, n in configured.items() if included(c) < n
         ]
-        undesignated = [
-            c for c, n in configured.items() if placed.get(c, 0) > n and c not in ticked
-        ]
+        undesignated = [c for c, n in configured.items() if included(c) > n]
         if not unfulfilled and not undesignated:
             return
 
@@ -820,7 +860,9 @@ class ButlerQuotation(Document):
         if undesignated:
             message += _("These categories have extra amenities not marked as additional:") \
                 + "<ul>" + "".join(
-                    "<li>{0}</li>".format(frappe.bold(c)) for c in sorted(undesignated)
+                    "<li>{0} &mdash; {1} beyond the bundle, none ticked</li>".format(
+                        frappe.bold(c), included(c) - configured[c])
+                    for c in sorted(undesignated)
                 ) + "</ul>"
 
         title = _("Bundle items unfulfilled")
@@ -912,7 +954,10 @@ class ButlerQuotation(Document):
                 frappe.get_cached_doc("Amenity", amenity_row.amenity)
                 if amenity_row.amenity else None
             )
-            amenity_row.amenity_qty = flt(amenity_row.amenity_qty) or 1.0
+            # One row IS one drawn placement, so the quantity is definitionally 1. Pinned
+            # here rather than trusted: calculate_totals runs before both
+            # validate_bundle_amenities and calculate_additional_total, which count it.
+            amenity_row.amenity_qty = 1.0
             # the rate that produced the prices currently on the row, kept before it moves
             previous_qtn_rate = flt(amenity_row.qtn_exchange_rate) or 1.0
             # Per-row rates, both derived from the exchange_rates table so a currency
@@ -940,16 +985,12 @@ class ButlerQuotation(Document):
             sound_amount = self.price_sound_system(amenity_row, amenity, rates)
             floor_amount = self.price_floor_extra(amenity_row, amenity, rates)
 
-            # amenity_price is PER UNIT, in the amenity's own currency — the figure the
-            # additional-amenity overflow is charged at, so it has to stay per unit.
-            #
-            # The annexes are already totals across every unit of this row (consolidation
-            # adds their quantities up), so they are divided back down; the add-ons are
-            # genuinely per unit and are not. Multiplying by amenity_qty below therefore
-            # restores the annex total exactly and projects the add-ons out once.
-            units = flt(amenity_row.amenity_qty)
+            # The price of this one placement, in the amenity's own currency — the figure
+            # an additional-amenity overflow is charged at. With one row per placement
+            # there is no per-unit/total distinction left to draw: the annexes belong to
+            # this placement, and its add-ons are fitted to it once.
             amenity_row.amenity_price = (
-                annex_total / units + light_amount + sound_amount + floor_amount)
+                annex_total + light_amount + sound_amount + floor_amount)
             amenity_row.qtn_amenity_price = (
                 flt(amenity_row.amenity_price) * flt(amenity_row.qtn_exchange_rate))
             amenity_row.qtn_amenity_amount = (
@@ -1198,9 +1239,14 @@ class ButlerQuotation(Document):
         """Charge for amenities beyond the bundle composition, per
         docs/quotation_pricing/additional-amenities.md:
           • category NOT in bundle_items → every row's amount (auto-additional);
-          • category IN bundle_items with overflow → (first ticked row's unit price)
-            × (placed_qty − configured_count); the ticked row supplies the price, the
-            category supplies the overflow quantity.
+          • category IN bundle_items → the amount of each row ticked `additional_amenity`.
+
+        Each ticked row is charged **at its own price**. The old rule took the first
+        ticked row's unit price and multiplied it by the overflow count, which was a
+        consequence of consolidation: N placements had collapsed into one row, so there
+        was nothing per-placement to tick and one row had to stand in for all of them.
+        It also mispriced — three extras of different amenities were all billed at the
+        first one's rate. One row per placement makes the honest rule the simple one.
 
         Amenity rows only — an annex is priced into its amenity, never charged twice.
         The amenity's own price already carries the floor extra, so there is no separate
@@ -1223,13 +1269,8 @@ class ButlerQuotation(Document):
                 # whole category is extra
                 total += sum(flt(r.qtn_amenity_amount) for r in rows)
                 continue
-            excess = sum(cint(r.amenity_qty) for r in rows) - configured[category]
-            if excess <= 0:
-                continue
-            ticked = next((r for r in rows if r.additional_amenity), None)
-            if not ticked:
-                continue  # undesignated overflow — validate_bundle_amenities warns/blocks
-            total += flt(ticked.qtn_amenity_price) * excess
+            # an untick\ed overflow is undesignated — validate_bundle_amenities reports it
+            total += sum(flt(r.qtn_amenity_amount) for r in rows if r.additional_amenity)
         return total
 
     def calculate_discount_taxes_and_totals(self):
@@ -1811,42 +1852,32 @@ def _make_sales_order(source_name, target_doc=None, ignore_permissions=False):
 
             # 2. Additional amenity lines — mirrors calculate_additional_total exactly:
             #    • category NOT in bundle_items → every row charged (auto-additional)
-            #    • category IN bundle_items with overflow → ticked row @ excess qty
+            #    • category IN bundle_items → every row ticked additional_amenity
+            # Both branches now map one SO line per quotation row, so `sum(these lines)`
+            # equals `additional_total` by construction. Keep the two in lockstep.
             configured = {r.amenity_category: cint(r.amenity_count) for r in source.bundle_items}
 
             rows_by_cat = {}
             for row in source.amenities:
-                if not row.amenity:
+                # annex rows are priced into their amenity and carry no amenity_qty or
+                # price of their own — mapping them appended SO lines with a null qty
+                if row.annex or not row.amenity:
                     continue
                 category = frappe.get_cached_value("Amenity", row.amenity, "amenity_category")
                 if category:
                     rows_by_cat.setdefault(category, []).append(row)
 
             for category, rows in rows_by_cat.items():
-                if category not in configured:
-                    # auto-additional: map every row directly
-                    for row in rows:
-                        target.append("items", {
-                            "item_code": get_amenity_item(row.amenity),
-                            "qty": row.amenity_qty,
-                            "rate": row.qtn_amenity_price,
-                            "butler_quotation": source.name,
-                            "butler_quotation_item": row.name,
-                        })
-                else:
-                    # in-bundle overflow: ticked row at excess qty
-                    excess = sum(cint(r.amenity_qty) for r in rows) - configured[category]
-                    if excess <= 0:
-                        continue
-                    ticked = next((r for r in rows if r.additional_amenity), None)
-                    if not ticked:
-                        continue  # undesignated — validate_bundle_amenities handles this
+                charged = rows if category not in configured else [
+                    r for r in rows if r.additional_amenity
+                ]
+                for row in charged:
                     target.append("items", {
-                        "item_code": get_amenity_item(ticked.amenity),
-                        "qty": excess,
-                        "rate": ticked.qtn_amenity_price,
+                        "item_code": get_amenity_item(row.amenity),
+                        "qty": row.amenity_qty,
+                        "rate": row.qtn_amenity_price,
                         "butler_quotation": source.name,
-                        "butler_quotation_item": ticked.name,
+                        "butler_quotation_item": row.name,
                     })
 
         target.run_method("calculate_taxes_and_totals")

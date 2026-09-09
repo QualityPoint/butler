@@ -45,7 +45,7 @@
 		<v-text :config="labelConfig" :listening="false" />
 
 		<!-- edge midpoint "add" handles (selected polygon/line only; not while drawing it) -->
-		<template v-if="isPath && isSelected && !isPenRoom">
+		<template v-if="isPath && isSelected && !isPenRoom && isDrawingLayer">
 			<v-circle
 				v-for="m in midpointList"
 				:key="'mid-' + m.index"
@@ -56,7 +56,7 @@
 		</template>
 
 		<!-- corner vertex handles (selected polygon/line only; not while drawing it) -->
-		<template v-if="isPath && isSelected && !isPenRoom">
+		<template v-if="isPath && isSelected && !isPenRoom && isDrawingLayer">
 			<v-circle
 				v-for="v in vertexList"
 				:key="v.index"
@@ -79,6 +79,9 @@ const props = defineProps(["room"]);
 const store = inject("$store");
 
 const isSelected = computed(() => store.is_selected(props.room.id));
+// Features is a select-only layer: a room can be picked so its contents can be edited,
+// but not moved, resized, rotated or reshaped. Everything geometric hangs off this.
+const isDrawingLayer = computed(() => store.active_layer.value === "drawing");
 const isPenRoom = computed(() => store.pen_room_id.value === props.room.id); // being drawn
 // point-list shapes that carry editable vertex/midpoint handles (closed polygon or open line)
 const isPath = computed(() => props.room.shape === "polygon" || props.room.shape === "line");
@@ -96,13 +99,27 @@ const groupConfig = computed(() => ({
 	rotation: props.room.rotation || 0,
 	opacity: store.rooms_opacity.value,
 	draggable:
+		isDrawingLayer.value &&
 		!store.read_only.value &&
 		store.active_tool.value !== "pen" &&
 		store.pen_room_id.value !== props.room.id,
 }));
 
-const strokeColor = computed(() => (isSelected.value ? "#2490ef" : "#9aa0ac"));
-const strokeWidth = computed(() => (isSelected.value ? 2 : 1));
+const strokeColor = computed(() => {
+	if (isSelected.value) return "#2490ef";
+	// on the Features layer, a placement whose contents differ from its Amenity's
+	// standard composition is worth spotting without clicking every room
+	if (store.active_layer.value === "features" && store.has_custom_features(props.room)) {
+		return "#e6a23c";
+	}
+	return "#9aa0ac";
+});
+const strokeWidth = computed(() =>
+	isSelected.value ||
+	(store.active_layer.value === "features" && store.has_custom_features(props.room))
+		? 2
+		: 1
+);
 
 const rectConfig = computed(() => ({
 	width: props.room.w,
@@ -142,7 +159,8 @@ watchEffect(async () => {
 		iconImage.value = null;
 		return;
 	}
-	iconImage.value = await load_icon_image(props.room.icon, pointColor.value);
+	// solid, not outlined: a marker's colour is the marker's, and it has to read at 24px
+	iconImage.value = await load_icon_image(props.room.icon, { color: pointColor.value });
 });
 
 const pointImageConfig = computed(() => {

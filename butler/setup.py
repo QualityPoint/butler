@@ -25,8 +25,9 @@ def setup_butler_settings():
     never clobbers a configured site (safe to also call from after_migrate / a patch).
     """
     defaults = {
-        "disable_amenity_consolidation": 0,
-        "maintain_standard_price_action": "Stop",
+        # note: maintain_ANNEX_price_action. It was seeded under a name no field has ever
+        # had, so this default has never actually applied on any install.
+        "maintain_annex_price_action": "Stop",
     }
 
     settings = frappe.get_single("Butler Settings")

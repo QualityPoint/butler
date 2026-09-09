@@ -44,7 +44,7 @@ For each amenity group (see [annexes.md](./annexes.md) for each component's form
 | `floor_amount` | `floor_price × floor_qty` |
 | `amenity_price` | `Σ annex_amount + light + sound + floor` — **per unit**, amenity currency |
 | `qtn_amenity_price` | `amenity_price × qtn_exchange_rate` |
-| `qtn_amenity_amount` | `qtn_amenity_price × amenity_qty` |
+| `qtn_amenity_amount` | `qtn_amenity_price × amenity_qty` (always 1 — one row is one placement) |
 
 Where:
 
@@ -67,7 +67,7 @@ editable price with a published standard. See
 ## Step 3 — Header totals
 
 ```
-amenity_count = Σ amenity_qty            (amenity rows only)
+amenity_count = number of amenity rows   (one per drawn placement)
 total         = Σ qtn_amenity_amount     (quotation currency)
 net_total     = total − discount
 ```
@@ -105,6 +105,6 @@ Facility is a Villa on 1 floor. Amenity **Lounge** (`depends_on_floor_count = 1`
 
 ```
 amenity_price      = 200 + 500 + 50 + 80 + 200 = 1030      (per unit)
-qtn_amenity_amount = 1030 × amenity_qty 2      = 2060
+qtn_amenity_amount = 1030 × amenity_qty 1      = 1030
 total                                          = 2060
 ```

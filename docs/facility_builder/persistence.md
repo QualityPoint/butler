@@ -53,7 +53,7 @@ save_quotation():
     quotation.value.geometry    = JSON.stringify(design.value)  // layout store
     quotation.value.order_type  = order_type.value              // write filters back
     quotation.value.bundle_type = order_type === "Bundle" ? bundle_type.value : null
-    quotation.value.amenities   = build_amenity_rows()          // distinct (amenity+floor_type), qty = count
+    quotation.value.amenities   = build_amenity_rows()          // one row per placement + its annex rows
 
     frappe.client.save({ doc: quotation.value }).then(() => fetch())
 ```
@@ -72,7 +72,7 @@ create_quotation():
     }}).then(r => frappe.set_route("facility-builder", "quotation", r.message.name))
 ```
 
-`geometry` is `hidden=1, read_only=1, no_copy=1` on the quotation — a machine field, never hand-edited. (The **Facility no longer has a geometry field**.)
+`geometry` is `hidden=1, read_only=1` on the quotation — a machine field, never hand-edited. (The **Facility no longer has a geometry field**.)
 
 ### Blueprint files save the Facility, not the Quotation
 
