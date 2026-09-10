@@ -5,7 +5,7 @@
 		<template v-for="a in placed" :key="a.key">
 			<!-- the Annex's own icon when it has one, else a lettered chip so an annex is
 			     never invisible just because nobody has picked an icon for it yet -->
-			<v-image v-if="images[a.key]" :config="a.image_config" />
+			<v-image v-if="a.image_config.image" :config="a.image_config" />
 			<template v-else>
 				<v-circle :config="a.chip_config" />
 				<v-text :config="a.initial_config" />
@@ -47,24 +47,30 @@ const annexes = computed(() => {
 	}));
 });
 
-// annex name -> HTMLImageElement (or null once we know it has no usable icon)
+// `icon|colour` -> HTMLImageElement, or null while one is in flight.
+//
+// Keyed by what is actually drawn, NOT by the annex. The master catalogue is fetched
+// asynchronously (set_active_layer kicks it off and returns), so this component mounts
+// while every annex still has `icon: undefined`. Keying by annex name claimed that slot
+// permanently, and the icon arriving a moment later never got asked for — the row stayed
+// on its lettered fallback until the component was destroyed, which is exactly what
+// toggling Drawing/Features does. A changing icon is now a different key, so it is.
+//
+// The colour is in the key for the same reason: it is baked into the bitmap, so a
+// recoloured category re-renders rather than reusing the old tint.
 const images = ref({});
-let inked = null; // the colour the current images were rendered in
+const image_key = (annex, color) => `${annex.icon}|${color}`;
 
 watch(
 	[annexes, ink],
 	([list, color]) => {
-		// the colour is baked into the bitmap, so recolouring means re-rendering
-		if (color !== inked) {
-			inked = color;
-			images.value = {};
-		}
 		for (const annex of list) {
-			if (annex.annex in images.value) continue; // asked already
-			images.value[annex.annex] = null; // claim the slot so we ask once
-			if (!annex.icon) continue;
+			if (!annex.icon) continue; // nothing to ask for yet
+			const key = image_key(annex, color);
+			if (key in images.value) continue; // asked already
+			images.value[key] = null; // claim the slot so we ask once
 			load_icon_image(annex.icon, { color, outline: true }).then((image) => {
-				if (image && inked === color) images.value[annex.annex] = image;
+				if (image) images.value[key] = image;
 			});
 		}
 	},
@@ -90,7 +96,7 @@ const placed = computed(() => {
 		const y = top + Math.floor(index / columns) * (SIZE + GAP);
 		return {
 			key: annex.annex,
-			image_config: { image: images.value[annex.annex], x, y, width: SIZE, height: SIZE },
+			image_config: { image: images.value[image_key(annex, ink.value)], x, y, width: SIZE, height: SIZE },
 			chip_config: {
 				x: x + SIZE / 2,
 				y: y + SIZE / 2,

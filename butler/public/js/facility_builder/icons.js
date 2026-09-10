@@ -25,12 +25,43 @@ export function load_icon_image(name, { color, outline = false } = {}) {
 	const key = `${name}|${paint}|${outline ? "outline" : "solid"}`;
 	if (cache.has(key)) return cache.get(key);
 
-	const promise = new Promise((resolve) => {
-		const symbol = document.getElementById("icon-" + name);
-		if (!symbol) {
-			resolve(null);
-			return;
-		}
+	const promise = find_symbol(name).then((symbol) => {
+		if (!symbol) return null;
+		return draw(symbol, paint, outline);
+	});
+
+	cache.set(key, promise);
+	// Never let a failure stick. Concurrent callers still share the promise while it is in
+	// flight, but a null result is dropped so the next render asks again instead of being
+	// served a cached miss for the rest of the session.
+	promise.then((image) => {
+		if (!image) cache.delete(key);
+	});
+	return promise;
+}
+
+// Frappe injects its icon sprite with `fetch(...).then(svg => insertAdjacentHTML(...))`
+// (jinja_globals.include_icons), so during boot "not found" means "not yet". Wait for it
+// rather than resolving to null — bounded, so a genuinely unknown icon name still settles
+// on the lettered fallback quickly instead of hanging.
+function find_symbol(name, timeout = 3000, interval = 50) {
+	const get = () => document.getElementById("icon-" + name);
+	const found = get();
+	if (found) return Promise.resolve(found);
+
+	return new Promise((resolve) => {
+		const deadline = Date.now() + timeout;
+		const tick = () => {
+			const symbol = get();
+			if (symbol || Date.now() >= deadline) resolve(symbol || null);
+			else setTimeout(tick, interval);
+		};
+		setTimeout(tick, interval);
+	});
+}
+
+function draw(symbol, paint, outline) {
+	return new Promise((resolve) => {
 		const viewBox = symbol.getAttribute("viewBox") || "0 0 24 24";
 		// a symbol that does declare currentColor still has nothing to resolve it against
 		const inner = symbol.innerHTML.replace(/currentColor/g, paint);
@@ -46,7 +77,4 @@ export function load_icon_image(name, { color, outline = false } = {}) {
 		img.onerror = () => resolve(null);
 		img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
 	});
-
-	cache.set(key, promise);
-	return promise;
 }
