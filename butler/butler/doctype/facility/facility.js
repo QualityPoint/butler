@@ -25,6 +25,44 @@ frappe.ui.form.on("Facility", {
         }
     },
 
+    // Resolve whatever was pasted from Google Maps (link, plus code, address or
+    // "lat, lng") into a pin. Only `location` is written: the `location` handler
+    // below already syncs latitude/longitude and enforces the single-pin rule, so
+    // writing the floats too would push the same value back the other way.
+    assign_location(frm) {
+        if (!frm.doc.google_maps_location) {
+            frappe.show_alert({
+                message: __("Enter a Google Maps location first."),
+                indicator: "orange",
+            });
+            return;
+        }
+
+        frappe.call({
+            method: "butler.utils.location.map_location.resolve_map_location",
+            args: { value: frm.doc.google_maps_location },
+            freeze: true,
+            freeze_message: __("Resolving location…"),
+            callback(r) {
+                if (!r.message) return;
+                const { latitude, longitude, matched_address } = r.message;
+
+                frm.set_value(
+                    "location",
+                    butler.geolocation.build_geolocation_json(latitude, longitude)
+                );
+                frm.refresh_field("location");
+
+                frappe.show_alert({
+                    message: __("Location set: {0}", [
+                        matched_address || `${latitude}, ${longitude}`,
+                    ]),
+                    indicator: "green",
+                });
+            },
+        });
+    },
+
     // Sync geolocation to float fields when location changes (including "Clear All")
     location(frm) {
         butler.geolocation.sync_geolocation_to_floats(frm, 'location', 'latitude', 'longitude');

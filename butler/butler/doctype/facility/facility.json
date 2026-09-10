@@ -16,6 +16,11 @@
   "latitude",
   "longitude",
   "column_break_srtl",
+  "google_maps_location",
+  "assign_location",
+  "section_break_nosu",
+  "territory",
+  "column_break_idxx",
   "address_html",
   "references_section",
   "links"
@@ -64,6 +69,7 @@
   {
    "fieldname": "location_section",
    "fieldtype": "Section Break",
+   "hide_border": 1,
    "label": "Location"
   },
   {
@@ -106,13 +112,39 @@
    "hidden": 1,
    "label": "Image",
    "no_copy": 1
+  },
+  {
+   "description": "Paste a plus code with its city (<code>FHPQ+WC Madinah</code>), a Google Maps link, an address, or <code>latitude, longitude</code> \u2014 then click Assign Location.",
+   "fieldname": "google_maps_location",
+   "fieldtype": "Data",
+   "label": "Google Maps Location"
+  },
+  {
+   "fieldname": "assign_location",
+   "fieldtype": "Button",
+   "label": "Assign Location"
+  },
+  {
+   "fieldname": "section_break_nosu",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "territory",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Territory",
+   "options": "Territory"
+  },
+  {
+   "fieldname": "column_break_idxx",
+   "fieldtype": "Column Break"
   }
  ],
  "grid_page_length": 50,
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-06-18 15:00:54.419961",
+ "modified": "2026-09-09 13:18:17.177469",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Facility",
