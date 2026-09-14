@@ -65,10 +65,11 @@ One table, **two row types** — an amenity row (`annex` empty) and its annex ro
 | `amenity_price` | Currency (ro) | Σ annexes + light + sound + floor, for this placement |
 | `qtn_amenity_price` / `qtn_amenity_amount` | Currency (ro) | `× qtn_exchange_rate` |
 | `qtn_amenity_net_price` / `qtn_amenity_net_amount` | Currency (ro) | pro-rata share of the header discount |
-| `light_system` | Link → Light System | user-set; which of the amenity's systems |
-| `used_lines` / `total_lines` / `light_system_pricing_mode` | (ro) | copied from `Amenity.light_systems` |
+| `light_system` | Link → Light System | user-set, any system in the master; blank adopts the default and is written back |
+| `used_lines` / `total_lines` / `light_system_pricing_mode` | (ro) | copied from `Amenity.light_systems`, or the master when it configures none (then `used_lines = total_lines`) |
 | `light_system_price` / `qtn_light_system_price` | Currency | `qtn_` is editable |
-| `light_system_amount` | Currency (ro) | `0` · `+price` · `−price` per the mode |
+| `light_system_amount` | Currency (ro) | `±price × used_lines` per the mode |
+| `default_system` / `default_system_lines` / `default_system_price` / `default_system_pricing_mode` / `default_system_amount` | (ro) | the default system covering the lines the selection did not, with `qtn_`/`base_` mirrors |
 | `has_sound_system` | Check (user-set) | the only "fitted / not fitted" signal |
 | `sound_system_price` / `qtn_sound_system_price` | Currency | flat; `qtn_` is editable |
 | `floor_price` / `qtn_floor_price` | Currency | from `Amenity.floor_extra_price`; `qtn_` is editable |
@@ -120,7 +121,7 @@ An amenity has **no flat price** — it is composed from its annexes.
 | `currency` | Link → Currency | the currency everything on the amenity is priced in |
 | `annexes` | Table → Amenity Annex Item | `annex`, `qty`, `uom`, `rate` — the composition |
 | `total` | Currency (ro) | `Σ qty × rate` over `annexes` — **annexes only**, no add-ons |
-| `light_systems` | Table → Amenity Light System | `system_name`, `used_lines`, `price`, `pricing_mode` — **alternative** ways to wire the amenity; a quotation line picks one |
+| `light_systems` | Table → Amenity Light System | `system_name`, `used_lines`, `price`, `pricing_mode` — **alternative** ways to wire the amenity; a quotation line picks one, and the default system fills the lines it leaves |
 | `sound_system_price` | Currency | a single flat price; no mode, nothing to choose |
 | `depends_on_floor_count` | Check | enables `floor_extra_price` |
 | `floor_extra_price` | Currency | multiplied by the floor count and **added** to the price |

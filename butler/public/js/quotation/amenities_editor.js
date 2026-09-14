@@ -532,7 +532,10 @@ butler.ui.AmenityCard = class AmenityCard {
     // has light systems, a sound toggle when it carries a sound price, a floor extra when
     // it is floor-dependent. Anything else would be a control that can never do anything.
     render_add_ons(opts) {
-        const has_light = (opts.light_systems || []).length > 0;
+        // A light system is always fitted now — an amenity that configures none still gets
+        // the default, priced from the master across all its lines — so unlike sound and
+        // the floor extra this is never absent.
+        const has_light = true;
         const has_sound = flt(opts.sound_system_price) > 0;
         const has_floor = cint(opts.depends_on_floor_count) === 1;
         if (!has_light && !has_sound && !has_floor) return;
@@ -568,10 +571,8 @@ butler.ui.AmenityCard = class AmenityCard {
             this.make_field($picker, row, {
                 fieldname: "light_system", fieldtype: "Link", options: "Light System",
                 label: __("Light System"),
-                // only the systems this Amenity configures — the price and mode come with it
-                get_query: () => ({
-                    filters: { name: ["in", opts.light_systems.map((l) => l.system_name)] },
-                }),
+                // the whole master, not just what this Amenity configures: an unconfigured
+                // system is priced from its own standard rate across every line
             });
 
             // The price and the hint are built now and revealed by sync, the way a
@@ -587,16 +588,43 @@ butler.ui.AmenityCard = class AmenityCard {
             // carries the *previous* pick until the recalc lands.
             const $hint = hint($picker, () => {
                 const system = (opts.light_systems || [])
-                    .find((l) => l.system_name === this.row.light_system) || {};
-                return [
-                    __("{0} of {1} lines", [cint(system.used_lines), cint(opts.lines)]),
-                    system.pricing_mode || "",
-                ].filter(Boolean).join(" · ");
+                    .find((l) => l.system_name === this.row.light_system);
+                if (system) {
+                    return [
+                        __("{0} of {1} lines", [cint(system.used_lines), cint(opts.lines)]),
+                        system.pricing_mode || "",
+                    ].filter(Boolean).join(" · ");
+                }
+                // Not configured on this amenity, so there is no line split to describe:
+                // it covers everything at its own standard rate. An empty pick says which
+                // way it will be resolved rather than reading as "no light system".
+                return this.row.light_system
+                    ? __("all {0} lines · standard rate", [cint(opts.lines)])
+                    : __("default system · all {0} lines", [cint(opts.lines)]);
             });
+
+            // What the server decided covered the rest. An output, not an input — there is
+            // nothing in `opts` to compute it from, so it is read off the row, and it only
+            // appears once a recalc has landed.
+            const $fill = slot($line, "12rem");
+            $(`<label class="control-label"></label>`).text(__("Default Fill")).appendTo($fill);
+            const $fill_text = $(`
+                <div style="height:28px;display:flex;align-items:center;font-size:.9em"></div>
+            `).appendTo($fill);
+
             this.body_syncers.push(() => {
                 const chosen = Boolean(this.row.light_system);
                 $price.toggle(chosen);
                 $hint.toggle(chosen);
+
+                const filled = cint(this.row.default_system_lines);
+                $fill.toggle(Boolean(this.row.default_system && filled));
+                if (!filled) return;
+                $fill_text.text(__("{0} · {1} lines · {2}", [
+                    this.row.default_system,
+                    filled,
+                    format_currency(this.row.qtn_default_system_amount, this.frm.doc.currency),
+                ]));
             });
         }
 

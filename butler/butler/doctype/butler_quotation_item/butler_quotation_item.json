@@ -59,6 +59,19 @@
   "column_break_rqow",
   "base_light_system_price",
   "base_light_system_amount",
+  "default_system_section",
+  "default_system",
+  "default_system_lines",
+  "column_break_dsfl",
+  "default_system_pricing_mode",
+  "default_system_price",
+  "default_system_amount",
+  "section_break_dsfl",
+  "qtn_default_system_price",
+  "qtn_default_system_amount",
+  "column_break_dsfr",
+  "base_default_system_price",
+  "base_default_system_amount",
   "sound_system_section",
   "sound_system_price",
   "sound_system_amount",
@@ -830,6 +843,95 @@
   {
    "fieldname": "column_break_pwin",
    "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.default_system",
+   "description": "The lines the selected light system does not cover are fitted with the default system. Priced from the Amenity's own row for that system when it configures one, otherwise from the Light System master.",
+   "fieldname": "default_system_section",
+   "fieldtype": "Section Break",
+   "hide_border": 1,
+   "label": "Default Light System Fill"
+  },
+  {
+   "fieldname": "default_system",
+   "fieldtype": "Link",
+   "label": "Default Light System",
+   "options": "Light System",
+   "read_only": 1
+  },
+  {
+   "fieldname": "default_system_lines",
+   "fieldtype": "Int",
+   "label": "Lines Filled",
+   "non_negative": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_dsfl",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "default_system_pricing_mode",
+   "fieldtype": "Select",
+   "label": "Fill Pricing Mode",
+   "options": "\nAdd\nSubtract",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "default_system_price",
+   "fieldtype": "Currency",
+   "label": "Default System Price (Amenity Currency)",
+   "options": "amenity_currency",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "default_system_amount",
+   "fieldtype": "Currency",
+   "label": "Default System Amount (Amenity Currency)",
+   "options": "amenity_currency",
+   "precision": "2",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_dsfl",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "qtn_default_system_price",
+   "fieldtype": "Currency",
+   "label": "Default System Price",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "qtn_default_system_amount",
+   "fieldtype": "Currency",
+   "label": "Default System Amount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_dsfr",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "base_default_system_price",
+   "fieldtype": "Currency",
+   "label": "Default System Price",
+   "options": "Company:company:default_currency",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "base_default_system_amount",
+   "fieldtype": "Currency",
+   "label": "Default System Amount",
+   "options": "Company:company:default_currency",
+   "print_hide": 1,
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,

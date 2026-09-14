@@ -28,6 +28,7 @@ export function getStore(mode, target_name) {
 	let categories = ref([]); // Amenity Category catalog (filters + colors)
 	let bundle_limits = ref({}); // { category -> amenity_count } for the active bundle
 	let dependency_graph = ref({}); // { dependant amenity -> [primary amenity, ...] }
+	let default_light_system = ref(null); // Light System.is_default — fitted unless overridden
 
 	// order config (mirrors the quotation's own fields — read on open, written on save)
 	let order_type = ref("Amenities"); // "Amenities" | "Bundle" | "Quotation"
@@ -253,7 +254,34 @@ export function getStore(mode, target_name) {
 			load_categories(),
 			load_bundle_limits(),
 			load_dependency_graph(),
-		]);
+			load_default_light_system(),
+		]).then(() => seed_light_systems());
+	}
+
+	// Which system is fitted when nobody chooses one. `price_light_system` applies the
+	// same fallback server-side, so this is not what makes it happen — it is what makes it
+	// *visible*, so the panel shows what will be charged instead of an empty field.
+	function load_default_light_system() {
+		return frappe.db
+			.get_value("Light System", { is_default: 1 }, "name")
+			.then((r) => (default_light_system.value = r?.message?.name || null));
+	}
+
+	// Give every placement the default, including ones drawn before a light system was
+	// compulsory. Dirty is suppressed: this is the same value the server would apply on
+	// the next save, so surfacing it must not make an untouched quotation look edited.
+	function seed_light_systems() {
+		if (!default_light_system.value) return;
+		let touched = false;
+		for (const floor of design.value?.floors || []) {
+			for (const room of floor.rooms || []) {
+				if (room.amenity && !room.light_system) {
+					room.light_system = default_light_system.value;
+					touched = true;
+				}
+			}
+		}
+		if (touched) suppress_dirty_once();
 	}
 
 	// geometry is a JSON field: Frappe returns it as a string, but tolerate an already-parsed
@@ -653,6 +681,9 @@ export function getStore(mode, target_name) {
 			id: frappe.utils.get_random(8),
 			amenity,
 			category,
+			// fitted with the default from the moment it is drawn, so the Features panel
+			// never shows an empty field for something that is always charged
+			light_system: default_light_system.value || null,
 			shape,
 			x: partial.x ?? 40,
 			y: partial.y ?? 40,
@@ -1193,12 +1224,22 @@ export function getStore(mode, target_name) {
 	// Back to whatever the Amenity says — drops the override rather than copying the
 	// master in, so a later change to the Amenity flows through again.
 	function reset_room_features(id) {
-		update_room(id, { annexes: undefined, light_system: null, has_sound_system: 0 });
+		// back to the default system rather than to nothing: "no light system" is not a
+		// state any more, so clearing to null would only be re-seeded a moment later
+		update_room(id, {
+			annexes: undefined,
+			light_system: default_light_system.value || null,
+			has_sound_system: 0,
+		});
 	}
 
 	function has_custom_features(room) {
 		return Boolean(
-			Array.isArray(room?.annexes) || room?.light_system || room?.has_sound_system
+			Array.isArray(room?.annexes) ||
+			// every placement carries a light system now, so only one that differs from
+			// the default counts as a choice somebody made
+			(room?.light_system && room.light_system !== default_light_system.value) ||
+			room?.has_sound_system
 		);
 	}
 
@@ -1317,6 +1358,7 @@ export function getStore(mode, target_name) {
 		has_dependency_shortfall,
 		amenity_label,
 		amenity_is_short,
+		default_light_system,
 		set_room_alias,
 		room_label,
 		primaries_for,

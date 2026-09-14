@@ -57,7 +57,7 @@ In both modes you:
 - **v2** — Free-form polygons (`shape: "polygon"`, vertex add/drag/delete), rotation handles (snap 45°), real-world scale UI (px↔metres) + grid size, via the canvas Toolbar. ✅ shipped.
 - **Colors** — Per–Amenity-Category color (`Color` field on Amenity Category) drives palette + canvas fills, with a name-hash fallback. ✅ shipped.
 - **Blueprints + Layers** — Three layers (`Blueprint | Drawing | Features`, Photoshop-style). Per-floor blueprint (image or PDF via PDF.js; multi-page page-select) as a traceable background with move/scale/rotate/opacity; **measurement calibration** (draw a known length → sets real px/m); upload managed in-builder (child table read-only on form, committed on upload); placement saved in `geometry`. CAD → export to PDF. ✅ shipped.
-- **Features layer** — Configure what each *drawn* amenity contains: its annexes (add / remove / quantity / uom), its light system and its sound system, edited in the sidebar panel with the annexes drawn as icons on the plan. Rooms are select-only there — no move, resize or reshape. A customised placement is outlined in amber, and **Apply to all like this** copies one placement's configuration onto every other placement of that amenity. ✅ shipped.
+- **Features layer** — Configure what each *drawn* amenity contains: its annexes (add / remove / quantity / uom), its light system and its sound system, edited in the sidebar panel with the annexes drawn as icons on the plan. Rooms are select-only there — no move, resize or reshape. A customised placement is outlined in amber — a light system equal to the default does not count as one, since every placement carries one, and **Apply to all like this** copies one placement's configuration onto every other placement of that amenity. ✅ shipped.
 - **Navigation & editing** — Wheel zoom, middle-drag pan (hand cursor), footer zoom controls (− / % / + / Fit), arrow-key nudge, drawing-layer opacity, Snap switch (default off). ✅ shipped.
 - **Shapes & tools** — A shape-tool strip (icon glyphs): Rectangle, Ellipse, **Line** (open polyline — drag a segment, then bend it via vertex handles; shows length in m, 0 area), Triangle/Pentagon/Hexagon (polygon generators), Freehand pen (RDP-simplified trace), and **Point** markers rendered as **Frappe icons** (icon/color/size). Ellipse area = π·rx·ry; lines/points have 0 area but still count as qty. ✅ shipped.
 - **Later** — Per-floor metadata, copy/duplicate floor, room templates, Amenity `default_area`, native DXF rendering, default icon per Amenity.
@@ -84,7 +84,7 @@ scroller:
 |---|---|---|
 | Add annex | above the scroller | Link (`Annex`, filtered to the Amenity's own, minus what is fitted) |
 | Annex UOM | **inside** the scroller | a plain `<select>` — the browser draws its popup outside the document, so a scroller cannot clip it |
-| Light System | below the scroller | Link (`Light System`, filtered to the ones this Amenity configures), its list flipped to open **upward** since it sits on the sidebar's bottom edge |
+| Light System | below the scroller | Link (`Light System`, the whole master — an amenity that configures none still gets one), seeded with the default and never blank, its list flipped to open **upward** since it sits on the sidebar's bottom edge |
 
 The `<select>`'s options travel with the composition: `get_amenity_annexes` returns a `uoms`
 list per annex — the same UOM Conversion Detail rows `get_annex_uom_query` would have

@@ -108,13 +108,11 @@
 							<span class="fb-section-icon" v-html="ICONS.light"></span>
 							{{ __("Light System") }}</span>
 					</div>
-					<template v-if="lightSystems.length">
-						<div class="fb-light-field" ref="lightControl"></div>
-						<div v-if="lightHint" class="fb-features-hint">{{ lightHint }}</div>
-					</template>
-					<div v-else class="fb-features-none">
-						{{ __("This amenity has no light systems configured.") }}
-					</div>
+					<!-- Always shown. An amenity that configures no light systems is no
+					     longer a dead end: any system in the master can be fitted to it,
+					     priced from its own standard rate across every line. -->
+					<div class="fb-light-field" ref="lightControl"></div>
+					<div v-if="lightHint" class="fb-features-hint">{{ lightHint }}</div>
 				</div>
 
 				<div v-if="hasSound" class="fb-features-section fb-features-divided">
@@ -188,11 +186,29 @@ const chosenLight = computed(() =>
 // they work in this script's module scope but throw "_ctx.cint is not a function" the
 // moment a template calls one.
 const lightHint = computed(() => {
+	const lines = cint(options.value.lines);
+	// The field is seeded with the default, so empty only happens where no Light System is
+	// marked default at all. Say that rather than showing nothing for something that is
+	// always charged.
+	if (!room.value?.light_system) return __("No default light system is set", []);
+
 	const system = chosenLight.value;
-	if (!system) return "";
-	// how many of the amenity's lines this system takes — not what it costs; money is
-	// the quotation's business, not the layout's
-	return __("{0} of {1} lines", [cint(system.used_lines), cint(options.value.lines)]);
+	// Naming it keeps "this is just the default" distinguishable from "somebody chose
+	// this", which the field alone cannot show once both look identical.
+	const is_default = room.value.light_system === store.default_light_system.value;
+	const note = is_default ? ` · ${__("default")}` : "";
+	// Configured here: it takes the lines the Amenity says, and the default system fills
+	// whatever is left over.
+	if (system) {
+		const used = cint(system.used_lines);
+		const rest = lines - used;
+		const covered = __("{0} of {1} lines", [used, lines]);
+		return (
+			(rest > 0 ? `${covered} · ` + __("default system fills {0}", [rest]) : covered) + note
+		);
+	}
+	// Not configured here: nothing splits the lines, so it covers all of them.
+	return __("All {0} lines, at its standard price", [lines]) + note;
 });
 const hasSound = computed(() => flt(options.value.sound_system_price) > 0);
 const swatch = computed(() =>
@@ -276,10 +292,14 @@ function ensureAddControl() {
 	});
 }
 
-// A Link to Light System, restricted to the systems THIS amenity configures — the same
-// query the quotation form's editor uses. Anything outside that list has no configuration
-// to price from (price_light_system zeroes it), so offering the whole master would only
-// let someone pick something that silently does nothing.
+// A Link to Light System over the WHOLE master, not just the systems this amenity
+// configures. It used to be restricted, because anything outside that list had no
+// configuration to price from and priced at nothing. That is no longer true: an
+// unconfigured system is priced from its own master rate across all the amenity's lines,
+// so every system in the catalogue is a legitimate choice for every amenity.
+//
+// Left empty, the row adopts the default system at save (price_light_system), so there is
+// no "None" that means unlit — the placeholder says so.
 function ensureLightControl() {
 	if (lightCtrl || !lightControl.value) return;
 	lightCtrl = frappe.ui.form.make_control({
@@ -288,10 +308,7 @@ function ensureLightControl() {
 			fieldtype: "Link",
 			fieldname: "light_system",
 			options: "Light System",
-			placeholder: __("None"),
-			get_query: () => ({
-				filters: { name: ["in", lightSystems.value.map((l) => l.system_name)] },
-			}),
+			placeholder: __("Default"),
 			onchange: () => {
 				const picked = lightCtrl.get_value() || null;
 				if (picked === (room.value?.light_system || null)) return; // programmatic sync
@@ -331,10 +348,10 @@ watch(
 	{ immediate: true }
 );
 
-// Both pickers sit behind a v-if, so their host div can come and go while the panel stays
-// mounted — every annex fitted hides the adder, an amenity with no light systems hides the
-// light field. Drop the control when its div goes, or the rebuilt div would stay empty
-// behind `if (ctrl) return`.
+// The annex adder sits behind a v-if, so its host div can come and go while the panel
+// stays mounted — every annex fitted hides it. Drop the control when its div goes, or the
+// rebuilt div would stay empty behind `if (ctrl) return`. (The light field used to work
+// this way too; it is permanent now.)
 watch(
 	() => addable.value.length > 0,
 	(showing) => {
@@ -346,10 +363,16 @@ watch(
 		nextTick(ensureAddControl);
 	}
 );
+// The light field's host div is now permanent — it used to be dropped for an amenity with
+// no configured systems, which is why this once had to destroy the control alongside it.
+// Kept as a mount, so the control still exists on first render and after a panel rebuild.
 watch(
-	() => lightSystems.value.length > 0,
-	(showing) => {
-		if (!showing) {
+	() => room.value?.id,
+	(id) => {
+		// Selecting nothing swaps the panel's whole body for the empty state, taking the
+		// host div with it. The control has to go too, or the rebuilt div would sit empty
+		// behind `if (lightCtrl) return` the next time an amenity is selected.
+		if (!id) {
 			lightCtrl?.$wrapper?.remove();
 			lightCtrl = null;
 			return;
@@ -358,7 +381,8 @@ watch(
 			ensureLightControl();
 			syncLightControl();
 		});
-	}
+	},
+	{ immediate: true }
 );
 
 // a light system changed elsewhere (Reset, Apply to all) still has to reach its control —

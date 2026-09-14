@@ -42,6 +42,10 @@ AMENITY_ROW_FIELDS = (
     "light_system_amount", "light_system_pricing_mode",
     "qtn_light_system_price", "qtn_light_system_amount",
     "base_light_system_price", "base_light_system_amount",
+    "default_system", "default_system_lines", "default_system_pricing_mode",
+    "default_system_price", "default_system_amount",
+    "qtn_default_system_price", "qtn_default_system_amount",
+    "base_default_system_price", "base_default_system_amount",
     "has_sound_system", "sound_system_price", "sound_system_amount",
     "qtn_sound_system_price", "qtn_sound_system_amount",
     "base_sound_system_price", "base_sound_system_amount",
@@ -1253,40 +1257,144 @@ class ButlerQuotation(Document):
             row.set(qtn_field, flt(standard) * qtn_rate)
         return flt(row.get(qtn_field))
 
-    def price_light_system(self, row, amenity, rates):
-        """Mirror the chosen Light System's per-amenity configuration onto the row and
-        return its contribution, in the amenity's currency.
+    LIGHT_SIGN = {"Add": 1.0, "Subtract": -1.0}
 
-        The configuration (lines consumed, price, mode) lives on the Amenity's own
-        `light_systems` table, keyed by the Light System — it is not on the Light System
-        master, so it can't be fetched by a Link and is copied here. `Neutral` means
-        fitted at no charge, `Subtract` credits the line.
+    def default_light_system(self):
+        """The Light System marked `is_default`, resolved once per document.
+
+        Asked twice per placement — to fill a blank row, and to price the fill — so a
+        fifty-room plan would otherwise make a hundred identical queries, on every save and
+        every live recalc. `False` is the sentinel rather than `None`, so a site with no
+        default is cached as an answer instead of being re-asked for each row.
         """
-        config = next(
+        cached = getattr(self, "_default_light_system", False)
+        if cached is False:
+            cached = frappe.db.get_value("Light System", {"is_default": 1}, "name")
+            self._default_light_system = cached
+        return cached
+
+    def light_system_config(self, amenity, system):
+        """What `system` costs on this amenity: its own row if it configures one, else the
+        Light System master. Returns `(price, pricing_mode, used_lines or None)`.
+
+        The precedence is the whole point of the feature — an amenity may state its own
+        terms for a system, and anything it has not configured still has a price, so every
+        system in the catalogue can be fitted to every amenity. `used_lines` comes back
+        None from the master, which has no such field: how many lines a system takes is a
+        property of the amenity, not of the system.
+        """
+        if not system:
+            return 0.0, None, None
+        row = next(
             (r for r in (amenity.light_systems if amenity else [])
-             if r.system_name == row.light_system),
+             if r.system_name == system),
             None,
         )
-        if not (row.light_system and config):
+        if row:
+            return flt(row.price), row.pricing_mode, cint(row.used_lines)
+        master = frappe.get_cached_value(
+            "Light System", system, ["standard_price", "pricing_mode"], as_dict=True)
+        if not master:
+            return 0.0, None, None
+        return flt(master.standard_price), master.pricing_mode, None
+
+    def price_light_system(self, row, amenity, rates):
+        """Price the amenity's lines: the selected system covers the lines it is configured
+        for, and the default system fills whatever is left.
+
+        Every line is always priced. If the amenity configures the selected system for 2 of
+        its 6 lines, those 2 are charged at the amenity's rate for it and the other 4 at the
+        default system's — each with its own Add/Subtract sign, so a DALI fitted on 2 lines
+        can credit the line while the RELAY filling the other 4 adds to it.
+
+        If the amenity does not configure the selected system at all, there is no line count
+        to split on, so that system covers the whole amenity at its master price and there
+        is no fill.
+
+        Per line, never per placement: `amenity_qty` is applied once by the caller, on
+        `qtn_amenity_amount`. Multiplying here as well would square it — invisible from the
+        Facility Builder, which posts one row per placement at qty 1, and wrong everywhere
+        else. `price_floor_extra` follows the same convention with `floor_qty`.
+
+        Only the selected system's price is negotiable (`qtn_light_system_price`, settled by
+        `track_add_on_price`). The fill is charged at standard: it is not what was chosen,
+        it is what covers the remainder.
+        """
+        total_lines = cint(amenity.lines) if amenity else 0
+
+        # A light system is fitted whether or not anyone chose one, so a blank row adopts
+        # the default rather than being priced at nothing. Done here, not only in the
+        # Facility Builder, so a row typed on the form or posted by the API is governed
+        # too. Writing it back onto the row is deliberate: the quotation should say which
+        # system was fitted, not leave it to be re-derived later from a default that may
+        # since have changed.
+        if not row.light_system:
+            row.light_system = self.default_light_system()
+
+        price, mode, used = self.light_system_config(amenity, row.light_system)
+
+        if not row.light_system or not mode:
             row.light_system_price = row.light_system_amount = 0
             row.qtn_light_system_price = row.qtn_light_system_amount = 0
             row.used_lines = row.total_lines = 0
             row.light_system_pricing_mode = None
+            self.clear_default_system_fill(row)
             return 0.0
 
-        row.used_lines = cint(config.used_lines)
-        row.total_lines = cint(amenity.lines)
-        row.light_system_pricing_mode = config.pricing_mode
+        # `used is None` means the amenity does not configure this system — it covers every
+        # line, and nothing is left for the fill.
+        covered = total_lines if used is None else min(used, total_lines)
+
+        row.total_lines = total_lines
+        row.used_lines = covered
+        row.light_system_pricing_mode = mode
 
         previous_standard = flt(row.light_system_price)
-        row.light_system_price = flt(config.price)
+        row.light_system_price = price
         qtn_price = self.track_add_on_price(
             row, "qtn_light_system_price", previous_standard, row.light_system_price, rates)
 
-        sign = {"Add": 1.0, "Subtract": -1.0}.get(config.pricing_mode, 0.0)
-        row.light_system_amount = sign * qtn_price / (rates[0] or 1.0)
-        row.qtn_light_system_amount = sign * qtn_price
-        return flt(row.light_system_amount)
+        sign = self.LIGHT_SIGN.get(mode, 0.0)
+        row.light_system_amount = sign * qtn_price * covered / (rates[0] or 1.0)
+        row.qtn_light_system_amount = sign * qtn_price * covered
+
+        return flt(row.light_system_amount) + self.price_default_system_fill(
+            row, amenity, rates, total_lines - covered)
+
+    def price_default_system_fill(self, row, amenity, rates, lines):
+        """Charge the lines the selected system does not cover to the default Light System.
+
+        `Light System.before_save` keeps exactly one default and re-elects one if the last
+        is unticked, so a catalogue with any system in it has a default. A site with none
+        leaves the fill unpriced rather than erroring — there is nothing to fill it with.
+        """
+        if lines <= 0:
+            self.clear_default_system_fill(row)
+            return 0.0
+
+        default = self.default_light_system()
+        price, mode, _used = self.light_system_config(amenity, default)
+        if not default or not mode:
+            self.clear_default_system_fill(row)
+            return 0.0
+
+        row.default_system = default
+        row.default_system_lines = lines
+        row.default_system_pricing_mode = mode
+        row.default_system_price = price
+
+        sign = self.LIGHT_SIGN.get(mode, 0.0)
+        qtn_price = price * (rates[0] or 1.0)
+        row.qtn_default_system_price = qtn_price
+        row.default_system_amount = sign * price * lines
+        row.qtn_default_system_amount = sign * qtn_price * lines
+        return flt(row.default_system_amount)
+
+    def clear_default_system_fill(self, row):
+        row.default_system = row.default_system_pricing_mode = None
+        row.default_system_lines = 0
+        row.default_system_price = row.default_system_amount = 0
+        row.qtn_default_system_price = row.qtn_default_system_amount = 0
 
     def price_sound_system(self, row, amenity, rates):
         """The Amenity's flat sound-system price, charged only when the row opts in.
@@ -1623,7 +1731,7 @@ class ButlerQuotation(Document):
             amenity_row.base_amenity_amount = flt(amenity_row.qtn_amenity_amount) * rate
             amenity_row.base_amenity_net_amount = flt(amenity_row.qtn_amenity_net_amount) * rate
 
-            for name in ("light_system", "sound_system", "floor"):
+            for name in ("light_system", "default_system", "sound_system", "floor"):
                 for suffix in ("price", "amount"):
                     self.mirror_to_company(amenity_row, f"{name}_{suffix}", amenity_rate, rate)
 

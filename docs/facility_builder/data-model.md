@@ -41,7 +41,7 @@ A hidden, read-only `JSON` field on the **Butler Quotation** doctype. Holds the 
           "annexes": [                   // present only once edited; must keep >= 1 entry
             { "annex": "AC", "qty": 2, "uom": "Nos" }
           ],
-          "light_system": "DALI",        // one of the Amenity's own light_systems
+          "light_system": "DALI",        // any Light System; seeded with the default
           "has_sound_system": 1
         }
       ]

@@ -39,7 +39,7 @@ For each amenity group (see [annexes.md](./annexes.md) for each component's form
 | Field | Set to |
 |---|---|
 | `annex_amount` | `annex_price × annex_quantity` — per annex row |
-| `light_system_amount` | `0` · `+price` · `−price`, per the amenity's `pricing_mode` |
+| `light_system_amount` | `±price × used_lines` per the mode; the remaining lines are charged separately as `default_system_amount` |
 | `sound_system_amount` | `sound_system_price` when `has_sound_system`, else `0` |
 | `floor_amount` | `floor_price × floor_qty` |
 | `amenity_price` | `Σ annex_amount + light + sound + floor` — **per unit**, amenity currency |

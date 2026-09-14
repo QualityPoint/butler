@@ -127,7 +127,7 @@ These are used by both order types — see [amenities.md](./amenities.md) for de
 | Amenities line pricing + totals | **Implemented** |
 | Annex-composed amenity pricing (amenity + annex row types, server-side row shaping) | **Implemented** |
 | Per-facility-type annex pricing via **Annex Price** (`get_annex_price`) | **Implemented** |
-| Per-amenity add-ons: light system (Neutral/Add/Subtract), flat sound system, additive floor extra | **Implemented** |
+| Per-amenity add-ons: light system (per-line, Add/Subtract, default-system fill), flat sound system, additive floor extra | **Implemented** |
 | Three currency tiers on the line (`amenity` / `qtn_` / `base_`), `qtn_annex_price` authoritative | **Implemented** |
 | `amenities_html` custom line editor (the child table itself is hidden + read-only) | _Planned_ |
 | Bundle flat price + breakdown population | **Implemented** |

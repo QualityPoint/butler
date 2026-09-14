@@ -40,6 +40,8 @@
   {
    "columns": 2,
    "default": "0",
+   "fetch_from": "system_name.standard_price",
+   "fetch_if_empty": 1,
    "fieldname": "price",
    "fieldtype": "Currency",
    "in_list_view": 1,
@@ -49,12 +51,13 @@
    "reqd": 1
   },
   {
-   "default": "Add",
+   "fetch_from": "system_name.pricing_mode",
+   "fetch_if_empty": 1,
    "fieldname": "pricing_mode",
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Pricing Mode",
-   "options": "Add\nSubtract",
+   "options": "\nAdd\nSubtract",
    "reqd": 1
   }
  ],
@@ -62,7 +65,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-09-14 13:16:21.698980",
+ "modified": "2026-09-14 16:37:52.267226",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Amenity Light System",
