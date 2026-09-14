@@ -279,6 +279,9 @@ onBeforeUnmount(() => {
 	border-radius: var(--border-radius);
 	padding: 0 6px;
 	background: var(--card-bg, #fff);
+	/* form controls do not inherit `color`: unset, the text stays the UA's black on a
+	   background that is near-black in dark mode */
+	color: var(--text-color);
 }
 .fb-input-error {
 	border-color: var(--red-500, #e24c4c);
@@ -342,8 +345,10 @@ onBeforeUnmount(() => {
 	border-color: var(--gray-400, #aeb5bd);
 }
 .fb-amenity-active {
-	border-color: var(--primary, #2490ef);
-	box-shadow: 0 0 0 1px var(--primary, #2490ef) inset;
+	/* the #2490ef fallback never applied — --primary is defined (#171717) and never
+	   redefined for dark mode, so the selected amenity's ring was black on a dark list */
+	border-color: var(--text-color);
+	box-shadow: 0 0 0 1px var(--text-color) inset;
 	background: var(--bg-blue, #f0f7ff);
 }
 .fb-amenity-disabled {

@@ -135,6 +135,10 @@ function showDependencies() {
 	width: 64px;
 	height: 26px;
 	border: 1px solid var(--border-color);
+	/* form controls do not inherit either: unset, they render as the UA's white box with
+	   black text, which survives dark mode as a bright rectangle */
+	background: var(--control-bg);
+	color: var(--text-color);
 	border-radius: var(--border-radius);
 	padding: 0 6px;
 }

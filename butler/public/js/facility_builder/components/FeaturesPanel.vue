@@ -623,6 +623,9 @@ onBeforeUnmount(destroyControls);
 	border-radius: var(--border-radius);
 	background: var(--control-bg);
 	padding: 0 6px;
+	/* form controls do not inherit `color`: unset, the text stays the UA's black on a
+	   background that is near-black in dark mode */
+	color: var(--text-color);
 }
 /* right-aligned like every numeric field in Frappe, so the digits line up column-wise
    however many of them there are */

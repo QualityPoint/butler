@@ -76,6 +76,10 @@ function confirm_remove(floor_type) {
 	gap: 6px;
 	border: 1px solid var(--border-color);
 	background: var(--card-bg, #fff);
+	/* A <button> does not inherit `color` — without this it falls back to the UA's
+	   `buttontext`, which is black, and --card-bg is --gray-900 in dark mode. That is the
+	   black-on-black tab. Every bare button that paints its own background needs this. */
+	color: var(--text-color);
 	border-radius: var(--border-radius);
 	padding: 4px 10px;
 	font-size: var(--text-sm);
@@ -83,12 +87,18 @@ function confirm_remove(floor_type) {
 	cursor: pointer;
 }
 .fb-tab.active {
-	border-color: var(--primary);
-	color: var(--primary);
+	/* NOT --primary: that is a hardcoded #171717 in the desk bundle and is never redefined
+	   for dark mode, so it stayed black on a --gray-900 tab. --text-color is the same near
+	   black in light mode and near white in dark, which is what this rule always meant. */
+	border-color: var(--text-color);
+	color: var(--text-color);
 	font-weight: 600;
 }
 .fb-tab-count {
 	font-size: var(--text-xs);
+	/* its own colour rather than inheriting the button's: on the active tab that is the
+	   full-strength --text-color, and a count as loud as the floor name competes with it */
+	color: var(--text-muted);
 	background: var(--subtle-fg, #eef);
 	border-radius: 8px;
 	padding: 0 6px;
