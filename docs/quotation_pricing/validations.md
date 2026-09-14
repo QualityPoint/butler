@@ -24,6 +24,7 @@ governed action has a `Stop`-gated override role.
 |---|---|
 | `maintain_annex_price_action` | `role_to_override_annex_price_stop_action` |
 | `action_if_bundle_items_unfulfilled` | `role_to_override_unfulfilled_stop_action` |
+| `action_if_dependencies_missing` | `role_to_override_dependency_stop_action` |
 
 ---
 
@@ -103,9 +104,65 @@ See [additional-amenities.md](./additional-amenities.md).
 
 ## Dependencies
 
-`validate_dependencies()` (`before_submit`, all order types): every amenity flagged
-`is_dependant_amenity` must have its required `Amenity Depends On` amenities also
-present. Independent of the pricing governance above.
+An Amenity can require another — an **Intercom** needs an **Entrance** to be fitted to.
+`Amenity.is_dependant_amenity` gates the `depends_on` table (labelled *Primary
+Amenities*), and `validate_dependencies(enforce)` enforces one rule, for every dependant
+`D` on the quotation and every primary `P` it lists:
+
+```
+count(D placements)  <=  count(P placements)
+```
+
+Mere presence is the `capacity == 0` case, so there is no separate presence check.
+Applies to **every order type** — there is no `order_type` gate.
+
+> ### It never touches money
+>
+> Both amenities are drawn separately in the Facility Builder and priced independently:
+> the Entrance costs what an Entrance costs, each Intercom what an Intercom costs. The
+> dependency never enters `calculate_totals`.
+>
+> **And it creates no link between rows.** Nothing records *which* Intercom belongs to
+> *which* Entrance — only the totals are compared. That is deliberate: the client places
+> them freely, and an Entrance with no Intercom fitted to it is perfectly legitimate. Do
+> not add a `primary_placement_id`; there is nothing for it to mean.
+
+**Counting is raw placements, on both sides.** Unlike `validate_bundle_amenities` next to
+it, rows ticked `additional_amenity` are *not* subtracted: a bundle-overflow Intercom is
+still a physical intercom that needs an entrance, and an overflow Entrance still supplies
+one. Annex rows are skipped (`if row.annex`) — without that guard a dependant with four
+annexes would count as five placements.
+
+The dependant flag is re-resolved from the **Amenity master**, never read off
+`row.is_dependant_amenity`. That field is a `fetch_from` snapshot which the Facility
+Builder's `build_amenity_rows` never sets, so trusting it let every builder-drawn
+quotation through.
+
+### On the master
+
+`Amenity.validate_dependencies` keeps the graph drawable — none of it was checked before:
+
+| Rule | Error title |
+|---|---|
+| An amenity may not depend on itself | *Invalid Dependency* |
+| A primary may not be listed twice | *Duplicate Primary Amenity* |
+| No rings: `A → B → A`, or longer | *Circular Dependency* |
+
+A **disabled** primary warns without blocking — the palette filters `disabled = 0`, so
+the dependant becomes undrawable, and only the master knows it. `Amenity.on_trash` names
+the dependants rather than letting Frappe's link check say only *"linked with Amenity
+Depends On"*.
+
+### While drawing
+
+The Facility Builder shows the same shortfall live, as a persistent chip in the footer
+(every layer, never a toast) and a *Needs primary* badge in the palette. It is fed by
+`amenity.get_dependency_graph()`, loaded once with the other catalogues. It **never
+refuses a placement** — unlike the bundle cap — because drawing more primaries is one of
+the two ways to resolve it.
+
+> `action_if_dependencies_missing` is unset on sites installed before it existed; the code
+> falls back to `Stop`. `setup.py` seeds it on fresh installs. No patch, per policy.
 
 ---
 
@@ -118,5 +175,5 @@ present. Independent of the pricing governance above.
 | Annex price / `bundle_price` discount | ✅ warn/throw per setting | — |
 | Unfulfilled composition | ✅ **warn only** | ✅ governed (warn/throw) |
 | Undesignated overflow | ✅ warn (names categories) | ✅ governed (warn/throw) |
-| Dependencies | — | ✅ |
+| Dependencies (`count(D) <= count(P)`) | ✅ **warn only** | ✅ governed (warn/throw) |
 | `validate_valid_till` | ✅ | — |

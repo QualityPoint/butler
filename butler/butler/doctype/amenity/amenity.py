@@ -19,6 +19,7 @@ SIMPLE_DEPENDS_ON = re.compile(r"^eval:\s*doc\.(\w+)\s*;?\s*$")
 class Amenity(Document):
     def validate(self):
         self.validate_light_systems()
+        self.validate_dependencies()
         self.calculate_totals()
 
     def validate_light_systems(self):
@@ -63,6 +64,129 @@ class Amenity(Document):
                     title=_("Too many lines used"),
                 )
 
+    def validate_dependencies(self):
+        """The Primary Amenities table has to describe a graph that can actually be drawn.
+
+        A dependant amenity may not outnumber its primaries on a quotation
+        (`ButlerQuotation.validate_dependencies`), so a table that names this amenity, or
+        names one twice, or closes a ring, makes that rule unsatisfiable or meaningless.
+        None of it was checked before.
+        """
+        if not self.is_dependant_amenity:
+            # `clear_dependent_fields` empties the table in before_save — i.e. *after*
+            # this runs — so an unticked doc can still be carrying rows that are on their
+            # way out. Judging them would refuse the very save that discards them.
+            return
+
+        primaries = []
+        for row in self.depends_on:
+            # an empty amenity is left to the field's mandatory check to report
+            if not row.amenity:
+                continue
+
+            # `autoname` is `field:amenity_name` and set_new_name() runs before validate,
+            # so self.name is populated here even on a first insert.
+            if row.amenity == self.name:
+                frappe.throw(
+                    _("Row #{0}: An amenity cannot depend on itself.").format(row.idx),
+                    title=_("Invalid Dependency"),
+                )
+
+            if row.amenity in primaries:
+                frappe.throw(
+                    _("Row #{0}: {1} is already in the Primary Amenities table.").format(
+                        row.idx, frappe.bold(row.amenity)
+                    ),
+                    title=_("Duplicate Primary Amenity"),
+                )
+            primaries.append(row.amenity)
+
+        self.validate_dependency_cycle(primaries)
+        self.warn_about_disabled_primaries(primaries)
+
+    def validate_dependency_cycle(self, primaries):
+        """Refuse `A -> B -> A`, and longer rings.
+
+        Walked breadth-first, one indexed query per level rather than one per amenity: a
+        real catalogue is a level or two deep, so this costs a query or two however large
+        it is. Only *saved* rows are walked — this document's own rows are the seed,
+        because on this save they aren't in the database yet.
+
+        `visited` is not just an optimisation: it is what makes the walk terminate against
+        a ring that already exists in the data (written before this check, or straight
+        through `frappe.db`).
+        """
+        frontier = set(primaries)
+        if not frontier:
+            return
+
+        reached_by = {primary: None for primary in frontier}  # amenity -> who named it
+        visited = set(frontier)
+
+        while frontier:
+            rows = frappe.get_all(
+                "Amenity Depends On",
+                filters={
+                    "parenttype": "Amenity",
+                    "parentfield": "depends_on",
+                    "parent": ("in", list(frontier)),
+                },
+                fields=["parent", "amenity"],
+            )
+
+            next_frontier = set()
+            for row in rows:
+                if not row.amenity:
+                    continue
+
+                if row.amenity == self.name:
+                    frappe.throw(
+                        _("This would create a circular dependency: {0}").format(
+                            frappe.bold(" &rarr; ".join(self.dependency_chain(row.parent,
+                                                                             reached_by)))
+                        ),
+                        title=_("Circular Dependency"),
+                    )
+
+                if row.amenity in visited:
+                    continue
+                visited.add(row.amenity)
+                reached_by[row.amenity] = row.parent
+                next_frontier.add(row.amenity)
+
+            frontier = next_frontier
+
+    def dependency_chain(self, closer, reached_by):
+        """The ring, written out for the error message: self -> ... -> closer -> self."""
+        chain = [self.name, closer]
+        node = closer
+        while reached_by.get(node):
+            node = reached_by[node]
+            chain.append(node)
+        chain.append(self.name)
+        return list(reversed(chain))
+
+    def warn_about_disabled_primaries(self, primaries):
+        """A disabled primary cannot be drawn — the Facility Builder's palette filters
+        `disabled = 0` — so the dependant becomes undrawable, and only this master knows
+        it. Worth saying out loud, but never worth refusing a save over: disabling happens
+        elsewhere and must not retroactively break an unrelated edit here.
+        """
+        if not primaries:
+            return
+
+        disabled = frappe.get_all(
+            "Amenity", filters={"name": ("in", primaries), "disabled": 1}, pluck="name"
+        )
+        if disabled:
+            frappe.msgprint(
+                _("{0} is disabled, so it can no longer be placed. {1} cannot be quoted "
+                  "until it is enabled again.").format(
+                    frappe.bold(", ".join(sorted(disabled))), frappe.bold(self.name)),
+                title=_("Primary amenity disabled"),
+                indicator="orange",
+            )
+
     def calculate_totals(self):
         # Authoritative recompute, mirroring erpnext.controllers.taxes_and_totals —
         # not just trusting whatever the client sent.
@@ -79,6 +203,31 @@ class Amenity(Document):
 
     def before_save(self):
         self.clear_dependent_fields()
+
+    def on_trash(self):
+        """Say which amenities depend on this one before Frappe's own link check does.
+
+        `check_if_doc_is_linked` already blocks the delete, but its message names the
+        child table ("linked with Amenity Depends On"), which tells nobody which amenity
+        to go and fix.
+        """
+        dependants = frappe.get_all(
+            "Amenity Depends On",
+            filters={
+                "parenttype": "Amenity",
+                "parentfield": "depends_on",
+                "amenity": self.name,
+            },
+            pluck="parent",
+        )
+        if dependants:
+            frappe.throw(
+                _("{0} is a primary amenity for {1}. Remove it from their Primary "
+                  "Amenities tables first.").format(
+                    frappe.bold(self.name),
+                    frappe.bold(", ".join(sorted(set(dependants))))),
+                title=_("Amenity in use"),
+            )
 
     def on_update(self):
         """Sync the annex rows out to their standard Annex Price records.
@@ -220,3 +369,44 @@ def _annex_uoms(masters):
         for annex, row in masters.items()
         if row.annex_item
     }
+
+
+@frappe.whitelist()
+def get_dependency_graph():
+    """`{dependant amenity: [primary amenity, ...]}` for the whole catalogue.
+
+    The Facility Builder compares placement counts live as you draw, on every layer and
+    before anything at all is placed — so unlike `get_amenity_options` this can't be keyed
+    on what is already on the plan, and unlike the Features panel's catalogue it can't
+    wait for that layer to be opened. It is loaded once with the other catalogues.
+
+    Only the flagged amenities travel, so a catalogue of hundreds with a handful of
+    dependants sends a handful of rows.
+
+    Disabled amenities are kept, deliberately: an amenity disabled after a quotation was
+    drawn is still on that quotation and still counted by the server's check, and the
+    client has to agree with it.
+    """
+    dependants = frappe.get_all(
+        "Amenity", filters={"is_dependant_amenity": 1}, pluck="name")
+    if not dependants:
+        return {}
+
+    graph = {}
+    for row in frappe.get_all(
+        "Amenity Depends On",
+        filters={
+            "parenttype": "Amenity",
+            "parentfield": "depends_on",
+            "parent": ("in", dependants),
+        },
+        fields=["parent", "amenity"],
+        order_by="parent asc, idx asc",
+    ):
+        if not row.amenity:
+            continue
+        primaries = graph.setdefault(row.parent, [])
+        if row.amenity not in primaries:  # a duplicate row on the master is not two needs
+            primaries.append(row.amenity)
+
+    return graph

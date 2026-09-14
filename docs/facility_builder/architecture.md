@@ -76,6 +76,7 @@ export function getStore(mode, target_name) {       // mode: "facility" | "quota
     let amenities  = ref([]);     // Amenity catalog (palette)
     let categories = ref([]);     // Amenity Category catalog (filters + colors)
     let bundle_limits = ref({});  // { category → amenity_count } for the active bundle
+    let dependency_graph = ref({}); // { dependant amenity → [primary amenity, ...] }
     let order_type = ref("Amenities");
     let bundle_type = ref(null);
     let selected_categories = ref([]);   // MultiSelectList filter (ephemeral)
@@ -85,7 +86,9 @@ export function getStore(mode, target_name) {       // mode: "facility" | "quota
 
     // computed: active_floor, selected_room, ppm, read_only (docstatus ≠ 0),
     //           category_colors, amenity_index, available_categories,
-    //           filtered_amenities, category_counts, category_is_full(cat)
+    //           filtered_amenities, category_counts, category_is_full(cat),
+    //           amenity_counts, dependency_shortfalls, has_dependency_shortfall
+    //           + amenity_label(name), amenity_is_short(name), primaries_for(name)
 
     function fetch() { /* facility mode: load Facility, seed floors from blueprints, blank design. quotation mode: load quotation geometry + its facility */ }
     function save_changes() { /* facility mode → insert NEW draft quotation on ≥1 amenity + route to it. quotation mode → save geometry + order config + derived rows (block if read_only) */ }
@@ -97,6 +100,20 @@ export function getStore(mode, target_name) {       // mode: "facility" | "quota
 ```
 
 `fetch` and `save_changes` are detailed in [persistence.md](persistence.md).
+
+### Server endpoints the store calls
+
+| When | Endpoint | For |
+|---|---|---|
+| `load_catalogs`, on open | `frappe.db.get_list("Amenity" / "Amenity Category")` | the palette |
+| `load_catalogs`, on open | `butler_bundle.get_bundle_breakdown` | `bundle_limits` |
+| `load_catalogs`, on open | `amenity.get_dependency_graph` | `dependency_graph` |
+| `set_active_layer("features")`, lazily | `amenity.get_amenity_annexes` + `butler_quotation.get_amenity_options` | the Features panel |
+
+The dependency graph is loaded **eagerly with the catalogues**, not lazily like the
+Features payload: the warning has to work on every layer, and it needs the primaries'
+names *before* any primary is placed — neither of which a placement-keyed lazy fetch can
+supply. Only flagged amenities travel, so it is a handful of rows.
 
 ---
 

@@ -28,6 +28,7 @@ def setup_butler_settings():
         # note: maintain_ANNEX_price_action. It was seeded under a name no field has ever
         # had, so this default has never actually applied on any install.
         "maintain_annex_price_action": "Stop",
+        "action_if_dependencies_missing": "Stop",
     }
 
     settings = frappe.get_single("Butler Settings")

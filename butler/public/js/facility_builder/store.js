@@ -27,6 +27,7 @@ export function getStore(mode, target_name) {
 	let amenities = ref([]); // Amenity catalog (palette)
 	let categories = ref([]); // Amenity Category catalog (filters + colors)
 	let bundle_limits = ref({}); // { category -> amenity_count } for the active bundle
+	let dependency_graph = ref({}); // { dependant amenity -> [primary amenity, ...] }
 
 	// order config (mirrors the quotation's own fields — read on open, written on save)
 	let order_type = ref("Amenities"); // "Amenities" | "Bundle" | "Quotation"
@@ -192,13 +193,67 @@ export function getStore(mode, target_name) {
 		return (category_counts.value[category] || 0) >= limit;
 	}
 
+	// placement count per amenity (sum across all floors) — for the dependency cap
+	let amenity_counts = computed(() => {
+		const counts = {};
+		for (const floor of design.value?.floors || []) {
+			for (const room of floor.rooms) {
+				if (room.amenity) counts[room.amenity] = (counts[room.amenity] || 0) + 1;
+			}
+		}
+		return counts;
+	});
+
+	// A dependant amenity may not outnumber the primaries it requires: an Intercom needs
+	// an Entrance to be fitted to, so three Intercoms need three Entrances. Mirrors the
+	// server's ButlerQuotation.validate_dependencies exactly — a whole-plan total, not a
+	// per-floor one, and nothing records which dependant belongs to which primary.
+	//
+	// Unlike the bundle cap this NEVER refuses a placement: a shortfall is a drawing you
+	// have not finished yet, not a commercial impossibility.
+	let dependency_shortfalls = computed(() => {
+		const counts = amenity_counts.value;
+		const out = [];
+		for (const [dependant, primaries] of Object.entries(dependency_graph.value)) {
+			const placed = counts[dependant] || 0;
+			if (!placed) continue;
+			for (const primary of primaries) {
+				const capacity = counts[primary] || 0;
+				if (placed > capacity) {
+					out.push({ dependant, primary, placed, capacity, short: placed - capacity });
+				}
+			}
+		}
+		return out;
+	});
+	let has_dependency_shortfall = computed(() => dependency_shortfalls.value.length > 0);
+
+	// the graph is keyed by Amenity `name`; the palette and the canvas show `amenity_name`
+	function amenity_label(name) {
+		return amenity_index.value[name]?.amenity_name || name;
+	}
+
+	function amenity_is_short(name) {
+		return dependency_shortfalls.value.some((s) => s.dependant === name);
+	}
+
+	// what this amenity requires, for a palette tooltip
+	function primaries_for(name) {
+		return dependency_graph.value[name] || [];
+	}
+
 	// --- load ---
 	function fetch() {
 		return is_facility_mode ? fetch_facility() : fetch_quotation();
 	}
 
 	function load_catalogs() {
-		return Promise.all([load_amenities(), load_categories(), load_bundle_limits()]);
+		return Promise.all([
+			load_amenities(),
+			load_categories(),
+			load_bundle_limits(),
+			load_dependency_graph(),
+		]);
 	}
 
 	// geometry is a JSON field: Frappe returns it as a string, but tolerate an already-parsed
@@ -317,6 +372,15 @@ export function getStore(mode, target_name) {
 				for (const r of rows || []) map[r.amenity_category] = r.amenity_count;
 				bundle_limits.value = map;
 			});
+	}
+
+	// Loaded once with the other catalogues rather than lazily like the Features layer's
+	// amenity catalogue: the warning has to work on every layer, and it needs the
+	// primaries' names *before* any primary is placed.
+	function load_dependency_graph() {
+		return frappe
+			.xcall("butler.butler.doctype.amenity.amenity.get_dependency_graph")
+			.then((graph) => (dependency_graph.value = graph || {}));
 	}
 
 	// --- order config (mirrors the quotation's own fields) ---
@@ -1195,6 +1259,13 @@ export function getStore(mode, target_name) {
 		placed_count,
 		category_counts,
 		category_is_full,
+		dependency_graph,
+		amenity_counts,
+		dependency_shortfalls,
+		has_dependency_shortfall,
+		amenity_label,
+		amenity_is_short,
+		primaries_for,
 		read_only,
 		snap_enabled,
 		rooms_opacity,

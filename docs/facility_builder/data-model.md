@@ -134,6 +134,25 @@ read-only on the quotation form — the builder owns *what is sold*, the quotati
 - When **Order Type = Bundle**, the available categories are those whose `Amenity Category.bundles` row matches the selected bundle, and each carries a `amenity_count` **limit** the builder enforces (blocks dropping past the cap; full categories are dimmed with a "Full" badge).
 - **Amenity Categories** is a `MultiSelectList` (as in a Frappe report filter) that further narrows the visible amenities. It is ephemeral palette state — not persisted.
 
+### Two caps, deliberately unalike
+
+| | Bundle category cap | Amenity dependency cap |
+|---|---|---|
+| Rule | placements in a category ≤ the bundle's `amenity_count` | `count(dependant) ≤ count(primary)` — an Intercom per Entrance |
+| Fed by | `get_bundle_breakdown` → `bundle_limits` | `amenity.get_dependency_graph()` → `dependency_graph` |
+| On breach | **blocks the drop**, dims the entry, "Full" badge | **never blocks**; footer chip + "Needs primary" badge |
+| Scope | per category, whole plan | per amenity pair, whole plan (not per floor) |
+
+The difference is the point. A full bundle category is a commercial impossibility — there
+is nothing to buy. A dependency shortfall is a drawing you have not finished, and drawing
+*more* is one of the two ways to fix it, so refusing the placement would remove one of the
+exits. That is also why `amenity_is_short` must never reach `isDisabled` in
+`AmenityPalette.vue`.
+
+The dependency cap creates **no link between rooms** — nothing records which dependant
+belongs to which primary, only the totals are compared. See
+[validations.md](../quotation_pricing/validations.md#dependencies).
+
 ### Blueprint: source vs placement
 
 A deliberate split by *what kind of data it is*:

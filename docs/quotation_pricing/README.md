@@ -60,9 +60,9 @@ before_validate ──────────► validate ───────
   │ • default valid          │ • calculate_totals       │ • validate_bundle_amenities
   │ • clear add. flag        │ • annex-price WARN/STOP  │   (unfulfilled / undesignated)
   │ • clear_row_type_fields  │ • validate_row_types     │
-  │ • ensure_placement_ids   │ • validate_valid_till    │
-  │ • expand_amenity_rows    │                          │
-  │ • carry_forward_overrid. │                          │
+  │ • ensure_placement_ids   │ • validate_dependencies  │
+  │ • expand_amenity_rows    │   (WARN)                 │
+  │ • carry_forward_overrid. │ • validate_valid_till    │
   │ • order_amenity_rows     │                          │
 ```
 

@@ -87,6 +87,11 @@
 					<span class="fb-amenity-meta">{{ __(a.amenity_category) }}</span>
 				</div>
 				<span v-if="isFull(a)" class="fb-amenity-badge">{{ __("Full") }}</span>
+				<!-- a shortfall is a cue, never a block: unlike Full it must not reach
+				     isDisabled, because drawing more is one of the two ways to fix it -->
+				<span v-else-if="needsPrimary(a)" class="fb-amenity-badge fb-amenity-badge-warn">
+					{{ __("Needs primary") }}
+				</span>
 			</div>
 		</div>
 
@@ -133,11 +138,23 @@ function isFull(a) {
 	return store.category_is_full(a.amenity_category);
 }
 function isDisabled(a) {
+	// deliberately NOT `needsPrimary`: a dependency shortfall is fixed either by drawing
+	// more primaries or fewer dependants, so greying the entry out would remove one of
+	// the two ways out of it
 	return store.read_only.value || isFull(a);
+}
+function needsPrimary(a) {
+	return store.amenity_is_short(a.name);
 }
 function pickTitle(a) {
 	if (store.read_only.value) return __("Read only");
 	if (isFull(a)) return __("This category is full for the selected bundle");
+	if (needsPrimary(a)) {
+		return __("Every {0} needs its own {1}. Draw more of them, or remove some {0}.", [
+			__(a.amenity_name),
+			store.primaries_for(a.name).map((p) => __(store.amenity_label(p))).join(", "),
+		]);
+	}
 	return __("Pick to draw on the canvas");
 }
 
@@ -379,5 +396,11 @@ onBeforeUnmount(() => {
 	border-radius: 8px;
 	padding: 0 6px;
 	flex-shrink: 0;
+}
+/* amber, not grey: this one is a warning about the plan, not a closed door */
+.fb-amenity-badge-warn {
+	color: var(--orange-600, #b7791f);
+	background: var(--orange-100, #fefcbf);
+	white-space: nowrap;
 }
 </style>

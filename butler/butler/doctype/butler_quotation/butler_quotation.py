@@ -289,6 +289,7 @@ class ButlerQuotation(Document):
         )
         self.validate_row_types()
         self.validate_bundle_amenities(enforce=False)  # warn while editing
+        self.validate_dependencies(enforce=False)  # warn while editing
         self.validate_exchange_rates(enforce=False)  # warn while editing
         self.validate_valid_till()
 
@@ -800,7 +801,7 @@ class ButlerQuotation(Document):
         self.set_amenity_rows(ordered)
 
     def before_submit(self):
-        self.validate_dependencies()
+        self.validate_dependencies(enforce=True)  # block at submit
         self.validate_bundle_amenities(enforce=True)  # block at submit
         self.validate_exchange_rates(enforce=True)  # block at submit
 
@@ -879,43 +880,109 @@ class ButlerQuotation(Document):
                 "Butler Settings", "role_to_override_unfulfilled_stop_action"),
         )
 
-    def validate_dependencies(self):
-        """Every dependant amenity's required `depends_on` amenities must also be on the
-        quotation. Optimised to a single query: gather all dependency links for the
-        dependant amenities at once, then check them against the present amenities in memory.
+    def validate_dependencies(self, enforce):
+        """A dependant amenity may not outnumber the primary amenities it requires.
+
+        For every amenity `D` flagged `is_dependant_amenity`, and every `P` in its
+        `depends_on` table:
+
+            count(D placements)  <=  count(P placements)
+
+        An Intercom needs an Entrance to be fitted to, so three Intercoms need three
+        Entrances. Mere presence is the `capacity == 0` case of the same rule, which is
+        why there is no separate presence check.
+
+        **This never touches money.** Both amenities are drawn separately and priced
+        independently — the Entrance costs what an Entrance costs, each Intercom what an
+        Intercom costs. Nothing records *which* Intercom belongs to *which* Entrance
+        either: only the totals are compared, because the user places them freely and an
+        Entrance with no Intercom on it is perfectly legitimate.
+
+        Counting is **raw placements on both sides**. Unlike `validate_bundle_amenities`
+        just above, rows ticked `additional_amenity` are deliberately *not* subtracted: a
+        bundle-overflow Intercom is still a physical intercom that needs an entrance, and
+        an overflow Entrance still supplies one.
+
+        Warn during `validate`, governed by Butler Settings →
+        action_if_dependencies_missing (+ override role) at `before_submit`.
         """
-        present = {r.amenity for r in self.amenities if r.amenity}
-        dependants = {
-            r.amenity for r in self.amenities if r.is_dependant_amenity and r.amenity}
+        # One row per placement, and annex rows are part of their amenity, not placements
+        # of their own — expand_amenity_rows has already appended them by the time this
+        # runs, so without the guard a dependant with 4 annexes would count as 5.
+        counts = {}
+        for row in self.amenities:
+            if row.annex or not row.amenity:
+                continue
+            counts[row.amenity] = counts.get(row.amenity, 0) + 1
+        if not counts:
+            return
+
+        # Resolve the flag from the Amenity itself, not row.is_dependant_amenity: that
+        # field is a fetch_from snapshot, and the Facility Builder's build_amenity_rows
+        # never sets it at all — so trusting the row lets every builder-drawn quotation
+        # through. No `disabled` filter: an amenity disabled after the quotation was drawn
+        # is still on it and still governed.
+        dependants = frappe.get_all(
+            "Amenity",
+            filters={"name": ("in", list(counts)), "is_dependant_amenity": 1},
+            pluck="name",
+        )
         if not dependants:
             return
 
-        deps = frappe.get_all(
+        links = frappe.get_all(
             "Amenity Depends On",
             filters={
                 "parenttype": "Amenity",
                 "parentfield": "depends_on",
-                "parent": ["in", list(dependants)],
+                "parent": ("in", dependants),
             },
             fields=["parent", "amenity"],
         )
 
-        missing = {}  # amenity -> set of its missing dependencies
-        for d in deps:
-            if d.amenity and d.amenity not in present:
-                missing.setdefault(d.parent, set()).add(d.amenity)
+        # One entry per breached (dependant, primary) pair — an amenity with two primaries
+        # can be short of both, and the user needs to see both.
+        shortfalls = []
+        seen = set()
+        for link in links:
+            pair = (link.parent, link.amenity)
+            if not link.amenity or pair in seen:
+                continue  # a duplicate row on the master must not report twice
+            seen.add(pair)
+            placed = counts.get(link.parent, 0)
+            capacity = counts.get(link.amenity, 0)
+            if placed > capacity:
+                shortfalls.append((link.parent, placed, link.amenity, capacity))
+        if not shortfalls:
+            return
+        shortfalls.sort()
 
-        if missing:
-            lines = "".join(
-                "<li>{0} &rarr; {1}</li>".format(frappe.bold(a),
-                                                 ", ".join(sorted(m)))
-                for a, m in missing.items()
-            )
-            frappe.throw(
-                _("These amenities require dependencies that aren't in the quotation:")
-                + f"<ul>{lines}</ul>",
-                title=_("Missing dependencies"),
-            )
+        def line(dependant, placed, primary, capacity):
+            if capacity:
+                return _("{0} &mdash; {1} placed, but only {2} {3}").format(
+                    frappe.bold(dependant), placed, capacity, frappe.bold(primary))
+            return _("{0} &mdash; {1} placed, but no {2} on this quotation").format(
+                frappe.bold(dependant), placed, frappe.bold(primary))
+
+        message = (
+            _("Each of these amenities needs a primary amenity of its own:")
+            + "<ul>" + "".join("<li>{0}</li>".format(line(*s)) for s in shortfalls) + "</ul>"
+            + _("Draw the missing primary amenities, or remove the extra dependants.")
+        )
+        title = _("Dependencies not met")
+
+        if not enforce:
+            frappe.msgprint(message, title=title, indicator="orange")
+            return
+
+        apply_governance_action(
+            frappe.db.get_single_value(
+                "Butler Settings", "action_if_dependencies_missing") or "Stop",
+            message=message,
+            title=title,
+            override_role=frappe.db.get_single_value(
+                "Butler Settings", "role_to_override_dependency_stop_action"),
+        )
 
     def calculate_totals(self):
         """Roll the amenity lines up into the header totals.

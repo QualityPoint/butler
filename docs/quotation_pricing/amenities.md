@@ -89,6 +89,31 @@ See [validations.md](./validations.md#annex-price--maintain_annex_price_action).
 
 ---
 
+## Dependant amenities
+
+An Amenity can require another. Tick **Is Dependant Amenity** and list the ones it needs
+in **Primary Amenities** (`Amenity.depends_on`): an *Intercom* needs an *Entrance* to be
+fitted to. On a quotation the rule is a count cap — `count(Intercom) <= count(Entrance)` —
+enforced by `validate_dependencies`.
+
+**It changes no price.** Both are drawn separately in the Facility Builder and priced
+independently; the dependency is a composition rule, not an arithmetic one. Full rules in
+[validations.md](./validations.md#dependencies).
+
+The master keeps the graph drawable:
+
+| Rule | Error title |
+|---|---|
+| An amenity may not depend on itself | *Invalid Dependency* |
+| A primary may not be listed twice | *Duplicate Primary Amenity* |
+| No rings: `A → B → A`, or longer | *Circular Dependency* |
+
+Unticking the checkbox clears the table (`clear_dependent_fields`, in `before_save`) —
+which is why the validator returns early when the box is off: at `validate` time the rows
+are still there, on their way out.
+
+---
+
 ## Worked example
 
 Facility is a Villa on 1 floor. Amenity **Lounge** (`depends_on_floor_count = 1`,
