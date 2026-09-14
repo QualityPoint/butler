@@ -14,6 +14,14 @@
 				<div v-else class="fb-empty">
 					{{ __("Add a floor to start designing.") }}
 				</div>
+				<!-- After the v-else, never between it and its v-if: Vue pairs v-else with the
+				     preceding conditional element, so sitting in the middle would hand the
+				     empty state ToolDock's condition and print "Add a floor" over a drawn
+				     plan on every layer but Drawing.
+
+				     Floats over the canvas, inside the wrap's own positioning context, so it
+				     neither pans with the stage nor escapes the drawing area. -->
+				<ToolDock v-if="$store.active_floor.value && isDrawingLayer" />
 			</div>
 			<Footer v-if="$store.active_floor.value" />
 		</div>
@@ -28,6 +36,7 @@ import FeaturesPanel from "./FeaturesPanel.vue";
 import FloorTabs from "./FloorTabs.vue";
 import Toolbar from "./Toolbar.vue";
 import Canvas from "./Canvas.vue";
+import ToolDock from "./ToolDock.vue";
 import Footer from "./Footer.vue";
 
 const props = defineProps(["mode", "name"]);
@@ -37,6 +46,8 @@ const rootEl = ref(null);
 const builderHeight = ref(null);
 
 let $store = computed(() => getStore(props.mode, props.name));
+// the shape tools only mean anything while drawing; Blueprint and Features have their own
+const isDrawingLayer = computed(() => $store.value.active_layer.value === "drawing");
 
 // fill exactly from the builder's top down to the viewport bottom (no guessed offset)
 const rootStyle = computed(() =>
