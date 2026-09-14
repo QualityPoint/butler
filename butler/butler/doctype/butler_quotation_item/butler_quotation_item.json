@@ -20,6 +20,7 @@
   "amenity_description",
   "lines",
   "amenity_category",
+  "alias",
   "section_break_hzon",
   "image",
   "image_view",
@@ -153,7 +154,7 @@
    "reqd": 1
   },
   {
-   "description": "The Facility Builder shape this row was drawn from. Machine key — never hand-edited.",
+   "description": "The Facility Builder shape this row was drawn from. Machine key \u2014 never hand-edited.",
    "fieldname": "placement_id",
    "fieldtype": "Data",
    "label": "Placement",
@@ -609,7 +610,7 @@
   },
   {
    "default": "1",
-   "description": "Set from the Facility Builder — one placement per row, summed on consolidation.",
+   "description": "Set from the Facility Builder \u2014 one placement per row, summed on consolidation.",
    "fieldname": "amenity_qty",
    "fieldtype": "Float",
    "in_list_view": 1,
@@ -799,13 +800,20 @@
    "label": "Ameniy Description",
    "print_width": "300px",
    "width": "300px"
+  },
+  {
+   "fetch_from": "amenity.alias",
+   "fetch_if_empty": 1,
+   "fieldname": "alias",
+   "fieldtype": "Data",
+   "label": "Alias"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-09-08 14:10:00.000000",
+ "modified": "2026-09-10 14:37:37.111771",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Butler Quotation Item",

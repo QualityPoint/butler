@@ -12,8 +12,9 @@
   "section_break_pden",
   "amenity",
   "amenity_name",
-  "amenity_category",
+  "alias",
   "column_break_jaun",
+  "amenity_category",
   "lines",
   "image",
   "amenity_bundle_section",
@@ -236,13 +237,19 @@
    "fieldname": "description",
    "fieldtype": "Text Editor",
    "label": "Description"
+  },
+  {
+   "fieldname": "alias",
+   "fieldtype": "Data",
+   "label": "Alias",
+   "no_copy": 1
   }
  ],
  "grid_page_length": 50,
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-07 12:39:34.719920",
+ "modified": "2026-09-10 14:36:39.536913",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Amenity",
