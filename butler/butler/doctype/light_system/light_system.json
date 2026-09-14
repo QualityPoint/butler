@@ -11,6 +11,7 @@
   "system_name",
   "is_default",
   "standard_price",
+  "pricing_mode",
   "column_break_nuzj",
   "description",
   "image"
@@ -55,12 +56,18 @@
    "fieldname": "description",
    "fieldtype": "Small Text",
    "label": "Description"
+  },
+  {
+   "fieldname": "pricing_mode",
+   "fieldtype": "Select",
+   "label": "Pricing Mode",
+   "options": "\nAdd\nSubtract"
   }
  ],
  "grid_page_length": 50,
  "image_field": "image",
  "links": [],
- "modified": "2026-09-05 12:48:22.850252",
+ "modified": "2026-09-14 13:19:01.372007",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Light System",
