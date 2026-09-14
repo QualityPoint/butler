@@ -10,17 +10,18 @@
   "column_break_aufy",
   "maintain_annex_price_action",
   "role_to_override_annex_price_stop_action",
+  "column_break_xfld",
+  "action_if_dependencies_missing",
+  "role_to_override_dependency_stop_action",
   "section_break_eqov",
-  "default_valid_till",
+  "system_core_action",
+  "role_to_override_system_core_stop_action",
   "column_break_fofu",
+  "default_valid_till",
   "bundle_section",
   "action_if_bundle_items_unfulfilled",
   "role_to_override_unfulfilled_stop_action",
-  "column_break_tync",
-  "dependencies_section",
-  "action_if_dependencies_missing",
-  "column_break_dpnd",
-  "role_to_override_dependency_stop_action"
+  "column_break_tync"
  ],
  "fields": [
   {
@@ -85,11 +86,6 @@
    "options": "Role"
   },
   {
-   "fieldname": "dependencies_section",
-   "fieldtype": "Section Break",
-   "label": "Dependencies"
-  },
-  {
    "default": "Stop",
    "description": "Select the system action if a dependant amenity on the quotation outnumbers the primary amenities it requires.",
    "fieldname": "action_if_dependencies_missing",
@@ -98,14 +94,27 @@
    "options": "Stop\nWarn"
   },
   {
-   "fieldname": "column_break_dpnd",
-   "fieldtype": "Column Break"
-  },
-  {
    "depends_on": "eval:doc.action_if_dependencies_missing==\"Stop\"",
    "fieldname": "role_to_override_dependency_stop_action",
    "fieldtype": "Link",
    "label": "Role allowed to override stop action",
+   "options": "Role"
+  },
+  {
+   "fieldname": "column_break_xfld",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Stop",
+   "fieldname": "system_core_action",
+   "fieldtype": "Select",
+   "label": "Action if System Core is not added",
+   "options": "Stop\nWarn"
+  },
+  {
+   "fieldname": "role_to_override_system_core_stop_action",
+   "fieldtype": "Link",
+   "label": " Role allowed to override stop action ",
    "options": "Role"
   }
  ],
@@ -113,7 +122,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-09-10 10:00:00.000000",
+ "modified": "2026-09-14 12:52:13.247806",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Butler Settings",

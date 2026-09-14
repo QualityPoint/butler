@@ -25,6 +25,7 @@ governed action has a `Stop`-gated override role.
 | `maintain_annex_price_action` | `role_to_override_annex_price_stop_action` |
 | `action_if_bundle_items_unfulfilled` | `role_to_override_unfulfilled_stop_action` |
 | `action_if_dependencies_missing` | `role_to_override_dependency_stop_action` |
+| `system_core_action` | `role_to_override_system_core_stop_action` |
 
 ---
 
@@ -134,9 +135,7 @@ one. Annex rows are skipped (`if row.annex`) — without that guard a dependant 
 annexes would count as five placements.
 
 The dependant flag is re-resolved from the **Amenity master**, never read off
-`row.is_dependant_amenity`. That field is a `fetch_from` snapshot which the Facility
-Builder's `build_amenity_rows` never sets, so trusting it let every builder-drawn
-quotation through.
+`row.is_dependant_amenity` — see [Why the checks read the master](#why-the-checks-read-the-master).
 
 ### On the master
 
@@ -166,6 +165,75 @@ the two ways to resolve it.
 
 ---
 
+## System core
+
+`validate_system_core(enforce)`: a quotation must carry **at least one** amenity flagged
+`Amenity.is_system_core`. The system core is what the rest of the quotation hangs off — a
+plan of rooms with no core is not a sellable installation.
+
+It asks only whether a core is **present**, never how many, and never looks at
+quantities, floors or price. Applies to **every order type**.
+
+The flag is re-resolved from the **Amenity master**, never read off
+`row.is_system_core` — see [Why the checks read the master](#why-the-checks-read-the-master).
+No `disabled` filter, for the same reason as Dependencies: an amenity disabled after the
+quotation was drawn is still on it.
+
+**An empty `amenities` table warns nothing during `validate`** — that is a draft somebody
+has only just opened, not a breach, and warning on every save of it would be noise. At
+submit there is no such excuse, and `amenities` is not a `reqd` field, so nothing else
+would stop an empty quotation.
+
+The message names the amenities that would satisfy the rule (enabled ones only, capped at
+six), so the refusal reads as an instruction rather than a dead end. Where the catalogue
+has none flagged at all, it says so instead.
+
+> `system_core_action` is unset on sites installed before it existed; the code falls back
+> to `Stop`. `setup.py` seeds it on fresh installs. No patch, per policy.
+
+---
+
+## Why the checks read the master
+
+`validate_dependencies` and `validate_system_core` both re-resolve their flag from the
+**Amenity master** rather than reading `row.is_dependant_amenity` / `row.is_system_core`.
+Not style — the row's copy is stale at exactly the moment these checks run.
+
+Frappe refreshes a `fetch_from` field inside `_validate_links`, but only under this guard
+(`base_document.set_fetch_from_value`), where `self` is the **child row**:
+
+```python
+if self.is_new() or not self.docstatus.is_submitted() or _df.allow_on_submit:
+```
+
+`submit()` sets `docstatus = 1` and `set_docstatus()` propagates it to the children
+**before** `_validate_links()` runs. So on the submit pass the guard is false and the row
+keeps whatever the last *draft* save fetched:
+
+| | Amenity master | row's copy |
+|---|---|---|
+| draft saved | `0` | `0` |
+| someone ticks the flag on the Amenity | `1` | `0` |
+| **Submit** → `before_submit` | `1` | `0` ← what the row would report |
+
+Reading the row would refuse a quotation that genuinely satisfies the rule.
+
+**This does not make the row's copy pointless.** The same freeze is what makes a submitted
+quotation a record of what was true when it was sold — untick the Amenity next year and
+the submitted quotation still shows the flag as it stood. Two different questions:
+
+| Question | Source |
+|---|---|
+| Is this true *now*? (validation) | the Amenity master |
+| Was this true *when we sold it*? (record, reporting) | the row's copy |
+
+> An earlier version of this file blamed the Facility Builder for not sending the flag.
+> That was wrong: `_validate_links` runs before `run_before_save_methods`, so a row posted
+> with only `amenity` on it is fully populated by the time `validate` runs. The freeze at
+> submit is the real reason.
+
+---
+
 ## When each runs
 
 | Check | `validate` | `before_submit` |
@@ -176,4 +244,5 @@ the two ways to resolve it.
 | Unfulfilled composition | ✅ **warn only** | ✅ governed (warn/throw) |
 | Undesignated overflow | ✅ warn (names categories) | ✅ governed (warn/throw) |
 | Dependencies (`count(D) <= count(P)`) | ✅ **warn only** | ✅ governed (warn/throw) |
+| System core present | ✅ **warn only** (skipped while empty) | ✅ governed (warn/throw) |
 | `validate_valid_till` | ✅ | — |

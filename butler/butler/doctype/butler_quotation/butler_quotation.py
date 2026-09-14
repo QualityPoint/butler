@@ -290,6 +290,7 @@ class ButlerQuotation(Document):
         self.validate_row_types()
         self.validate_bundle_amenities(enforce=False)  # warn while editing
         self.validate_dependencies(enforce=False)  # warn while editing
+        self.validate_system_core(enforce=False)  # warn while editing
         self.validate_exchange_rates(enforce=False)  # warn while editing
         self.validate_valid_till()
 
@@ -802,6 +803,7 @@ class ButlerQuotation(Document):
 
     def before_submit(self):
         self.validate_dependencies(enforce=True)  # block at submit
+        self.validate_system_core(enforce=True)  # block at submit
         self.validate_bundle_amenities(enforce=True)  # block at submit
         self.validate_exchange_rates(enforce=True)  # block at submit
 
@@ -917,11 +919,20 @@ class ButlerQuotation(Document):
         if not counts:
             return
 
-        # Resolve the flag from the Amenity itself, not row.is_dependant_amenity: that
-        # field is a fetch_from snapshot, and the Facility Builder's build_amenity_rows
-        # never sets it at all — so trusting the row lets every builder-drawn quotation
-        # through. No `disabled` filter: an amenity disabled after the quotation was drawn
-        # is still on it and still governed.
+        # Resolve the flag from the Amenity itself, not row.is_dependant_amenity, because
+        # the row's copy is stale exactly when this runs. Frappe refreshes a fetch_from
+        # field in _validate_links, but only `if self.is_new() or not
+        # self.docstatus.is_submitted()` (base_document.set_fetch_from_value) — and `self`
+        # there is the child row. submit() sets docstatus=1 and set_docstatus() propagates
+        # it to the children *before* _validate_links runs, so on the submit pass the row
+        # keeps whatever the last draft save fetched. Tick is_dependant_amenity on an
+        # Amenity after a draft was saved and the row still says 0 at before_submit.
+        #
+        # The row's copy is not useless — it is the point-in-time record of what was true
+        # when the quotation was sold. It is just the wrong source for "is this true now".
+        #
+        # No `disabled` filter: an amenity disabled after the quotation was drawn is still
+        # on it and still governed.
         dependants = frappe.get_all(
             "Amenity",
             filters={"name": ("in", list(counts)), "is_dependant_amenity": 1},
@@ -982,6 +993,72 @@ class ButlerQuotation(Document):
             title=title,
             override_role=frappe.db.get_single_value(
                 "Butler Settings", "role_to_override_dependency_stop_action"),
+        )
+
+    def validate_system_core(self, enforce):
+        """A quotation must carry at least one amenity flagged `is_system_core`.
+
+        The system core is what the rest of the quotation hangs off — a plan of rooms with
+        no core is not a sellable installation. One is enough: this asks whether a core is
+        present at all, not how many, and it never looks at quantities, floors or price.
+
+        Warn during `validate`, governed at `before_submit` by Butler Settings →
+        system_core_action (+ override role), exactly like the three checks around it.
+        """
+        amenities = {row.amenity for row in self.amenities if row.amenity and not row.annex}
+
+        # An empty table is an empty draft, not a breach — warning on every save of a
+        # quotation somebody has only just opened would be noise. At submit there is no
+        # such excuse: a quotation with nothing on it has no system core either, and
+        # `amenities` is not a required field, so nothing else would stop it.
+        if not amenities and not enforce:
+            return
+
+        # Resolved from the Amenity master, never read off `row.is_system_core`: the row's
+        # copy stops being refreshed once the row is marked submitted, which happens just
+        # before this runs. See the longer note in `validate_dependencies` — same
+        # mechanism, same reason. No `disabled` filter — an amenity disabled after the
+        # quotation was drawn is still on it and still counts.
+        if amenities and frappe.get_all(
+            "Amenity",
+            filters={"name": ("in", list(amenities)), "is_system_core": 1},
+            limit=1,
+        ):
+            return
+
+        message = _("This quotation has no system core. Add at least one amenity marked "
+                    "{0}.").format(frappe.bold(_("Is System Core")))
+
+        # Naming the eligible amenities turns the refusal into an instruction — without it
+        # there is nothing on screen to say which amenity would satisfy the rule. Disabled
+        # ones are left out: they cannot be placed, so suggesting them would not help.
+        # Capped, because a catalogue may mark many.
+        choices = frappe.get_all(
+            "Amenity",
+            filters={"is_system_core": 1, "disabled": 0},
+            pluck="name",
+            order_by="name asc",
+            limit=7,
+        )
+        if choices:
+            shown = choices[:6]
+            message += "<br>" + _("Marked as system core: {0}").format(
+                frappe.bold(", ".join(shown)) + ("…" if len(choices) > len(shown) else ""))
+        else:
+            message += "<br>" + _("No amenity is marked as system core yet.")
+
+        title = _("System core missing")
+
+        if not enforce:
+            frappe.msgprint(message, title=title, indicator="orange")
+            return
+
+        apply_governance_action(
+            frappe.db.get_single_value("Butler Settings", "system_core_action") or "Stop",
+            message=message,
+            title=title,
+            override_role=frappe.db.get_single_value(
+                "Butler Settings", "role_to_override_system_core_stop_action"),
         )
 
     def calculate_totals(self):

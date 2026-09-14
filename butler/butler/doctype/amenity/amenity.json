@@ -12,7 +12,7 @@
   "section_break_pden",
   "amenity",
   "amenity_name",
-  "alias",
+  "is_system_core",
   "column_break_jaun",
   "amenity_category",
   "lines",
@@ -239,9 +239,12 @@
    "label": "Description"
   },
   {
-   "fieldname": "alias",
-   "fieldtype": "Data",
-   "label": "Alias",
+   "default": "0",
+   "fieldname": "is_system_core",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Is System Core",
    "no_copy": 1
   }
  ],
@@ -249,7 +252,7 @@
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-10 14:36:39.536913",
+ "modified": "2026-09-14 11:47:02.538629",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Amenity",
