@@ -193,6 +193,9 @@ const pointSelectRingConfig = computed(() => {
 });
 const pointCentroidConfig = { x: 0, y: 0, radius: 2.5, fill: "#2490ef" };
 
+// The plan carries the customer's own name for a room where they have given one — the
+// point of an alias is that "Bedroom" is not what they call it, and a drawing that still
+// says "Bedroom" would defeat it. `room_label` falls back to the amenity name.
 const labelConfig = computed(() => {
 	if (props.room.shape === "point") {
 		const s = props.room.size || 24;
@@ -200,7 +203,7 @@ const labelConfig = computed(() => {
 			x: -40,
 			y: s / 2 + 2,
 			width: 80,
-			text: __(props.room.amenity),
+			text: store.room_label(props.room),
 			align: "center",
 			fontSize: 12,
 			fill: "#1f272e",
@@ -214,7 +217,7 @@ const labelConfig = computed(() => {
 			x: lb.x + lb.w / 2 - 40,
 			y: lb.y - 18,
 			width: 80,
-			text: `${__(props.room.amenity)} · ${len.toFixed(1)} m`,
+			text: `${store.room_label(props.room)} · ${len.toFixed(1)} m`,
 			align: "center",
 			fontSize: 12,
 			fill: "#1f272e",
@@ -226,7 +229,7 @@ const labelConfig = computed(() => {
 		y: b.y,
 		width: b.w,
 		height: b.h,
-		text: `${__(props.room.amenity)}\n${props.room.area.toFixed(1)} m²`,
+		text: `${store.room_label(props.room)}\n${props.room.area.toFixed(1)} m²`,
 		align: "center",
 		verticalAlign: "middle",
 		fontSize: 12,

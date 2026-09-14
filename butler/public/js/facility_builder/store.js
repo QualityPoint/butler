@@ -268,6 +268,30 @@ export function getStore(mode, target_name) {
 		}
 	}
 
+	// The alias is the one thing a placement owns that can also be typed straight into the
+	// quotation's grid, so the geometry is not its only home. Adopt what the rows carry on
+	// load: a grid edit then shows up in the builder, and — the real point — the next
+	// builder save doesn't post stale geometry over the top of it.
+	function adopt_row_aliases(rows) {
+		const by_placement = {};
+		for (const row of rows || []) {
+			if (row.annex || !row.placement_id) continue;
+			by_placement[row.placement_id] = row.alias || "";
+		}
+		for (const floor of design.value?.floors || []) {
+			for (const room of floor.rooms || []) {
+				if (!(room.id in by_placement)) continue;
+				const alias = by_placement[room.id];
+				// A row nobody renamed carries the amenity's own name, put there by
+				// `fetch_if_empty`. Adopting that would turn a blank into an explicit
+				// override and freeze it against a later rename of the Amenity, so it
+				// reads as blank. `Amenity.autoname` is `field:amenity_name`, which is
+				// what makes `room.amenity` comparable to the alias at all.
+				room.alias = alias.trim() === room.amenity ? "" : alias;
+			}
+		}
+	}
+
 	function fetch_quotation() {
 		return new Promise((resolve) => {
 			frappe.model.clear_doc("Butler Quotation", target_name);
@@ -275,6 +299,7 @@ export function getStore(mode, target_name) {
 				let doc = frappe.get_doc("Butler Quotation", target_name);
 				quotation.value = doc;
 				design.value = parse_geometry(doc.geometry);
+				adopt_row_aliases(doc.amenities);
 				order_type.value = doc.order_type || "Amenities";
 				bundle_type.value = doc.bundle_type || null;
 				active_floor_type.value = design.value.floors[0]?.floor_type ?? null;
@@ -431,6 +456,10 @@ export function getStore(mode, target_name) {
 					amenity: r.amenity,
 					floor_type: floor.floor_type,
 					amenity_qty: 1,
+					// null, not "", so an untouched placement reaches the server empty and
+					// `fetch_if_empty` seeds the row from the amenity's own name. Sent as
+					// typed — the trim only asks "is there a name here", it does not edit it.
+					alias: r.alias?.trim() ? r.alias : null,
 					light_system: r.light_system || null,
 					has_sound_system: r.has_sound_system ? 1 : 0,
 					annexes_customised: customised ? 1 : 0,
@@ -734,6 +763,28 @@ export function getStore(mode, target_name) {
 		room.area = room_area_m2(room, ppm.value);
 	}
 
+	// The customer's own name for one placement — "Sara's Room" rather than "Bedroom".
+	//
+	// Kept exactly as typed, spacing and all, because a Frappe Data field keeps what you
+	// put in it and this is one. The single exception is a name made only of spaces: it
+	// looks identical to an empty box, so it is stored as empty and the placement falls
+	// back to the amenity's name rather than being labelled with nothing.
+	//
+	// Not carried by `apply_features_to_similar`, and dropped on paste: a name belongs to
+	// one room, unlike the annexes and light and sound it sits next to.
+	function set_room_alias(id, value) {
+		const alias = value || "";
+		update_room(id, { alias: alias.trim() ? alias : "" });
+	}
+
+	// What to call a placement anywhere it is shown. The alias is the customer's own
+	// words, so it is never passed through `__()`; the fallback is, exactly as before.
+	function room_label(room) {
+		if (!room) return "";
+		const alias = room.alias || "";
+		return alias.trim() ? alias : __(room.amenity);
+	}
+
 	function delete_room(id) {
 		if (read_only.value || !active_floor.value) return;
 		active_floor.value.rooms = active_floor.value.rooms.filter((r) => r.id !== id);
@@ -907,6 +958,7 @@ export function getStore(mode, target_name) {
 			const category = info?.amenity_category || snap.category || null;
 			if (category && category_is_full(category)) continue; // respect bundle caps
 			const room = { ...JSON.parse(JSON.stringify(snap)), id: frappe.utils.get_random(8) };
+			delete room.alias; // an alias names one room; a copy of it is a different room
 			room.x = (room.x || 0) + 20; // offset so the copy is visible
 			room.y = (room.y || 0) + 20;
 			active_floor.value.rooms.push(room);
@@ -1265,6 +1317,8 @@ export function getStore(mode, target_name) {
 		has_dependency_shortfall,
 		amenity_label,
 		amenity_is_short,
+		set_room_alias,
+		room_label,
 		primaries_for,
 		read_only,
 		snap_enabled,

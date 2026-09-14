@@ -108,10 +108,12 @@
 			<div class="fb-spacer" />
 
 			<template v-if="room">
-				<span class="fb-room-label">
-					{{ __(room.amenity) }} &middot;
-					{{ __("{0} annexes", [store.effective_annexes(room).length]) }}
-				</span>
+				<div class="fb-room-ident">
+					<RoomAliasInput :room="room" />
+					<span class="fb-room-meta">
+						&middot; {{ __("{0} annexes", [store.effective_annexes(room).length]) }}
+					</span>
+				</div>
 				<button
 					class="btn btn-xs btn-default"
 					:disabled="store.read_only.value || !similarCount"
@@ -210,11 +212,11 @@
 			<div class="fb-spacer" />
 
 			<template v-if="room">
-				<div class="fb-toolbar-group">
-					<span class="fb-room-label">
-						{{ __(room.amenity)
-						}}<template v-if="room.shape === 'line'"> · {{ lineLength.toFixed(1) }} m</template
-						><template v-else-if="room.shape !== 'point'"> · {{ room.area.toFixed(1) }} m²</template>
+				<div class="fb-room-ident">
+					<RoomAliasInput :room="room" />
+					<span class="fb-room-meta">
+						<template v-if="room.shape === 'line'">· {{ lineLength.toFixed(1) }} m</template>
+						<template v-else-if="room.shape !== 'point'">· {{ room.area.toFixed(1) }} m²</template>
 					</span>
 				</div>
 				<button class="btn btn-xs btn-danger" :disabled="store.read_only.value" @click="store.delete_room(room.id)">
@@ -234,6 +236,7 @@
 <script setup>
 import { inject, computed, ref, watch, nextTick, onBeforeUnmount } from "vue";
 import { room_length_m } from "../utils";
+import RoomAliasInput from "./RoomAliasInput.vue";
 
 const store = inject("$store");
 const room = computed(() => store.selected_room.value);
@@ -266,6 +269,9 @@ const similarCount = computed(() => {
 });
 
 function applyToSimilar() {
+	// deliberately the amenity's name, not the room's alias: this acts on every placement
+	// of the amenity, so "Copy the annexes of this Sara's Room onto the other 11" would
+	// describe the wrong thing
 	const amenity = __(room.value.amenity);
 	frappe.confirm(
 		__("Copy the annexes, light system and sound setting of this {0} onto the other {1}?",
@@ -624,6 +630,17 @@ function toggleCalibrate() {
 }
 .fb-room-label {
 	font-weight: 600;
+}
+.fb-room-ident {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	min-width: 0;
+}
+/* the measurement beside the name: present, but never competing with it */
+.fb-room-meta {
+	color: var(--text-muted);
+	white-space: nowrap;
 }
 .fb-active-amenity {
 	display: inline-flex;

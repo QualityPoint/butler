@@ -373,6 +373,26 @@ butler.ui.AmenitiesEditor = class AmenitiesEditor {
 
 // One amenity and the annexes under it — this editor's GridRow. It owns its DOM from the
 // moment it is built until it is retired, and every update it takes is in place.
+// The alias chip in the card head. `--bg-blue`/`--text-on-blue` rather than a grey: the
+// head is already tinted with --subtle-accent, so a grey chip would barely separate from
+// it, and both vars are redefined under dark mode, so the pair inverts on its own.
+//
+// It shrinks before the amenity name does (min-width:0 here, nowhere on the name) and
+// ellipsizes, so a long alias can never push the annex count or the amount off the row.
+const ALIAS_CHIP = [
+    "font-size:.85em",
+    "line-height:1.5",
+    "min-width:0",
+    "max-width:18rem",
+    "overflow:hidden",
+    "text-overflow:ellipsis",
+    "white-space:nowrap",
+    "padding:.05rem .45rem",
+    "border-radius:8px",
+    "background:var(--bg-blue)",
+    "color:var(--text-on-blue)",
+].join(";");
+
 butler.ui.AmenityCard = class AmenityCard {
     constructor({ editor, group }) {
         this.editor = editor;
@@ -402,7 +422,10 @@ butler.ui.AmenityCard = class AmenityCard {
             <div class="butler-amenity" style="border:1px solid var(--border-color);border-radius:var(--border-radius-md);margin-bottom:.5rem;background:var(--card-bg)">
                 <div class="butler-amenity-head" style="display:flex;align-items:center;gap:.75rem;padding:.5rem .75rem;cursor:pointer;background:var(--subtle-accent)">
                     <span class="butler-caret" style="width:1rem;color:var(--text-muted)"></span>
-                    <span class="butler-amenity-name" style="flex:1;font-weight:500"></span>
+                    <span style="flex:1;min-width:0;display:flex;align-items:baseline;gap:.4rem">
+                        <span class="butler-amenity-name" style="font-weight:500;white-space:nowrap"></span>
+                        <span class="butler-amenity-alias" style="${ALIAS_CHIP}"></span>
+                    </span>
                     <span class="butler-annex-count text-muted" style="font-size:.85em"></span>
                     <span class="butler-amount" style="min-width:8rem;text-align:right;font-weight:600"></span>
                 </div>
@@ -415,6 +438,7 @@ butler.ui.AmenityCard = class AmenityCard {
         const $head = this.$card.find(".butler-amenity-head");
         const $caret = this.$card.find(".butler-caret");
         const $name = this.$card.find(".butler-amenity-name");
+        const $alias = this.$card.find(".butler-amenity-alias");
         const $count = this.$card.find(".butler-annex-count");
         const $amount = this.$card.find(".butler-amount");
 
@@ -427,6 +451,19 @@ butler.ui.AmenityCard = class AmenityCard {
             $head.css("border-radius", this.open ? `${radius} ${radius} 0 0` : radius);
             $caret.text(this.open ? "▾" : "▸");
             $name.text(this.row.amenity || __("(no amenity)"));
+            // The customer's own name for this one placement, beside the amenity's. Shown
+            // only where it is genuinely an override: `fetch_if_empty` seeds the row with
+            // the amenity's own name, so rendering it unconditionally would print
+            // "Bedroom  Bedroom" on every placement nobody has renamed.
+            //
+            // Text, never a control — the alias belongs to a drawn shape, and the Facility
+            // Builder is the only place that knows which shape a row came from.
+            const alias = (this.row.alias || "").trim();
+            const named = Boolean(alias) && alias !== this.row.amenity;
+            $alias
+                .text(named ? alias : "")
+                .attr("title", named ? __("Alias — set in the Facility Builder") : null)
+                .toggle(named);
             $count.text(__("{0} annexes", [this.annex_rows.length]));
             $amount.text(format_currency(this.row.qtn_amenity_amount, this.frm.doc.currency));
         });
