@@ -212,7 +212,7 @@
 
 <script setup>
 import { inject, computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
-import { room_length_m } from "../utils";
+import { keep_last_value, room_length_m } from "../utils";
 import RoomAliasInput from "./RoomAliasInput.vue";
 
 const store = inject("$store");
@@ -254,6 +254,7 @@ function ensureDefaultDeviceControl() {
 				return { filters: { name: ["in", names.length ? names : [""]] } };
 			},
 			onchange: () => {
+				keep_last_value(defaultDeviceCtrl); // so clearing it registers (utils.js)
 				const picked = defaultDeviceCtrl.get_value() || null;
 				if (picked === (store.default_light_system_device.value || null)) return; // programmatic sync
 				// only a device other than the system's default is stored (in the drawing);

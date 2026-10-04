@@ -3,6 +3,17 @@
 export const SCHEMA_VERSION = 1;
 
 // A fresh, empty design envelope for a facility that has never been built.
+// Keep a standalone Link control's `last_value` in step with what it holds. Frappe's Link
+// decides on blur whether the text changed by comparing it with `last_value`
+// (form/controls/link.js), but only a control bound to a form ever updates it
+// (base_control.js set_model_value). For a control on its own it stays empty, so clearing
+// the field and leaving it compares "" with "" and never fires onchange — a cleared filter
+// or field silently kept its old value until the page was reloaded. Call at the top of
+// every such control's onchange.
+export function keep_last_value(ctrl) {
+	if (ctrl) ctrl.last_value = ctrl.get_value() || "";
+}
+
 export function blank_design() {
 	return {
 		version: SCHEMA_VERSION,

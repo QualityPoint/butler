@@ -147,6 +147,7 @@
 <script setup>
 import { computed, inject, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import { resolveColor } from "../colors";
+import { keep_last_value } from "../utils";
 
 const store = inject("$store");
 
@@ -337,6 +338,7 @@ function ensureLightControl() {
 			options: "Light System",
 			placeholder: __("Default"),
 			onchange: () => {
+				keep_last_value(lightCtrl); // so clearing it registers (utils.js)
 				const picked = lightCtrl.get_value() || null;
 				if (picked === (room.value?.light_system || null)) return; // programmatic sync
 				// also resets the device to the new system's default
@@ -370,6 +372,7 @@ function ensureDeviceControl() {
 				return { filters: { name: ["in", names.length ? names : [""]] } };
 			},
 			onchange: () => {
+				keep_last_value(deviceCtrl); // so clearing it registers (utils.js)
 				const picked = deviceCtrl.get_value() || null;
 				if (picked === store.effective_device_for(room.value)) return; // programmatic sync
 				// only a device other than the system's default is stored as a pick; clearing,
