@@ -79,6 +79,18 @@ def fill_fetched_fields(row):
             row.set(df.fieldname, values.get(df.fetch_from.split(".", 1)[1]))
 
 
+def matches_composition(annex_rows, master):
+    """Whether an amenity's annex rows are its Amenity's list: the same annexes in the same
+    quantities, and the same UOM wherever the Amenity names one (a blank master UOM is
+    resolved on pricing, so it is not compared)."""
+    def key(annex, qty, uom):
+        return (annex, round(flt(qty), 6), uom or "")
+    have = sorted(key(r.annex, r.annex_quantity, r.annex_uom if any(m.uom for m in master if m.annex == r.annex) else "")
+                  for r in annex_rows)
+    want = sorted(key(m.annex, m.qty, m.uom) for m in master)
+    return have == want
+
+
 def get_amenity_item(amenity):
     """The Item an Amenity is sold as, for the Sales Order mapping. The link is the
     Amenity's own `amenity` field (it was `amenity_item` before the annex refactor)."""
@@ -144,6 +156,23 @@ class ButlerQuotation(Document):
     get_party = AccountsController.get_party
     set_payment_schedule = AccountsController.set_payment_schedule
     validate_payment_schedule_amount = AccountsController.validate_payment_schedule_amount
+
+    def _validate_links(self):
+        # Frappe checks every Link before before_validate runs. `annex_price_list` points at
+        # an Annex Price that an Amenity edit may have deleted since (remove_stale_annex_
+        # prices), and pricing re-resolves it on every save anyway — so a dangling one is
+        # cleared first instead of failing the save with "Could not find … Annex Price List".
+        self.clear_stale_annex_price_links()
+        return super()._validate_links()
+
+    def clear_stale_annex_price_links(self):
+        linked = {row.annex_price_list for row in self.amenities if row.annex_price_list}
+        if not linked:
+            return
+        existing = set(frappe.get_all("Annex Price", filters={"name": ["in", list(linked)]}, pluck="name"))
+        for row in self.amenities:
+            if row.annex_price_list and row.annex_price_list not in existing:
+                row.annex_price_list = None
 
     def before_validate(self):
         self.set_default_company()
@@ -312,11 +341,14 @@ class ButlerQuotation(Document):
         self.set_payment_schedule()
         self.validate_payment_schedule_dates()
         self.validate_payment_schedule_amount()
-        # governance runs on save only (calculate_totals stays throw-free for live recalc)
-        self.enforce_annex_price(
-            getattr(self, "_price_deviations", []),
-            getattr(self, "_bundle_price_breach", None),
-        )
+        # governance runs on save only (calculate_totals stays throw-free for live recalc).
+        # A system save (sync_with_amenities) skips it: it reprices nothing a user chose,
+        # and a price someone deliberately changed earlier must not stop it.
+        if not self.flags.get("ignore_price_governance"):
+            self.enforce_annex_price(
+                getattr(self, "_price_deviations", []),
+                getattr(self, "_bundle_price_breach", None),
+            )
         self.validate_row_types()
         self.validate_bundle_amenities(enforce=False)  # warn while editing
         self.validate_dependencies(enforce=False)  # warn while editing
@@ -803,28 +835,39 @@ class ButlerQuotation(Document):
                 row.set(fieldname, None)
 
     def expand_amenity_rows(self):
-        """Seed an amenity row's annex rows from its Amenity's own `annexes` table.
+        """Give each amenity row its annex rows from its Amenity's own `annexes` table.
 
         Every entry point — the Facility Builder, a data import, the API — only has to
         send the amenity row (amenity + floor_type) and gets a fully composed quotation
         line back. Seeded straight from the master: one quotation row is one drawn
         placement, so the master's quantities need no scaling.
 
-        Skipped for a group that already carries annex rows, and for one flagged
-        `annexes_customised` — that flag is how a placement says "these annexes are mine,
-        including none at all". Without it, emptying a placement's annexes would silently
-        re-seed them on the next save.
+        An amenity **not** flagged `annexes_customised` follows its Amenity: when its annex
+        rows no longer match the Amenity's list (an annex added to or removed from the
+        Amenity since), they are re-seeded — the same thing a Facility Builder save does. A
+        matching group is left alone, so an ordinary save doesn't churn its rows. Changed
+        Quotation Prices on annexes that stay are carried back by carry_forward_overrides.
+        Without this, removing an annex from an Amenity made every draft that still held
+        it unsavable.
+
+        A group flagged `annexes_customised` is never touched: the flag is how a placement
+        says "these annexes are mine, including none at all".
         """
         groups, orphans = self.group_amenity_rows()
         ordered = []
 
         for amenity_row, annex_rows in groups:
             ordered.append(amenity_row)
-            if annex_rows or cint(amenity_row.annexes_customised) or not amenity_row.amenity:
+            if cint(amenity_row.annexes_customised) or not amenity_row.amenity:
                 ordered.extend(annex_rows)
                 continue
 
-            for source in frappe.get_cached_doc("Amenity", amenity_row.amenity).annexes:
+            master = frappe.get_cached_doc("Amenity", amenity_row.amenity).annexes
+            if annex_rows and matches_composition(annex_rows, master):
+                ordered.extend(annex_rows)
+                continue
+
+            for source in master:
                 row = self.append("amenities", {
                     "placement_id": amenity_row.placement_id,
                     "amenity": amenity_row.amenity,
@@ -2593,6 +2636,45 @@ def convert_legacy_quotation(name):
     doc.add_comment("Comment", conversion_record(doc, old_total, old_rows, rooms, devices))
     return {"old_total": old_total, "new_total": flt(doc.grand_total), "rooms": rooms,
             "annex_rows": sum(1 for row in doc.amenities if row.annex), "devices": devices}
+
+
+def amenities_behind_their_amenity(doc):
+    """The non-customised amenities whose annex rows no longer match their Amenity's list,
+    as placement ids, plus whether any row links an Annex Price that no longer exists."""
+    groups, _orphans = doc.group_amenity_rows()
+    behind = [
+        row.placement_id for row, annex_rows in groups
+        if row.amenity and not cint(row.annexes_customised)
+        and not matches_composition(annex_rows, frappe.get_cached_doc("Amenity", row.amenity).annexes)
+    ]
+    linked = {r.annex_price_list for r in doc.amenities if r.annex_price_list}
+    stale_links = bool(linked) and len(linked) != frappe.db.count("Annex Price", {"name": ["in", list(linked)]})
+    return behind, stale_links
+
+
+def sync_with_amenities(name):
+    """Bring a draft in line with its Amenities' current annex lists, once, with a record.
+    Used by the sync_quotations_with_amenities patch. Returns None when it already matches.
+
+    The save does the work: expand_amenity_rows re-seeds every non-customised amenity that
+    differs from its Amenity, and stale Annex Price links are cleared. The timeline note
+    explains the total that moves with it."""
+    doc = frappe.get_doc("Butler Quotation", name)
+    if doc.docstatus != 0:
+        return None
+    behind, stale_links = amenities_behind_their_amenity(doc)
+    if not behind and not stale_links:
+        return None
+
+    old_total = flt(doc.grand_total)
+    doc.flags.ignore_price_governance = True
+    doc.save(ignore_permissions=True)
+    doc.add_comment("Comment", "<p>{0}</p><p>{1}</p>".format(
+        _("Synced with the Amenities' current annex lists: {0} amenities updated.").format(len(behind)),
+        _("Grand Total: {0} → {1}").format(
+            fmt_money(old_total, currency=doc.currency), fmt_money(doc.grand_total, currency=doc.currency)),
+    ))
+    return {"amenities": len(behind), "old_total": old_total, "new_total": flt(doc.grand_total)}
 
 
 def conversion_record(doc, old_total, old_rows, rooms, devices):

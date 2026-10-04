@@ -6,3 +6,4 @@
 # Patches added in this section will be executed after doctypes are migrated
 butler.patches.v1_0.add_light_system_devices
 butler.patches.v1_0.convert_legacy_quotations
+butler.patches.v1_0.sync_quotations_with_amenities

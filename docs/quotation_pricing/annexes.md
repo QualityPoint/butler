@@ -59,7 +59,7 @@ slot in between two of the first's.
 |---|---|
 | `clear_row_type_fields` | blanks the fields belonging to the *other* row type — stale data, not a user error, so it is cleared rather than rejected |
 | `ensure_placement_ids` | gives every row an id and re-homes any annex row pointing at a placement that isn't there |
-| `expand_amenity_rows` | seeds an amenity row's annex rows from `Amenity.annexes` when it has none and isn't flagged `annexes_customised` — it fills an empty group, it does not top up a short one |
+| `expand_amenity_rows` | keeps an amenity that isn't flagged `annexes_customised` in line with `Amenity.annexes`: when its annex rows differ from the Amenity's list (an annex added to or removed from the Amenity since), they are re-seeded; a matching group is left alone. A customised amenity is never touched |
 | `carry_forward_overrides` | restores what the quotation owns (its Quotation Prices and Bundle designations) onto rows a Facility Builder save has just rebuilt |
 | `order_amenity_rows` | lays the table out group by group and renumbers `idx` |
 
@@ -94,6 +94,36 @@ out the last remove button and says so.
 > This is not the same as "priced at zero": a placement stripped of annexes but fitted
 > with a sound system still prices at the sound price. The rule is about composition, not
 > about the total.
+
+### An Amenity's annex list changes later
+
+A non-customised amenity **follows its Amenity**, on every save: an annex added to the Amenity
+appears (at its standard price), and one removed from it drops out. A changed Quotation Price
+on an annex that stays is kept (`carry_forward_overrides`). This is what a Facility Builder
+save always did; a form save, Reset Amenity and the API now do it too.
+
+Removing an annex from an Amenity also deletes its Annex Prices
+(`Amenity.remove_stale_annex_prices`). A quotation row may still point at one of them
+(`annex_price_list`). That link is cleared before Frappe's link check
+(`ButlerQuotation._validate_links`), and pricing re-resolves it, so the save does not fail
+with "Could not find … Annex Price List".
+
+A **customised** amenity keeps its own list. If it still holds an annex its Amenity no longer
+has, the save stops with *"… is not an annex of …"*; *Reset Amenity → Annexes* puts it back on
+the Amenity's list.
+
+**Once, on deploy:** the `sync_quotations_with_amenities` patch (after
+`convert_legacy_quotations`) saves every draft that is behind its Amenities, or links a
+deleted Annex Price, and adds a timeline note "Synced with the Amenities' current annex lists"
+with the old → new total. So no total jumps unexplained the next time someone saves. The
+annex-price check is skipped for that system save (`flags.ignore_price_governance`), so a price
+someone deliberately changed earlier does not stop it. A draft that fails is rolled back alone
+and logged.
+
+> On butler.local, `BTLR-QTN-2026-00030` (last saved 2026-09-16) was the case that showed
+> this. AC had since been removed from Garage and Motion Sensor from Balcony, and light lines
+> and other annexes had been added to most Amenities. It was synced with Reset Amenity →
+> Annexes: 225,240.15 → 298,619.35, recorded in its timeline.
 
 ### What survives a Facility Builder save
 

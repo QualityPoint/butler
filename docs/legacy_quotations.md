@@ -119,7 +119,9 @@ Nothing here touches a submitted quotation.
 
 ## Order on production
 
-1. `bench migrate`: runs `add_light_system_devices`, then `convert_legacy_quotations`.
+1. `bench migrate`: runs `add_light_system_devices`, then `convert_legacy_quotations`, then
+   `sync_quotations_with_amenities`, which brings the other drafts in line with their Amenities'
+   current annex lists, with a timeline note each (see [annexes.md](./quotation_pricing/annexes.md#an-amenitys-annex-list-changes-later)).
 2. Complete the Amenities (Butler Managers, images).
 3. In the Butler Quotation list, select the quotations, then **Reset Amenity → Details** (all amenities).
 
