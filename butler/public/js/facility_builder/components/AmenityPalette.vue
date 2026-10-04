@@ -42,6 +42,10 @@
 
 		<div class="fb-filters">
 			<div class="fb-field">
+				<div ref="managerControl"></div>
+			</div>
+
+			<div class="fb-field">
 				<div ref="categoryControl"></div>
 			</div>
 
@@ -104,11 +108,14 @@
 <script setup>
 import { inject, computed, ref, onMounted, onBeforeUnmount, watch } from "vue";
 import { colorFor as hashColor } from "../colors";
+import { keep_last_value } from "../utils";
 
 const store = inject("$store");
 
 const bundles = ref([]);
 const categoryControl = ref(null);
+const managerControl = ref(null);
+let managerCtrl = null;
 const amenityControl = ref(null);
 let catCtrl = null;
 let amenityCtrl = null;
@@ -187,8 +194,10 @@ onMounted(() => {
 		categoryControl.value,
 		"amenity_categories_filter",
 		__("Amenity Category"),
+		// every Amenity Category record — a filter offers the master records, not only
+		// what is linked or in scope
 		() =>
-			store.available_categories.value.map((c) => ({
+			store.categories.value.map((c) => ({
 				value: c.name,
 				label: __(c.category_name || c.name),
 				description: "",
@@ -196,7 +205,24 @@ onMounted(() => {
 		() => store.set_selected_categories(catCtrl.get_value())
 	);
 
-	// Amenity filter is a single Link, restricted to the categories in scope
+	// Butler Manager, the top filter and a MultiSelectList like Amenity Category: every
+	// Butler Manager record, each with its amenity count in the order / bundle scope. MultiSelectList writes `label`
+	// straight into its HTML, so the name is escaped.
+	managerCtrl = make_filter(
+		managerControl.value,
+		"butler_managers_filter",
+		__("Butler Manager"),
+		() =>
+			store.available_managers.value.map((m) => ({
+				value: m.name,
+				label: frappe.utils.escape_html(m.label),
+				description: __("{0} amenities", [m.count]),
+			})),
+		() => store.set_selected_managers(managerCtrl.get_value())
+	);
+
+	// Amenity filter is a single Link over every enabled Amenity record (a disabled one can't
+	// be drawn); the other filters narrow the palette list, not this field's options
 	amenityCtrl = frappe.ui.form.make_control({
 		parent: amenityControl.value,
 		df: {
@@ -205,12 +231,12 @@ onMounted(() => {
 			options: "Amenity",
 			placeholder: __("Amenity"),
 			get_query: () => ({
-				filters: {
-					disabled: 0,
-					amenity_category: ["in", store.allowed_category_names.value],
-				},
+				filters: { disabled: 0 },
 			}),
-			onchange: () => store.set_selected_amenity(amenityCtrl.get_value()),
+			onchange: () => {
+				keep_last_value(amenityCtrl); // so clearing the filter registers (utils.js)
+				store.set_selected_amenity(amenityCtrl.get_value());
+			},
 		},
 		render_input: true,
 	});
@@ -222,17 +248,19 @@ watch(
 	() => [store.order_type.value, store.bundle_type.value],
 	() => {
 		catCtrl?.set_value([]);
+		managerCtrl?.set_value([]);
 		amenityCtrl?.set_value("");
 	}
 );
-// narrowing categories resets the amenity filter (store already cleared it)
+// narrowing categories or managers resets the amenity filter (store already cleared it)
 watch(
-	() => store.selected_categories.value,
+	() => [store.selected_categories.value, store.selected_managers.value],
 	() => amenityCtrl?.set_value("")
 );
 
 onBeforeUnmount(() => {
 	catCtrl?.$wrapper?.remove();
+	managerCtrl?.$wrapper?.remove();
 	amenityCtrl?.$wrapper?.remove();
 });
 </script>
@@ -291,11 +319,14 @@ onBeforeUnmount(() => {
 .fb-field :deep(.multiselect-list) {
 	width: 100%;
 }
+/* No max-height / overflow here: Frappe already scrolls the option list inside the
+   dropdown (.selectable-items, common/controls.scss), keeping the search box and the
+   Select all / Clear buttons fixed around it. Scrolling the whole menu as well gave two
+   nested scrollbars. min-width: Frappe's `.multiselect-list ul` asks for 300px, wider
+   than this 240px sidebar. */
 .fb-field :deep(.multiselect-list .dropdown-menu) {
 	width: 100%;
 	min-width: 200px;
-	max-height: 280px;
-	overflow-y: auto;
 	z-index: 1000;
 }
 

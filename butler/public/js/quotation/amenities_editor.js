@@ -121,7 +121,7 @@ const MASTER_DETAIL_STYLE = `
 // Bumped whenever this file changes, so a stale bundle can be identified from the browser
 // console rather than guessed at: butler.ui.AmenitiesEditor.BUILD
 butler.ui.AmenitiesEditor = class AmenitiesEditor {
-    static BUILD = "2026-10-04-manager-from-amenity";
+    static BUILD = "2026-10-05-manager-records";
 
     // The list's filter chips. `label` is a function so the translation is looked up when
     // the chip is drawn, not when this file loads. `editor` answers what a row can't on its
@@ -161,6 +161,7 @@ butler.ui.AmenitiesEditor = class AmenitiesEditor {
         this.expanded = new Set();   // "floor::amenity" groups opened in the list; all start closed
         this.open_matches = false;   // open every group holding a match on the next render
         this.default_light_system = undefined; // read once; null when none is marked default
+        this.manager_records = undefined;      // every Butler Manager record, read once
     }
 
     // Group the flat table the way the server does (group_amenity_rows): every row
@@ -204,6 +205,13 @@ butler.ui.AmenitiesEditor = class AmenitiesEditor {
                 .get_value("Light System", { is_default: 1 }, "name")
                 .then((r) => (this.default_light_system = r?.message?.name || null)));
         }
+        // The Butler Manager filter offers every Butler Manager record, not only the
+        // managers found on this quotation's amenities.
+        if (this.manager_records === undefined) {
+            loads.push(frappe.db
+                .get_list("Butler Manager", { fields: ["name", "manager_name"], limit: 0, order_by: "name asc" })
+                .then((rows) => (this.manager_records = rows || [])));
+        }
         if (!loads.length) {
             this.render();
             return Promise.resolve();
@@ -224,6 +232,7 @@ butler.ui.AmenitiesEditor = class AmenitiesEditor {
 
         if (name !== this.docname) {
             this.options = {};
+            this.manager_records = undefined; // re-read, so a manager created meanwhile shows
             this.active_floor = null;
             this.selected = null;
             this.expanded.clear();
@@ -479,8 +488,9 @@ butler.ui.AmenitiesEditor = class AmenitiesEditor {
         return this.options[row.amenity]?.butler_manager || row.butler_manager || "";
     }
 
-    // The managers whose amenities are on this quotation, with how many rooms each has.
-    // MultiSelectList writes `label` straight into its HTML, so the name is escaped.
+    // Every Butler Manager record (plus any manager found on a row but no longer a record),
+    // each with how many of this quotation's amenities it has — 0 included. MultiSelectList
+    // writes `label` straight into its HTML, so the name is escaped.
     manager_options(txt) {
         const counts = new Map();
         for (const row of this.frm.doc.amenities || []) {
@@ -488,14 +498,16 @@ butler.ui.AmenitiesEditor = class AmenitiesEditor {
             if (row.annex || !manager) continue;
             counts.set(manager, (counts.get(manager) || 0) + 1);
         }
+        const labels = new Map((this.manager_records || []).map((m) => [m.name, m.manager_name || m.name]));
+        for (const name of counts.keys()) if (!labels.has(name)) labels.set(name, name);
         const query = (txt || "").trim().toLowerCase();
-        return [...counts.keys()]
+        return [...labels.keys()]
             .sort()
-            .filter((name) => !query || name.toLowerCase().includes(query))
+            .filter((name) => !query || `${name} ${labels.get(name)}`.toLowerCase().includes(query))
             .map((name) => ({
                 value: name,
-                label: frappe.utils.escape_html(name),
-                description: __("{0} amenities", [counts.get(name)]),
+                label: frappe.utils.escape_html(labels.get(name)),
+                description: __("{0} amenities", [counts.get(name) || 0]),
             }));
     }
 

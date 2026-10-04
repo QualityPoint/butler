@@ -143,7 +143,7 @@ controllers from there; see [light_system_devices.md](../light_system_devices.md
 
 - **Order Type** (`Amenities` / `Bundle` / `Quotation`) and **Bundle** mirror the quotation's own `order_type` / `bundle_type` — read on open, written back on save.
 - When **Order Type = Bundle**, the available categories are those whose `Amenity Category.bundles` row matches the selected bundle, and each carries a `amenity_count` **limit** the builder enforces (blocks dropping past the cap; full categories are dimmed with a "Full" badge).
-- **Amenity Categories** is a `MultiSelectList` (as in a Frappe report filter) that further narrows the visible amenities. It is ephemeral palette state — not persisted.
+- **Butler Manager** (top) and **Amenity Categories** are `MultiSelectList`s (as in a Frappe report filter), followed by a single **Amenity** Link. Each **offers every master record**: every Butler Manager, every Amenity Category, every enabled Amenity. They are not narrowed by what is linked, drawn or picked in another filter. Each one shows its own count where useful (a manager's amenities). The choices then narrow the visible amenities together with the order/bundle scope. All of it is ephemeral palette state, not persisted.
 
 ### Two caps, deliberately unalike
 

@@ -56,9 +56,7 @@ its `rooms` key, but there is no Room doctype and the screens never show that wo
 
 The bar has three rows: the floor tabs; then **Butler Manager** and the search; then the
 filter buttons. The search matches the amenity name or the alias. **Butler Manager** is a `MultiSelectList`, the control a Frappe report uses for a multi-value filter
-(and the Facility Builder for Amenity Category). It offers only the managers whose
-amenities are on this quotation (`butler_manager` on each row, copied from its Amenity),
-each with its room count, and lists the rooms of any manager picked. Typing in its dropdown
+(and the Facility Builder for Amenity Category). It offers every Butler Manager record (plus any manager found on a row that is no longer a record), each with how many of this quotation's amenities it has, 0 included, and lists the rooms of any manager picked. Typing in its dropdown
 narrows the managers offered. The control fires `onchange` from its own `set_value`, so a
 reset goes through `set_managers`, which the change handler recognises and ignores.
 
