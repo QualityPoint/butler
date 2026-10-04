@@ -10,6 +10,12 @@ holds two row types (amenity rows and their annex rows, see
 
 ## Layout: master–detail
 
+*Vocabulary.* An **amenity** in these screens is one drawn placement: one row of the
+quotation's Amenities table (Butler Quotation Item), e.g. one Kitchen on the Ground Floor. The
+list groups them by amenity type. **Annexes** are the parts fitted to an amenity (AC, Motion
+Sensor…). The prose below says "room" for a placement, and the drawing stores placements under
+its `rooms` key, but there is no Room doctype and the screens never show that word.
+
 ```
 [ Ground Floor 92 · SAR … ] [ First Floor 65 ] [ RF 48 ]
 [ Butler Manager: (Ahmed ×) (Mona ×) ▾ ]  [ Search amenity or alias… ]
@@ -75,7 +81,7 @@ the manager (a room must pass all that are on):
 group that holds a match**, so a closed group never hides a result. This happens once per
 change, so a group you close afterwards stays closed. Filters re-apply on every render. A live recalculation only repaints numbers, so a room
 that stops matching while you edit it stays listed until the next render (a save, a floor
-switch, or a filter change). An empty result shows *No rooms match* with *Clear filters*, which also clears the
+switch, or a filter change). An empty result shows *No amenities match* with *Clear filters*, which also clears the
 managers and the search.
 
 ## What can be edited here
@@ -114,10 +120,11 @@ selection, search, managers and filters reset and the Amenity options are read a
 **Keys.** Details are keyed by `placement_id`, which survives a Facility Builder save
 (docnames don't). A row that hasn't been saved yet has no id and is keyed by its docname.
 
-## Refresh from Amenities
+## Reset Amenity
 
-A draft quotation's **Refresh from Amenities** button (and the Butler Quotation list action
-of the same name) re-copies the descriptive fields from each Amenity and Annex: Butler
-Manager, image, category, annex name, manufacturer and so on. It also recounts the light
-system devices. It never saves or reprices, and never changes which annexes a room has. See
-[legacy_quotations.md](./legacy_quotations.md#refresh-from-amenities).
+A draft quotation's **Reset Amenity** button (and the Butler Quotation list action of the same
+name) puts chosen amenities back to their masters: all of them, those of some amenity types,
+or individual amenities. What can be reset: *Details* (Butler Manager, image, category,
+annex details), *Prices* (Quotation Prices to standard), *Annexes* (the Amenity's own list) and
+*Light & sound* (default system, sound off, no device). Resets that reprice are saved and
+recorded in the timeline. See [legacy_quotations.md](./legacy_quotations.md#reset-amenity).

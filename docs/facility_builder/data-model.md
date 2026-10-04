@@ -17,6 +17,8 @@ A hidden, read-only `JSON` field on the **Butler Quotation** doctype. Holds the 
   "version": 1,                          // bump when the schema changes (enables migration)
   "scale": { "pixels_per_meter": 50 },   // canvas px → real-world metres for area math
   "canvas": { "width": 1200, "height": 800, "grid": 20 },
+  "default_light_system_device": "Relay 24CH", // optional: the toolbar's facility-wide pick;
+                                         // absent = the default Light System's default device
   "floors": [
     {
       "floor_type": "Ground Floor",      // Link → Floor Type (record name)
@@ -42,8 +44,8 @@ A hidden, read-only `JSON` field on the **Butler Quotation** doctype. Holds the 
             { "annex": "AC", "qty": 2, "uom": "Nos" }
           ],
           "light_system": "DALI",        // any Light System; seeded with the default
-          "light_system_device": "DALI Gateway 64", // only off the default system; seeded with
-                                         // that system's default device
+          "light_system_device": "DALI Gateway 128", // only a deliberate pick, off the default
+                                         // system; absent = follow the system's default device
           "has_sound_system": 1
         }
       ]
@@ -117,10 +119,11 @@ The `amenities` table is **regenerated** from geometry each save. Composition is
 read-only on the quotation form — the builder owns *what is sold*, the quotation owns
 *what it costs*.
 
-**Light system devices.** Each row also carries the room's `light_system_device`, and the
-toolbar's facility-wide *Default Light System Device* is written onto the quotation's `devices` row
-ticked `is_default`. The server counts the controllers from there; see
-[light_system_devices.md](../light_system_devices.md).
+**Light system devices.** Device picks live in the drawing: `room.light_system_device` per
+room, and `default_light_system_device` on the envelope for the toolbar's facility-wide
+*Default Light System Device*. Only a device other than the Light System's default is stored,
+so anything not picked follows the default when it changes. The server resolves and counts the
+controllers from there; see [light_system_devices.md](../light_system_devices.md).
 
 > **Facility mode** doesn't update an existing quotation — its Save **inserts a new draft Butler Quotation** (with this same rollup) and routes to it. See [persistence.md](persistence.md).
 

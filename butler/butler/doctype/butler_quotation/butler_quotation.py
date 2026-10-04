@@ -730,7 +730,13 @@ class ButlerQuotation(Document):
         # amenities has already blanked it for a non-Bundle order, and it stays blanked.
         carry_designation = self.order_type == "Bundle"
 
+        # "Reset Amenity" clears these rooms' Quotation Prices on purpose; carrying the old
+        # ones back would undo it
+        reset_prices = self.flags.get("reset_prices") or set()
+
         for amenity_row, annex_rows in self.group_amenity_rows()[0]:
+            if amenity_row.placement_id in reset_prices:
+                continue
             prior = stored_amenity.get(amenity_row.placement_id)
             if prior:
                 for fieldname in AMENITY_CARRY_FIELDS:
@@ -1988,29 +1994,50 @@ class ButlerQuotation(Document):
         return cached
 
     def resolve_row_devices(self, amenity_rows, catalogue, default):
-        """Settle each amenity row's `light_system_device`.
+        """Settle each amenity row's `light_system_device`, the device that serves it.
 
         A row on the default system carries none — the facility-wide default device serves
-        it. Any other row keeps the device the Facility Builder sent while that device is
-        still configured on its system, and otherwise adopts the system's default device,
-        which also covers rows from the form, the API or an import.
+        it. Any other row takes the device **picked** for its room in the Facility Builder
+        (stored in `geometry`, see device_picks) while that device is still configured on its
+        system, and otherwise its system's **current** default device. So a room nobody
+        picked a device for follows its Light System: change the default there, and the next
+        save or "Reset Amenity" moves it. Rows with no drawing behind them (form,
+        API, import) follow the default too.
         """
+        picks = self.device_picks()["rooms"]
         for row in amenity_rows:
             entry = catalogue.get(row.light_system)
             if not entry or row.light_system == default:
                 row.light_system_device = None
-            elif row.light_system_device not in entry["channels"]:
-                row.light_system_device = entry["default"]
+                continue
+            picked = picks.get(row.placement_id)
+            row.light_system_device = picked if picked in entry["channels"] else entry["default"]
 
     def resolve_default_device(self, catalogue, default):
-        """The device serving every line of the default Light System: the `devices` row
-        ticked `is_default` (the Facility Builder's toolbar choice) while it is configured on
-        the default system, otherwise that system's own default device."""
+        """The device serving every line of the default Light System: the one picked in the
+        Facility Builder toolbar (stored in `geometry`) while it is configured on the default
+        system, otherwise that system's current default device."""
         entry = catalogue.get(default) if default else None
         if not entry:
             return None
-        chosen = next((row.device for row in self.devices if cint(row.is_default)), None)
-        return chosen if chosen in entry["channels"] else entry["default"]
+        picked = self.device_picks()["facility"]
+        return picked if picked in entry["channels"] else entry["default"]
+
+    def device_picks(self):
+        """The devices someone deliberately picked, read from `geometry` — the only place they
+        are kept: `room.light_system_device` per room, and the envelope's
+        `default_light_system_device` for the whole facility. Absent means "follow the Light
+        System's default"; the Facility Builder only stores a device that differs from it."""
+        geometry = parse_geometry(self.geometry)
+        return {
+            "facility": geometry.get("default_light_system_device"),
+            "rooms": {
+                room.get("id"): room.get("light_system_device")
+                for floor in geometry.get("floors") or []
+                for room in floor.get("rooms") or []
+                if room.get("id") and room.get("light_system_device")
+            },
+        }
 
 
 def apply_governance_action(action, *, message, title, override_role=None):
@@ -2433,7 +2460,7 @@ def _make_customer(source_name, ignore_permissions=False):
 # Each entry is backed by the rows: the quotations drawing "Pool" hold "Pool Indoor" rows.
 LEGACY_AMENITY_RENAMES = {"pool": "Pool Indoor"}
 
-# What "Refresh from Amenities" re-copies: descriptive fields only. Left out on purpose:
+# What "Reset Amenity → Details" re-copies: descriptive fields only. Left out on purpose:
 # `lines`, `amenity_currency` and `depends_on_floor_count`, which move prices and are
 # refreshed by an ordinary save together with the repricing; and the fetch_if_empty fields
 # (`alias`, descriptions), which may hold what the user typed.
@@ -2586,28 +2613,140 @@ def conversion_record(doc, old_total, old_rows, rooms, devices):
     )
     device_text = ", ".join(f"{frappe.utils.escape_html(d)} × {n}" for d, n in devices) or _("none")
     return "<p>{0}</p><p>{1}</p><p>{2}</p>{3}".format(
-        _("Converted to the current layout: one row per drawn room, annexes from each Amenity, "
+        _("Converted to the current layout: one row per drawn amenity, annexes from each Amenity, "
           "priced at today's standards."),
-        _("Grand Total: {0} → {1} · {2} rooms").format(
+        _("Grand Total: {0} → {1} · {2} amenities").format(
             fmt_money(old_total, currency=currency), fmt_money(doc.grand_total, currency=currency), rooms),
         _("Light system devices: {0}").format(device_text),
         ("<p>" + _("The rows before the conversion:") + "</p>" + table) if table else "",
     )
 
 
-@frappe.whitelist()
-def refresh_amenity_fields(name):
-    """"Refresh from Amenities": bring a draft's rows up to date with their Amenity and
-    Annex records, and recount its light system devices — without saving or repricing.
+RESET_OPTIONS = ("details", "prices", "annexes", "light_sound")
+# Options that change what is priced, so the quotation is saved and recalculated.
+RESET_SAVES = {"prices", "annexes", "light_sound"}
 
-    It never touches composition (which annexes a room has, their quantity, UOM or price)
-    and never changes a room's light system; those belong to the Facility Builder and the
-    quotation. Safe to run as often as the Amenities change."""
+
+@frappe.whitelist()
+def reset_amenities(name, options, amenities=None, placements=None):
+    """"Reset Amenity": put chosen rooms back to their masters.
+
+    Scope: every room, the rooms of the given `amenities`, or the given `placements`.
+    Options (any of RESET_OPTIONS):
+
+    - details      descriptive fields re-copied from the Amenity / Annex (no repricing)
+    - prices       every Quotation Price of the room back to its standard
+    - annexes      the room's annexes back to the Amenity's own list (Facility Builder
+                   edits undone)
+    - light_sound  the default light system, sound off, no device pick
+
+    Annexes, light & sound and device picks also live in the Facility Builder drawing, so
+    they are reset there too — otherwise the next builder save would bring them back.
+    Devices are always recounted. A reset that reprices is saved and leaves a timeline
+    record of the old and new totals. See docs/legacy_quotations.md.
+    """
+    options = set(frappe.parse_json(options) if isinstance(options, str) else options or [])
+    amenities = frappe.parse_json(amenities) if isinstance(amenities, str) else amenities
+    placements = frappe.parse_json(placements) if isinstance(placements, str) else placements
+    if not options or not options <= set(RESET_OPTIONS):
+        frappe.throw(_("Choose what to reset: details, prices, annexes or light & sound."))
+
     doc = frappe.get_doc("Butler Quotation", name)
     doc.check_permission("write")
     if doc.docstatus != 0:
-        frappe.throw(_("Only a draft quotation can be refreshed."))
+        frappe.throw(_("Only a draft quotation can be reset."))
 
+    rooms = [row for row in doc.amenities if not row.annex]
+    if placements is not None:
+        targets = {r.placement_id for r in rooms if r.placement_id in set(placements)}
+    elif amenities is not None:
+        targets = {r.placement_id for r in rooms if r.amenity in set(amenities)}
+    else:
+        targets = {r.placement_id for r in rooms}
+    if (placements is not None or amenities is not None) and not (placements or amenities):
+        frappe.throw(_("Select the amenity types or amenities to reset."))
+    whole_quotation = placements is None and amenities is None
+
+    old_total = flt(doc.grand_total)
+    result = {"rooms": len(targets), "options": sorted(options), "old_total": old_total,
+              "new_total": old_total, "rows_updated": 0, "picks_cleared": 0}
+    if not targets:
+        result["devices"] = [(d.device, cint(d.device_count)) for d in doc.devices]
+        return result
+
+    if not options & RESET_SAVES:
+        result.update(refresh_details(doc, targets))
+        result["new_total"] = flt(frappe.db.get_value("Butler Quotation", doc.name, "grand_total"))
+        return result
+
+    default = doc.default_light_system()
+    geometry = parse_geometry(doc.geometry)
+    drawn = {room.get("id"): room for floor in geometry.get("floors") or []
+             for room in floor.get("rooms") or [] if room.get("id")}
+
+    if "annexes" in options:
+        for row in list(doc.amenities):
+            if row.annex and row.placement_id in targets:
+                doc.remove(row)
+        for row in rooms:
+            if row.placement_id in targets:
+                row.annexes_customised = 0
+                drawn.get(row.placement_id, {}).pop("annexes", None)
+
+    if "light_sound" in options:
+        for row in rooms:
+            if row.placement_id not in targets:
+                continue
+            row.light_system, row.has_sound_system, row.light_system_device = default, 0, None
+            room = drawn.get(row.placement_id)
+            if room is not None:
+                room["light_system"], room["has_sound_system"] = default, 0
+                room.pop("light_system_device", None)
+        if whole_quotation:
+            geometry.pop("default_light_system_device", None)
+
+    if "prices" in options:
+        for row in doc.amenities:
+            if row.placement_id not in targets:
+                continue
+            if row.annex:
+                row.qtn_annex_price = 0
+            else:
+                row.qtn_light_system_price = row.qtn_sound_system_price = row.qtn_floor_price = 0
+        # otherwise carry_forward_overrides would copy the old prices back onto the blanks
+        doc.flags.reset_prices = targets
+
+    doc.geometry = json.dumps(geometry)
+    result["picks_cleared"] = prune_device_picks(doc)
+    doc.save()
+
+    result["new_total"] = flt(doc.grand_total)
+    result["devices"] = [(d.device, cint(d.device_count)) for d in doc.devices]
+    doc.add_comment("Comment", reset_record(doc, options, targets, rooms, whole_quotation, old_total))
+    return result
+
+
+def reset_record(doc, options, targets, rooms, whole_quotation, old_total):
+    """The timeline note left by a reset that repriced the quotation."""
+    labels = {"details": _("Details"), "prices": _("Prices"), "annexes": _("Annexes"),
+              "light_sound": _("Light & sound")}
+    if whole_quotation:
+        scope = _("all amenities")
+    else:
+        names = sorted({r.amenity for r in rooms if r.placement_id in targets})
+        scope = ", ".join(frappe.utils.escape_html(n) for n in names)
+    return "<p>{0}</p><p>{1}</p>".format(
+        _("Reset Amenity: {0} for {1} ({2} amenities).").format(
+            ", ".join(labels[o] for o in RESET_OPTIONS if o in options), scope, len(targets)),
+        _("Grand Total: {0} → {1}").format(
+            fmt_money(old_total, currency=doc.currency), fmt_money(doc.grand_total, currency=doc.currency)),
+    )
+
+
+def refresh_details(doc, targets):
+    """Details only: re-copy the descriptive fields of the target rooms from their Amenity
+    and Annex, and recount the devices — without saving or repricing. Composition, prices
+    and light systems are left alone."""
     meta = frappe.get_meta("Butler Quotation Item")
     source_field = {f: meta.get_field(f).fetch_from.split(".", 1)[1]
                     for f in REFRESH_FROM_AMENITY + REFRESH_FROM_ANNEX}
@@ -2617,6 +2756,8 @@ def refresh_amenity_fields(name):
 
     rows_updated = 0
     for row in doc.amenities:
+        if row.placement_id not in targets:
+            continue
         sources = [("Amenity", row.amenity, REFRESH_FROM_AMENITY)]
         if row.annex:
             sources.append(("Annex", row.annex, REFRESH_FROM_ANNEX))
@@ -2640,6 +2781,9 @@ def refresh_amenity_fields(name):
     for row in doc.amenities:
         if not row.annex and row.light_system_device != stored_devices.get(row.name):
             row.db_set("light_system_device", row.light_system_device, update_modified=False)
+    pruned = prune_device_picks(doc)
+    if pruned:
+        doc.db_set("geometry", doc.geometry, update_modified=False)
     frappe.db.delete("Quotation Light System Item",
                      {"parent": doc.name, "parenttype": doc.doctype, "parentfield": "devices"})
     for idx, device in enumerate(doc.devices, start=1):
@@ -2648,5 +2792,35 @@ def refresh_amenity_fields(name):
     # one write that also moves `modified`, so an open form knows to reload
     frappe.db.set_value("Butler Quotation", doc.name, "total_lines", doc.total_lines)
 
-    return {"rows_updated": rows_updated,
+    return {"rows_updated": rows_updated, "picks_cleared": pruned,
             "devices": [(d.device, cint(d.device_count)) for d in doc.devices]}
+
+
+def prune_device_picks(doc):
+    """Clear device picks in `geometry` that no longer apply — a device since removed from
+    its Light System, or a pick on a room now on the default system — so the drawing says
+    what the quotation counts and a later Facility Builder save can't bring an old device
+    back. Returns how many picks were cleared; updates `doc.geometry` in memory."""
+    geometry = parse_geometry(doc.geometry)
+    catalogue = doc.light_system_devices()
+    default = doc.default_light_system()
+    cleared = 0
+
+    facility_pick = geometry.get("default_light_system_device")
+    if facility_pick and facility_pick not in (catalogue.get(default) or {}).get("channels", {}):
+        geometry.pop("default_light_system_device", None)
+        cleared += 1
+
+    for floor in geometry.get("floors") or []:
+        for room in floor.get("rooms") or []:
+            picked = room.get("light_system_device")
+            if not picked:
+                continue
+            system = room.get("light_system") or default
+            if system == default or picked not in (catalogue.get(system) or {}).get("channels", {}):
+                room.pop("light_system_device", None)
+                cleared += 1
+
+    if cleared:
+        doc.geometry = json.dumps(geometry)
+    return cleared

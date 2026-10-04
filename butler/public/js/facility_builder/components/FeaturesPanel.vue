@@ -229,8 +229,12 @@ const deviceHint = computed(() => {
 	const system = room.value?.light_system;
 	const devices = store.devices_for(system);
 	if (!devices.length) return __("{0} has no devices configured", [__(system)]);
-	const device = devices.find((d) => d.device === room.value?.light_system_device);
-	return device ? __("{0} channels per device", [cint(device.channels_count)]) : "";
+	const device = devices.find((d) => d.device === store.effective_device_for(room.value));
+	if (!device) return "";
+	const channels = __("{0} channels per device", [cint(device.channels_count)]);
+	// say when it is only following the system's default, so a later change to that
+	// default is expected to move it
+	return room.value?.light_system_device ? channels : `${channels} · ${__("default")}`;
 });
 const swatch = computed(() =>
 	room.value ? resolveColor(room.value.category, store.category_colors.value) : "transparent"
@@ -367,11 +371,10 @@ function ensureDeviceControl() {
 			},
 			onchange: () => {
 				const picked = deviceCtrl.get_value() || null;
-				if (picked === (room.value?.light_system_device || null)) return; // programmatic sync
-				// a non-default system always has a device, so clearing means "its default"
-				store.set_room_features(room.value.id, {
-					light_system_device: picked || store.default_device_for(room.value.light_system),
-				});
+				if (picked === store.effective_device_for(room.value)) return; // programmatic sync
+				// only a device other than the system's default is stored as a pick; clearing,
+				// or choosing the default, goes back to following the default
+				store.set_room_device(room.value.id, picked);
 				nextTick(syncDeviceControl);
 			},
 		},
@@ -382,7 +385,7 @@ function ensureDeviceControl() {
 }
 
 function syncDeviceControl() {
-	deviceCtrl?.set_value(room.value?.light_system_device || "");
+	deviceCtrl?.set_value(store.effective_device_for(room.value) || "");
 }
 
 function destroyControls() {

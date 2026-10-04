@@ -395,11 +395,11 @@ butler.ui.AmenitiesEditor = class AmenitiesEditor {
 
         this.$panel = $(`<div class="butler-md"></div>`).appendTo(this.$root);
         this.$list = $(`<div class="butler-room-list" tabindex="0" role="listbox"></div>`)
-            .attr("aria-label", __("Rooms"))
+            .attr("aria-label", __("Amenities"))
             .appendTo(this.$panel);
         this.$detail = $(`<div class="butler-room-detail"></div>`).appendTo(this.$panel);
         this.$detail_empty = $(`<div class="text-muted" style="padding:1rem"></div>`)
-            .text(__("Open an amenity in the list and pick a room to see its add-ons and annexes."))
+            .text(__("Open a group in the list and pick an amenity to see its add-ons and annexes."))
             .appendTo(this.$detail);
         // a heading opens or closes its group; a <button>, so Enter and Space do it too
         this.$list.on("click", ".butler-room-heading", (e) => {
@@ -473,7 +473,7 @@ butler.ui.AmenitiesEditor = class AmenitiesEditor {
     }
 
     // The Amenity's current Butler Manager (get_amenity_options), so a manager set on the
-    // Amenity counts at once; the row's own copy, refreshed by "Refresh from Amenities" or a
+    // Amenity counts at once; the row's own copy, refreshed by "Reset Amenity → Details" or a
     // save, is the fallback.
     manager_of(row) {
         return this.options[row.amenity]?.butler_manager || row.butler_manager || "";
@@ -495,7 +495,7 @@ butler.ui.AmenitiesEditor = class AmenitiesEditor {
             .map((name) => ({
                 value: name,
                 label: frappe.utils.escape_html(name),
-                description: __("{0} rooms", [counts.get(name)]),
+                description: __("{0} amenities", [counts.get(name)]),
             }));
     }
 
@@ -517,7 +517,7 @@ butler.ui.AmenitiesEditor = class AmenitiesEditor {
 
         if (!shown.length) {
             const $none = $(`<div class="text-muted" style="padding:1rem"></div>`)
-                .text(__("No rooms match."))
+                .text(__("No amenities match."))
                 .appendTo(this.$list);
             if (this.query || this.filters.size || this.managers.length) {
                 $(`<button type="button" class="btn btn-xs btn-default" style="display:block;margin-top:.5rem"></button>`)

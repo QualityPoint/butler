@@ -143,10 +143,10 @@ frappe.ui.form.on("Butler Quotation", {
             frappe.set_route("facility-builder", "quotation", frm.doc.name);
         });
 
-        // Bring the rows up to date with their Amenities (Butler Manager, image, category…)
-        // and recount the light system devices. No prices move. docs/legacy_quotations.md
+        // Put chosen amenities back to their masters: details, prices, annexes, light &
+        // sound. docs/legacy_quotations.md
         if (frm.doc.docstatus === 0) {
-            frm.add_custom_button(__("Refresh from Amenities"), () => refresh_from_amenities(frm));
+            frm.add_custom_button(__("Reset Amenity"), () => reset_amenity_dialog(frm));
         }
 
         // Create -> Sales Order (Amenities and Bundle orders, while submitted and
@@ -666,28 +666,88 @@ function recalculate_quotation(frm) {
     }, 300);
 }
 
-// "Refresh from Amenities": re-copies the descriptive fields from each Amenity and Annex
-// and recounts the devices on the server, without saving or repricing, then reloads.
-function refresh_from_amenities(frm) {
+// "Reset Amenity": choose which amenities (all, by amenity type, or individual ones) and what to reset.
+function reset_amenity_dialog(frm) {
     if (frm.is_dirty()) {
-        frappe.msgprint(__("Save the quotation before refreshing it from the Amenities."));
+        frappe.msgprint(__("Save the quotation before resetting amenities."));
         return;
     }
-    frappe
-        .call({
-            method: "butler.butler.doctype.butler_quotation.butler_quotation.refresh_amenity_fields",
-            args: { name: frm.doc.name },
-            freeze: true,
-            freeze_message: __("Refreshing from Amenities…"),
-        })
-        .then((r) => {
-            const result = r.message || {};
-            frm.reload_doc();
-            frappe.show_alert({
-                message: __("{0} rows updated · devices recounted", [result.rows_updated || 0]),
-                indicator: "green",
-            });
-        });
+    const rooms = (frm.doc.amenities || []).filter((r) => !r.annex);
+    const counts = {};
+    for (const r of rooms) counts[r.amenity] = (counts[r.amenity] || 0) + 1;
+
+    const dialog = new frappe.ui.Dialog({
+        title: __("Reset Amenity"),
+        fields: [
+            {
+                fieldname: "scope", fieldtype: "Select", label: __("Reset"), reqd: 1,
+                options: [
+                    { value: "all", label: __("All amenities") },
+                    { value: "types", label: __("By amenity type") },
+                    { value: "placements", label: __("Selected amenities") },
+                ],
+                default: "all",
+            },
+            {
+                fieldname: "amenity_types", fieldtype: "MultiSelectList", label: __("Amenity types"),
+                depends_on: "eval:doc.scope=='types'",
+                get_data: (txt) => Object.keys(counts).sort()
+                    .filter((a) => !txt || a.toLowerCase().includes(txt.toLowerCase()))
+                    .map((a) => ({ value: a, label: frappe.utils.escape_html(__(a)), description: __("{0} amenities", [counts[a]]) })),
+            },
+            {
+                fieldname: "placements", fieldtype: "MultiSelectList", label: __("Amenities"),
+                depends_on: "eval:doc.scope=='placements'",
+                get_data: (txt) => rooms
+                    .map((r) => {
+                        const alias = (r.alias || "").trim();
+                        const label = [__(r.amenity), r.floor_type, alias && alias !== r.amenity ? alias : ""]
+                            .filter(Boolean).join(" · ");
+                        return { value: r.placement_id, label };
+                    })
+                    .filter((o) => !txt || o.label.toLowerCase().includes(txt.toLowerCase()))
+                    .map((o) => ({ ...o, label: frappe.utils.escape_html(o.label), description: "" })),
+            },
+            { fieldtype: "Section Break", label: __("What to reset") },
+            ...butler.reset_amenity_options(),
+        ],
+        primary_action_label: __("Reset"),
+        primary_action(values) {
+            const options = butler.picked_reset_options(values);
+            if (!options.length) {
+                frappe.msgprint(__("Choose what to reset."));
+                return;
+            }
+            const args = { name: frm.doc.name, options };
+            if (values.scope === "types") args.amenities = values.amenity_types || [];
+            if (values.scope === "placements") args.placements = values.placements || [];
+            if ((args.amenities || args.placements) && !(args.amenities || args.placements).length) {
+                frappe.msgprint(__("Select the amenity types or amenities to reset."));
+                return;
+            }
+            dialog.hide();
+            frappe
+                .call({
+                    method: "butler.butler.doctype.butler_quotation.butler_quotation.reset_amenities",
+                    args,
+                    freeze: true,
+                    freeze_message: __("Resetting amenities…"),
+                })
+                .then((r) => {
+                    const res = r.message || {};
+                    frm.reload_doc();
+                    frappe.show_alert({
+                        message: __("{0} amenities reset · Grand Total {1} → {2}", [
+                            res.rooms || 0,
+                            format_currency(res.old_total, frm.doc.currency),
+                            format_currency(res.new_total, frm.doc.currency),
+                        ]),
+                        indicator: "green",
+                    }, 8);
+                });
+        },
+    });
+    dialog.show();
 }
 
 // Mount the line editor into the `amenities_html` field. The `amenities` table itself is

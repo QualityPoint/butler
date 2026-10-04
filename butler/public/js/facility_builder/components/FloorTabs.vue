@@ -56,7 +56,7 @@ function add_floor() {
 }
 
 function confirm_remove(floor_type) {
-	frappe.confirm(__("Remove floor {0} and all its rooms?", [__(floor_type)]), () =>
+	frappe.confirm(__("Remove floor {0} and all its amenities?", [__(floor_type)]), () =>
 		store.remove_floor(floor_type)
 	);
 }

@@ -26,18 +26,40 @@ device field.
 
 ## Who picks the device: the Facility Builder
 
-| Where | Field | Serves | Seeded with |
+| Where | Field | Serves | Without a pick |
 |---|---|---|---|
-| **Features panel**, per room | `room.light_system_device`, shown only when the room's system is **not** the default | that room's `used_lines` on its selected system | the selected system's default device; reset whenever the system changes |
-| **Toolbar**, Features layer | *Default Light System Device*, one for the whole facility | **every** line of the default system: rooms that chose it **and** the fill on every other room | the default system's default device |
+| **Features panel**, per room | *Light System Device*, shown only when the room's system is **not** the default | that room's `used_lines` on its selected system | the selected system's current default device |
+| **Toolbar**, Features layer | *Default Light System Device*, one for the whole facility | **every** line of the default system: rooms that chose it **and** the fill on every other room | the default system's current default device |
 
-The room's device travels in `geometry` and on its amenity row (`Butler Quotation Item.
-light_system_device`, read-only on the form). The facility default device is stored on
-the quotation's `devices` row ticked `is_default`; the builder writes that row on save.
+**Only deliberate picks are stored**, and they are stored in the drawing (`geometry`):
 
-The server re-checks both (`resolve_row_devices`, `resolve_default_device`). A device not
-configured on its system, or a blank one from the form, API or an import, falls back to the
-system's default device. A row on the default system carries no device of its own.
+- `room.light_system_device` on a room;
+- `default_light_system_device` on the envelope, for the facility.
+
+Each field shows the device actually used (the pick, or the system's current default). A
+device is stored only when someone chooses one other than that default. Choosing the default,
+or clearing the field, removes the pick, and the room or facility goes back to *following* the
+default. Changing a room's light system drops its pick.
+
+**Why the drawing.** Every Facility Builder save rebuilds the rows from the drawing, so a pick
+stored only on the quotation would be overwritten by the next builder save. The drawing never
+holds a default either, so there is nothing stale in it when a default changes.
+
+**Following the default.** The server resolves the devices on every save and on *Reset
+Amenity* (`resolve_row_devices`, `resolve_default_device`, reading the picks through
+`device_picks`):
+
+- a pick is used while it is still configured on its system;
+- anything without a pick gets its system's **current** default device.
+
+So **changing a Light System's default device reaches every draft quotation** on its next save,
+or at once with *Reset Amenity* (any option; form button or list action). Deliberate picks stay.
+A pick whose device was removed from its Light System falls back to the default, and *Reset
+Amenity* also clears it from the drawing (`prune_device_picks`), so the drawing and the
+quotation agree.
+
+The quotation shows the resolved device on each amenity row (`light_system_device`,
+read-only) and on its Devices table (the `is_default` row serves the default system).
 
 ## The count
 

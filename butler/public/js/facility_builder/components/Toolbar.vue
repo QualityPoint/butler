@@ -256,7 +256,8 @@ function ensureDefaultDeviceControl() {
 			onchange: () => {
 				const picked = defaultDeviceCtrl.get_value() || null;
 				if (picked === (store.default_light_system_device.value || null)) return; // programmatic sync
-				// clearing falls back to the system's own default device
+				// only a device other than the system's default is stored (in the drawing);
+				// clearing, or choosing the default, goes back to following it
 				store.set_default_light_system_device(picked);
 				nextTick(syncDefaultDevice);
 			},

@@ -1,11 +1,11 @@
-# Legacy Quotations and Refresh from Amenities
+# Legacy Quotations and Reset Amenity
 
 Two tools keep existing Butler Quotations in step with the current model:
 
 | | When | Changes prices? |
 |---|---|---|
 | **`convert_legacy_quotations` patch** | once, on `bench migrate` | yes: repriced at today's standards, with a record of the old figures |
-| **Refresh from Amenities** | whenever the Amenities change (Butler Managers, images, …) | **never** |
+| **Reset Amenity** | whenever the Amenities change, or to undo edits on chosen rooms | *Details*: never; *Prices / Annexes / Light & sound*: yes, with a record |
 
 Code: `butler/butler/doctype/butler_quotation/butler_quotation.py` (the section *the Facility
 layout: quotation rows from the drawing*) and `butler/patches/v1_0/convert_legacy_quotations.py`.
@@ -64,39 +64,64 @@ After the conversion, re-syncing a quotation with its drawing is the **Facility 
 Save**: it rebuilds the rows the same way, keeps every room's edited annexes, and keeps
 changed Quotation Prices by placement id.
 
-## Refresh from Amenities
+## Reset Amenity
 
-A **Refresh from Amenities** button on a draft quotation, and the same action in the Butler
-Quotation list for many selected quotations (run one at a time, with a progress bar). It
-does two things, and **never saves or reprices**:
+A **Reset Amenity** button on a draft quotation, and the same action in the Butler Quotation
+list for many selected quotations (run one at a time, with a progress bar). Its dialog asks
+**which rooms** and **what to reset**. Server side: `reset_amenities`.
 
-1. **Re-copies descriptive fields** from each row's Amenity and Annex:
-   - amenity → `butler_manager`, `image`, `amenity_category`, `is_system_core`,
-     `is_dependant_amenity`;
-   - annex → `annex_name`, `annex_category`, `manufacturer`, `warranty`, `warranty_uom`,
-     `annex_icon`.
+**Which amenities**
 
-   Left out on purpose:
-   - `lines`, `amenity_currency`, `depends_on_floor_count` move prices. An ordinary save
-     refreshes them and reprices together.
-   - `alias` and the descriptions are `fetch_if_empty` and may hold what the user typed.
-2. **Recounts the Devices table** from the light-system split already stored on each row, so
-   a new device, a changed channel count or a new default device on a Light System reaches
-   the quotation. Devices picked in the Facility Builder are kept while still configured on
-   their system.
+- *All amenities* on the quotation;
+- *By amenity type*: every amenity of the chosen types (all Kitchens, all Majlis…);
+- *Selected amenities*: individual amenities (drawn placements), listed as
+  "Amenity · Floor · alias". This one is on the form only, because the placements differ per
+  quotation.
 
-It **never touches composition**: which annexes a room has, their quantity, UOM and price
-stay as the Facility Builder and the quotation set them, and a change to an Amenity's own
-Annexes table is not pushed into existing quotations. It never changes a room's light system.
+"Amenity" here is one row of the quotation's Amenities table, i.e. one drawn placement. There
+is no Room doctype: `rooms` is only the drawing's JSON key for its placements.
 
-The line editor's Butler Manager filter reads the Amenity's current manager directly
-(`get_amenity_options`), so it works as soon as an Amenity has one, before any refresh.
+**What to reset** (any combination)
+
+| Option | Resets the chosen amenities to | Reprices |
+|---|---|---|
+| **Details** | the descriptive fields of their Amenity and Annex (below) | no |
+| **Prices** | every Quotation Price (annex, light system, sound system, floor) back to its standard | yes |
+| **Annexes** | the Amenity's own annex list, undoing Facility Builder edits | yes |
+| **Light & sound** | the default light system, sound off, no device picked | yes |
+
+- **Details** re-copies:
+  - amenity → `butler_manager`, `image`, `amenity_category`, `is_system_core`,
+    `is_dependant_amenity`;
+  - annex → `annex_name`, `annex_category`, `manufacturer`, `warranty`, `warranty_uom`,
+    `annex_icon`.
+
+  `lines`, `amenity_currency` and `depends_on_floor_count` move prices, so they are refreshed
+  by a repricing save instead. `alias` and the descriptions (`fetch_if_empty`) are never
+  overwritten. On its own, Details neither saves nor reprices.
+- **The drawing is reset too.** Annexes, light & sound and device picks live in the Facility
+  Builder drawing as well, so they are reset there:
+  - `room.annexes`, `room.light_system`, `room.has_sound_system` and `room.light_system_device`;
+  - with *All amenities*, also the facility-wide `default_light_system_device`.
+
+  Otherwise the next builder save would bring the old values back.
+- **Prices** clears the rooms' Quotation Prices and tells `carry_forward_overrides` to skip
+  those placements (`flags.reset_prices`), so pricing re-derives them from their standards.
+- **Composition and prices are independent.** *Annexes* alone keeps a changed Quotation Price
+  on an annex that is still in the list. *Annexes* together with *Prices* gives the master list
+  at standard prices.
+- **Devices** are always recounted, and stale device picks are cleared.
+- **A record is kept.** A reset that reprices is saved (which also refreshes every row's
+  fetched details) and adds a timeline comment: what was reset, for which amenities, and the
+  Grand Total old → new.
+
+Nothing here touches a submitted quotation.
 
 ## Order on production
 
 1. `bench migrate`: runs `add_light_system_devices`, then `convert_legacy_quotations`.
 2. Complete the Amenities (Butler Managers, images).
-3. In the Butler Quotation list, select the quotations, then **Refresh from Amenities**.
+3. In the Butler Quotation list, select the quotations, then **Reset Amenity → Details** (all amenities).
 
 ## Annex rows and fetched fields
 
@@ -105,4 +130,4 @@ Frappe copies `fetch_from` values in `_validate_links`, which runs *before* `bef
 stay blank (name, category, manufacturer, icon…) until the quotation's next save. That
 affected every quotation saved once from the Facility Builder. They are now filled when
 seeded (`fill_fetched_fields`). Existing quotations with blank annex details are filled by
-Refresh from Amenities or by their next save.
+Reset Amenity → Details or by their next save.
