@@ -40,7 +40,7 @@ For each amenity group (see [annexes.md](./annexes.md) for each component's form
 |---|---|
 | `annex_amount` | `annex_price × annex_quantity` — per annex row |
 | `light_system_amount` | `±price × used_lines` per the mode; the remaining lines are charged separately as `default_system_amount` |
-| `sound_system_amount` | `sound_system_price` when `has_sound_system`, else `0` |
+| `sound_system_amount` | `sound_system_price` when `has_sound_system`, else `0` — the Amenity's own price, or Butler Settings' default when that is `0` |
 | `floor_amount` | `floor_price × floor_qty` |
 | `amenity_price` | `Σ annex_amount + light + sound + floor` — **per unit**, amenity currency |
 | `qtn_amenity_price` | `amenity_price × qtn_exchange_rate` |
@@ -54,9 +54,11 @@ floor_qty   = floor_count   if amenity.depends_on_floor_count
               0             otherwise
 ```
 
-A **price deviation** is recorded when the user's `qtn_annex_price` differs from the Annex
-Price standard by more than `0.005`. Only the annex price is governed — it is the only
-editable price with a published standard. See
+A **price deviation** is recorded when the annex Quotation Price (`qtn_annex_price`)
+differs from its Annex Price standard by more than `0.005`. It is the only Quotation Price
+that is checked, because it is the only one with a published standard. A changed light,
+sound or floor Quotation Price is kept without a check. See
+[reference.md](./reference.md#the-three-price-tiers-and-the-quotation-price) and
 [validations.md](./validations.md#annex-price--maintain_annex_price_action).
 
 > Floors are **additive** here, not a multiplier on the line. See

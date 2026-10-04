@@ -72,7 +72,8 @@ In both modes you:
 
 Three zones down the 240px sidebar: the selected amenity's **head**, the **annexes** taking
 whatever height is left, and the **light system** with the **sound system** under it pinned
-to the bottom. Only the annex list scrolls, so the two single choices stay visible however
+to the bottom. Both are offered on **every** amenity: one with no sound price of its own is
+charged Butler Settings' default. Only the annex list scrolls, so the two single choices stay visible however
 long the composition gets.
 
 That constrains where a dropdown may live. `overflow-y: auto` makes an element a clipping
@@ -85,6 +86,8 @@ scroller:
 | Add annex | above the scroller | Link (`Annex`, filtered to the Amenity's own, minus what is fitted) |
 | Annex UOM | **inside** the scroller | a plain `<select>` — the browser draws its popup outside the document, so a scroller cannot clip it |
 | Light System | below the scroller | Link (`Light System`, the whole master — an amenity that configures none still gets one), seeded with the default and never blank, its list flipped to open **upward** since it sits on the sidebar's bottom edge |
+| Light System Device | under the Light System, only when it is **not** the default system | Link (`Light System Device`, filtered to the room's system's own devices), seeded with that system's default device. See [light_system_devices.md](../light_system_devices.md) |
+| Default Light System Device | the **toolbar**, Features layer | Link (`Light System Device`, filtered to the default system's devices): one for the whole facility |
 
 The `<select>`'s options travel with the composition: `get_amenity_annexes` returns a `uoms`
 list per annex — the same UOM Conversion Detail rows `get_annex_uom_query` would have

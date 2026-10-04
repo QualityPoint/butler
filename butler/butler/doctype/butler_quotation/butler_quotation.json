@@ -53,6 +53,9 @@
   "net_total",
   "additional_total",
   "additional_net_total",
+  "light_system_devices_section",
+  "total_lines",
+  "devices",
   "taxes_and_charges_section",
   "tax_category",
   "taxes_and_charges",
@@ -1015,6 +1018,26 @@
    "fieldtype": "HTML",
    "label": "Amenities HTML",
    "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "light_system_devices_section",
+   "fieldtype": "Section Break",
+   "label": "Light System Devices"
+  },
+  {
+   "fieldname": "devices",
+   "fieldtype": "Table",
+   "label": "Devices",
+   "options": "Quotation Light System Item",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_lines",
+   "fieldtype": "Int",
+   "label": "Total Lines",
+   "non_negative": 1,
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
@@ -1022,7 +1045,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-06 12:17:27.059423",
+ "modified": "2026-10-03 14:53:58.207322",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Butler Quotation",

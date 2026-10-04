@@ -1,6 +1,8 @@
 # Copyright (c) 2026, QualityPoint and contributors
 # For license information, please see license.txt
 
+import json
+import math
 from collections import deque
 
 import erpnext
@@ -34,11 +36,11 @@ ANNEX_ROW_FIELDS = (
 # Fields that only make sense on an AMENITY row — cleared on an annex row. The amenity's
 # own price ladder is derived, so it is cleared too rather than carried per annex.
 AMENITY_ROW_FIELDS = (
-    "amenity_qty", "amenity_price", "qtn_amenity_price",
+    "amenity_qty", "amenity_price", "qtn_amenity_price", "quotation_price_changed",
     "qtn_amenity_net_price", "qtn_amenity_amount", "qtn_amenity_net_amount",
     "base_amenity_price", "base_amenity_net_price", "base_amenity_amount",
     "base_amenity_net_amount",
-    "light_system", "used_lines", "total_lines", "light_system_price",
+    "light_system", "light_system_device", "used_lines", "total_lines", "light_system_price",
     "light_system_amount", "light_system_pricing_mode",
     "qtn_light_system_price", "qtn_light_system_amount",
     "base_light_system_price", "base_light_system_amount",
@@ -53,6 +55,28 @@ AMENITY_ROW_FIELDS = (
     "qtn_floor_price", "qtn_floor_amount",
     "base_floor_price", "base_floor_amount",
 )
+
+
+def fill_fetched_fields(row):
+    """Copy a row's `fetch_from` values (the annex's name, category, manufacturer, icon…
+    and the amenity's category, manager, image…) onto it now.
+
+    Frappe copies them in `_validate_links`, which runs *before* `before_validate`
+    (Document._save) — so a row added in before_validate, as expand_amenity_rows does,
+    would otherwise stay blank until the quotation's next save. fetch_if_empty fields keep
+    a value already there, the way Frappe treats them.
+    """
+    for link_field, doctype in (("amenity", "Amenity"), ("annex", "Annex")):
+        link = row.get(link_field)
+        fields = row.meta.get_fields_to_fetch(link_field) if link else []
+        if not fields:
+            continue
+        values = frappe.get_cached_value(
+            doctype, link, [df.fetch_from.split(".", 1)[1] for df in fields], as_dict=True) or {}
+        for df in fields:
+            if df.fetch_if_empty and row.get(df.fieldname):
+                continue
+            row.set(df.fieldname, values.get(df.fetch_from.split(".", 1)[1]))
 
 
 def get_amenity_item(amenity):
@@ -96,8 +120,8 @@ def get_annex_uom_conversion(annex, uom):
 # The standard mirrors are in here for a reason that is easy to miss: track_add_on_price
 # decides keep-or-re-derive by comparing the stored price against `previous_standard x
 # previous_qtn_rate`, and it reads previous_standard off the row. Carry only the qtn_ price
-# and previous_standard arrives as 0, the comparison fails, and an ordinary standard price
-# is misread as a negotiated one and frozen for good.
+# and previous_standard arrives as 0, the comparison fails, and a Quotation Price that was
+# only following its standard is misread as changed and frozen for good.
 AMENITY_CARRY_FIELDS = (
     "qtn_light_system_price", "light_system_price",
     "qtn_sound_system_price", "sound_system_price",
@@ -280,6 +304,8 @@ class ButlerQuotation(Document):
         self.validate_taxes()
         self.set_bundle_breakdown()
         self.calculate_totals()
+        # not pricing: reads the line split calculate_totals just settled, moves no money
+        self.set_light_system_devices()
         # Payment Schedule needs the final grand_total/base_grand_total above, exactly
         # like ERPNext's own validate_non_invoice_documents_schedule runs after
         # calculate_taxes_and_totals.
@@ -333,6 +359,7 @@ class ButlerQuotation(Document):
         input change recalculates live."""
         self.set_bundle_breakdown()
         self.calculate_totals()
+        self.set_light_system_devices()
         self.set_payment_schedule()
 
     def validate_taxes(self):
@@ -669,13 +696,13 @@ class ButlerQuotation(Document):
         """Carry the quotation's own figures onto rows that have just been rebuilt.
 
         The Facility Builder posts a fresh `amenities` table on every save — new rows, no
-        names, no prices. Without this, saving the layout would wipe every negotiated price
-        and every additional-amenity designation on the quotation. `placement_id` is what
+        names, no prices. Without this, saving the layout would wipe every changed Quotation
+        Price and every additional-amenity designation on the quotation. `placement_id` is what
         makes the match possible: it survives the rebuild because the builder sends it.
 
         This only restores what the incoming row left blank, so a form save that genuinely
-        sets a new price still wins. And it does not decide whether a carried price is an
-        override — `price_annex_row` and `track_add_on_price` already do that, by comparing
+        sets a new price still wins. And it does not decide whether a carried Quotation Price
+        has been changed — `price_annex_row` and `track_add_on_price` already do that, by comparing
         against the standard at the row's previous rate. All that was missing was the value
         to compare.
 
@@ -792,7 +819,7 @@ class ButlerQuotation(Document):
                 continue
 
             for source in frappe.get_cached_doc("Amenity", amenity_row.amenity).annexes:
-                ordered.append(self.append("amenities", {
+                row = self.append("amenities", {
                     "placement_id": amenity_row.placement_id,
                     "amenity": amenity_row.amenity,
                     "floor_type": amenity_row.floor_type,
@@ -800,7 +827,9 @@ class ButlerQuotation(Document):
                     "annex": source.annex,
                     "annex_quantity": flt(source.qty),
                     "annex_uom": source.uom,
-                }))
+                })
+                fill_fetched_fields(row)
+                ordered.append(row)
 
         ordered.extend(orphans)
         self.set_amenity_rows(ordered)
@@ -1121,6 +1150,7 @@ class ButlerQuotation(Document):
             # the rates are set inside price_annex_row, which needs to read the *previous*
             # ones before overwriting them
             annex_total = 0.0
+            deviations_before = len(deviations)
             for annex_row in annex_rows:
                 annex_total += self.price_annex_row(
                     annex_row, facility_type, deviations,
@@ -1132,6 +1162,13 @@ class ButlerQuotation(Document):
             light_amount = self.price_light_system(amenity_row, amenity, rates)
             sound_amount = self.price_sound_system(amenity_row, amenity, rates)
             floor_amount = self.price_floor_extra(amenity_row, amenity, rates)
+
+            # Records a fact for the line editor's filter; it moves no money. An annex counts
+            # when price_annex_row has just listed it as deviating from its Annex Price.
+            amenity_row.quotation_price_changed = 1 if (
+                len(deviations) > deviations_before
+                or self.add_on_quotation_price_changed(amenity_row, qtn_rate)
+            ) else 0
 
             # The price of this one placement, in the amenity's own currency — the figure
             # an additional-amenity overflow is charged at. With one row per placement
@@ -1196,14 +1233,16 @@ class ButlerQuotation(Document):
 
         The standard comes from the **Annex Price** matching (annex, amenity,
         facility_type), falling back to the facility-type-agnostic row.
-        `qtn_annex_price` is the one user-authoritative price on the line.
+        `qtn_annex_price` is its Quotation Price — the only one checked against a published
+        standard (see enforce_annex_price), and the only one converted back into its
+        amenity-currency tier.
 
-        Deciding whether it is still ours to recompute or the user's to keep is the
-        subtle part. The test is against **what tracking would have written last time** —
+        Deciding whether that Quotation Price is still following its standard or has been
+        changed by the user is the subtle part. The test is against **what tracking would have written last time** —
         the current standard at the row's *previous* exchange rate — rather than against
         the standard at today's rate. Comparing at today's rate would misread every
-        untouched row as overridden the moment the quotation currency changed, and
-        comparing against the stored price would lose a real override on the next save,
+        untouched row as changed the moment the quotation currency changed, and comparing
+        against the stored price would lose a real change on the next save,
         since that price was itself derived from it.
         """
         from butler.butler.doctype.annex_price.annex_price import get_annex_price
@@ -1230,10 +1269,10 @@ class ButlerQuotation(Document):
         ) <= 0.005:
             row.qtn_annex_price = qtn_standard        # still ours — re-derive it
         elif abs(flt(row.qtn_annex_price) - qtn_standard) > 0.005:
-            deviations.append((row, qtn_standard))    # a real override — leave it alone
+            deviations.append((row, qtn_standard))    # changed by the user — keep it
 
         # annex_price mirrors whatever price is in force, so amount = price x qty holds
-        # whether the row is at its standard or overridden
+        # whether its Quotation Price is at the standard or has been changed
         row.annex_price = flt(row.qtn_annex_price) / qtn_rate
         row.annex_amount = flt(row.annex_price) * flt(row.annex_quantity)
         row.qtn_annex_amount = flt(row.qtn_annex_price) * flt(row.annex_quantity)
@@ -1256,6 +1295,22 @@ class ButlerQuotation(Document):
         if not stored or abs(stored - flt(previous_standard) * previous_qtn_rate) <= 0.005:
             row.set(qtn_field, flt(standard) * qtn_rate)
         return flt(row.get(qtn_field))
+
+    # (Quotation Price, its standard in amenity currency) for each priced add-on
+    ADD_ON_QUOTATION_PRICES = (
+        ("qtn_light_system_price", "light_system_price"),
+        ("qtn_sound_system_price", "sound_system_price"),
+        ("qtn_floor_price", "floor_price"),
+    )
+
+    def add_on_quotation_price_changed(self, row, qtn_rate):
+        """Whether the user has changed any add-on's Quotation Price on this row: it no
+        longer equals its standard at today's rate, the same test track_add_on_price uses
+        to decide what to keep."""
+        return any(
+            abs(flt(row.get(qtn_field)) - flt(row.get(standard_field)) * qtn_rate) > 0.005
+            for qtn_field, standard_field in self.ADD_ON_QUOTATION_PRICES
+        )
 
     LIGHT_SIGN = {"Add": 1.0, "Subtract": -1.0}
 
@@ -1397,11 +1452,17 @@ class ButlerQuotation(Document):
         row.qtn_default_system_price = row.qtn_default_system_amount = 0
 
     def price_sound_system(self, row, amenity, rates):
-        """The Amenity's flat sound-system price, charged only when the row opts in.
+        """A flat sound-system price, charged only when the row opts in.
 
-        Flat by design: unlike the light system there is nothing to choose and no mode —
-        the Amenity carries a single `sound_system_price`, so `has_sound_system` is the
-        only thing that distinguishes "not fitted" from "fitted".
+        Flat by design: unlike the light system there is nothing to choose and no mode, so
+        `has_sound_system` is the only thing that distinguishes "not fitted" from "fitted".
+        Every amenity can be fitted with one. The price is the Amenity's own
+        `sound_system_price`, or — when that is 0 — Butler Settings'
+        `sound_system_default_price`.
+
+        The default is in **company** currency, and this row's standard is in the
+        amenity's, so it is converted through `base_exchange_rate` (amenity → company),
+        which calculate_totals has already set on the row.
         """
         if not (row.has_sound_system and amenity):
             row.sound_system_price = row.sound_system_amount = 0
@@ -1409,13 +1470,23 @@ class ButlerQuotation(Document):
             return 0.0
 
         previous_standard = flt(row.sound_system_price)
-        row.sound_system_price = flt(amenity.sound_system_price)
+        row.sound_system_price = flt(amenity.sound_system_price) or (
+            self.default_sound_system_price() / (flt(row.base_exchange_rate) or 1.0))
         qtn_price = self.track_add_on_price(
             row, "qtn_sound_system_price", previous_standard, row.sound_system_price, rates)
 
         row.sound_system_amount = qtn_price / (rates[0] or 1.0)
         row.qtn_sound_system_amount = qtn_price
         return flt(row.sound_system_amount)
+
+    def default_sound_system_price(self):
+        """Butler Settings' default sound price (company currency), read once per document
+        rather than once per row — the same reasoning as `default_light_system`."""
+        cached = getattr(self, "_default_sound_system_price", None)
+        if cached is None:
+            cached = flt(frappe.db.get_single_value("Butler Settings", "sound_system_default_price"))
+            self._default_sound_system_price = cached
+        return cached
 
     def price_floor_extra(self, row, amenity, rates):
         """The Amenity's floor extra, charged once per distinct floor on the quotation.
@@ -1746,7 +1817,7 @@ class ButlerQuotation(Document):
 
     def mirror_to_company(self, row, fieldname, amenity_rate, document_rate):
         """Fill a component's `base_*` mirror from whichever tier is authoritative: the
-        quotation-currency value when there is one (it may carry a user override),
+        Quotation Price when there is one (the user may have changed it),
         otherwise the amenity-currency source."""
         qtn_value = flt(row.get(f"qtn_{fieldname}"))
         row.set(
@@ -1798,8 +1869,8 @@ class ButlerQuotation(Document):
         the user holds role_to_override_annex_price_stop_action, who is warned but
         allowed).
 
-        `qtn_annex_price` is the only user-editable price that carries a published
-        standard, so it is the only one governed. `bundle_price_breach` rides along when
+        The annex Quotation Price is the only one that carries a published standard, so
+        it is the only one governed. `bundle_price_breach` rides along when
         a Bundle's flat price is discounted past its max_discount.
         """
         lines = [
@@ -1823,6 +1894,123 @@ class ButlerQuotation(Document):
             override_role=frappe.db.get_single_value(
                 "Butler Settings", "role_to_override_annex_price_stop_action"),
         )
+
+    # --- light system devices: what the facility needs to buy -------------------------
+    # Not pricing. Controllers are bought for the whole facility, not per amenity, so this
+    # runs after calculate_totals and only READS the line split pricing settled on each
+    # amenity row (light_system / used_lines, default_system / default_system_lines). It
+    # writes no price, and nothing in calculate_totals reads what it writes.
+    # See docs/light_system_devices.md.
+
+    def set_light_system_devices(self):
+        """Count the controller devices the whole facility needs, into `devices`.
+
+        Lines are summed per (light system, device) across every amenity row, and each
+        device covers `channels_count` of them, so `device_count = ceil(lines / channels)`.
+        A row's selected system uses the row's own `light_system_device`; every line of
+        the default system — rooms that chose it, and the fill on every other room — uses
+        the one facility-wide default device, held on the table's `is_default` row.
+        """
+        amenity_rows = [row for row, _annexes in self.group_amenity_rows()[0]]
+        catalogue = self.light_system_devices()
+        default = self.default_light_system()
+        self.resolve_row_devices(amenity_rows, catalogue, default)
+        default_device = self.resolve_default_device(catalogue, default)
+
+        self.total_lines = sum(cint(row.total_lines) for row in amenity_rows)
+
+        lines = {}  # (system, device) -> lines, in order of first appearance
+
+        def serve(system, device, count):
+            if system and device and cint(count) > 0:
+                lines[(system, device)] = lines.get((system, device), 0) + cint(count)
+
+        for row in amenity_rows:
+            if row.light_system == default:
+                serve(default, default_device, row.used_lines)
+            else:
+                serve(row.light_system, row.light_system_device, row.used_lines)
+            serve(row.default_system, default_device, row.default_system_lines)
+
+        details = {}
+        if lines:
+            details = {
+                d.name: d for d in frappe.get_all(
+                    "Light System Device",
+                    filters={"name": ["in", list({device for _s, device in lines})]},
+                    fields=["name", "manufacturer", "warranty", "warranty_uom"],
+                )
+            }
+
+        rows = []
+        # the default system's device first; the rest keep their order of first appearance
+        for (system, device), count in sorted(lines.items(), key=lambda kv: kv[0][0] != default):
+            channels = catalogue[system]["channels"].get(device, 0)
+            detail = details.get(device) or {}
+            rows.append({
+                "light_system": system,
+                "device": device,
+                "used_lines": count,
+                "channels_count": channels,
+                "device_count": math.ceil(count / channels) if channels else 0,
+                "is_default": 1 if system == default else 0,
+                # set here, not left to fetch_from, which a no-save recalc never runs
+                "manufacturer": detail.get("manufacturer"),
+                "warranty": detail.get("warranty"),
+                "warranty_uom": detail.get("warranty_uom"),
+            })
+        self.set("devices", rows)
+
+    def light_system_devices(self):
+        """Every Light System's devices, resolved once per document:
+        `{system: {"channels": {device: channels_count}, "default": device}}`.
+
+        `default` is the row ticked `is_default`, else the first row — the same rule
+        `LightSystem.validate_devices` enforces, repeated so data saved before it existed
+        still resolves.
+        """
+        cached = getattr(self, "_light_system_devices", None)
+        if cached is None:
+            cached = {}
+            for row in frappe.get_all(
+                "Light System Device Item",
+                filters={"parenttype": "Light System", "parentfield": "devices"},
+                fields=["parent", "device", "channels_count", "is_default"],
+                order_by="idx asc",
+            ):
+                entry = cached.setdefault(row.parent, {"channels": {}, "default": None})
+                entry["channels"].setdefault(row.device, cint(row.channels_count))
+                if row.is_default and not entry["default"]:
+                    entry["default"] = row.device
+            for entry in cached.values():
+                entry["default"] = entry["default"] or next(iter(entry["channels"]), None)
+            self._light_system_devices = cached
+        return cached
+
+    def resolve_row_devices(self, amenity_rows, catalogue, default):
+        """Settle each amenity row's `light_system_device`.
+
+        A row on the default system carries none — the facility-wide default device serves
+        it. Any other row keeps the device the Facility Builder sent while that device is
+        still configured on its system, and otherwise adopts the system's default device,
+        which also covers rows from the form, the API or an import.
+        """
+        for row in amenity_rows:
+            entry = catalogue.get(row.light_system)
+            if not entry or row.light_system == default:
+                row.light_system_device = None
+            elif row.light_system_device not in entry["channels"]:
+                row.light_system_device = entry["default"]
+
+    def resolve_default_device(self, catalogue, default):
+        """The device serving every line of the default Light System: the `devices` row
+        ticked `is_default` (the Facility Builder's toolbar choice) while it is configured on
+        the default system, otherwise that system's own default device."""
+        entry = catalogue.get(default) if default else None
+        if not entry:
+            return None
+        chosen = next((row.device for row in self.devices if cint(row.is_default)), None)
+        return chosen if chosen in entry["channels"] else entry["default"]
 
 
 def apply_governance_action(action, *, message, title, override_role=None):
@@ -1850,10 +2038,11 @@ def apply_governance_action(action, *, message, title, override_role=None):
 def get_amenity_options(amenities):
     """What each amenity offers, so the line editor knows which controls to render.
 
-    An amenity only shows a light-system picker if it configures light systems, a sound
-    toggle if it carries a sound price, and a floor extra if it is floor-dependent — the
-    quotation row can't answer that on its own once the fields are blank. Batched to one
-    round trip because the editor needs it for every amenity on the quotation.
+    Every amenity offers a light system and a sound system (a 0 sound price falls back to
+    Butler Settings' default); only the floor extra depends on the amenity being
+    floor-dependent. The light-system rows and line count also feed the editor's hints —
+    the quotation row can't answer that on its own once the fields are blank. Batched to
+    one round trip because the editor needs it for every amenity on the quotation.
     """
     if isinstance(amenities, str):
         amenities = frappe.parse_json(amenities)
@@ -1865,6 +2054,12 @@ def get_amenity_options(amenities):
         amenity = frappe.get_cached_doc("Amenity", name)
         options[name] = {
             "currency": amenity.currency,
+            # the line editor's amenity headings show it; read here so an image attached to
+            # the Amenity later shows at once, not only after the quotation is re-saved
+            "image": amenity.image,
+            # the line editor's Butler Manager filter; read here so a manager set on the
+            # Amenity counts at once, before any refresh of the quotation's own copy
+            "butler_manager": amenity.butler_manager,
             "lines": cint(amenity.lines),
             "depends_on_floor_count": cint(amenity.depends_on_floor_count),
             "floor_extra_price": flt(amenity.floor_extra_price),
@@ -2225,3 +2420,233 @@ def _make_customer(source_name, ignore_permissions=False):
     new_customer.flags.ignore_permissions = ignore_permissions
     new_customer.insert(ignore_permissions=ignore_permissions)
     return new_customer
+
+
+# --- the Facility layout: quotation rows from the drawing ---------------------------------
+# `geometry` is the source of truth for what is placed where (docs/facility_builder/
+# data-model.md); the `amenities` table is its projection. These helpers rebuild that
+# projection on the server, exactly as a Facility Builder save does in the browser, for the
+# one-time conversion of quotations made before the current row model (docs/legacy_quotations.md).
+
+# Amenities renamed after quotations were drawn. Frappe's rename updates every Link field,
+# so the rows already carry the new name, but not names stored inside the `geometry` JSON.
+# Each entry is backed by the rows: the quotations drawing "Pool" hold "Pool Indoor" rows.
+LEGACY_AMENITY_RENAMES = {"pool": "Pool Indoor"}
+
+# What "Refresh from Amenities" re-copies: descriptive fields only. Left out on purpose:
+# `lines`, `amenity_currency` and `depends_on_floor_count`, which move prices and are
+# refreshed by an ordinary save together with the repricing; and the fetch_if_empty fields
+# (`alias`, descriptions), which may hold what the user typed.
+REFRESH_FROM_AMENITY = ("butler_manager", "image", "amenity_category", "is_system_core", "is_dependant_amenity")
+REFRESH_FROM_ANNEX = ("annex_name", "annex_category", "manufacturer", "warranty", "warranty_uom", "annex_icon")
+
+
+def parse_geometry(geometry):
+    if isinstance(geometry, dict):
+        return geometry
+    try:
+        return json.loads(geometry) if geometry else {}
+    except ValueError:
+        return {}
+
+
+def resolve_drawn_amenity(name, catalogue):
+    """The Amenity a drawn room names: the exact name, else the same name ignoring case
+    (rooms drawn before an Amenity's name was re-cased), else a recorded rename.
+    `catalogue` maps lower-cased Amenity names to their names. None when nothing matches."""
+    if not name:
+        return None
+    return catalogue.get(name.lower()) or LEGACY_AMENITY_RENAMES.get(name.lower())
+
+
+def normalise_geometry(geometry):
+    """Point every drawn room at an Amenity that exists. Returns the geometry and the names
+    that could not be resolved (empty when all were)."""
+    catalogue = {name.lower(): name for name in frappe.get_all("Amenity", pluck="name")}
+    unresolved = set()
+    for floor in geometry.get("floors") or []:
+        for room in floor.get("rooms") or []:
+            if not room.get("amenity"):
+                continue
+            resolved = resolve_drawn_amenity(room["amenity"], catalogue)
+            if resolved:
+                room["amenity"] = resolved
+            else:
+                unresolved.add(room["amenity"])
+    return geometry, sorted(unresolved)
+
+
+def rows_from_geometry(geometry):
+    """One amenity row per drawn room, as the Facility Builder's build_amenity_rows sends
+    them (public/js/facility_builder/store.js). A room whose annexes were edited brings its
+    own annex rows; any other room is left without, so expand_amenity_rows seeds it from its
+    Amenity on save, exactly as after a builder save."""
+    rows = []
+    for floor in geometry.get("floors") or []:
+        for room in floor.get("rooms") or []:
+            if not room.get("amenity"):
+                continue
+            customised = isinstance(room.get("annexes"), list)
+            alias = room.get("alias")
+            rows.append({
+                "doctype": "Butler Quotation Item",
+                "placement_id": room.get("id"),
+                "amenity": room["amenity"],
+                "floor_type": floor.get("floor_type"),
+                "amenity_qty": 1,
+                "alias": alias if (alias or "").strip() else None,
+                "light_system": room.get("light_system") or None,
+                "light_system_device": room.get("light_system_device") or None,
+                "has_sound_system": 1 if room.get("has_sound_system") else 0,
+                "annexes_customised": 1 if customised else 0,
+            })
+            for annex in (room["annexes"] if customised else []):
+                rows.append({
+                    "doctype": "Butler Quotation Item",
+                    "placement_id": room.get("id"),
+                    "amenity": room["amenity"],
+                    "floor_type": floor.get("floor_type"),
+                    "annex": annex.get("annex"),
+                    "annex_quantity": flt(annex.get("qty")) or 1,
+                    "annex_uom": annex.get("uom"),
+                })
+    return rows
+
+
+def legacy_rows(name):
+    """The rows of a quotation made before the current row model, read straight from the
+    table: their quantity and price live in columns the doctype no longer defines."""
+    columns = set(frappe.db.get_table_columns("Butler Quotation Item"))
+    if not {"qty", "rate", "amount"} <= columns:
+        return []
+    return frappe.db.sql(
+        """select amenity, floor_type, qty, rate, amount from `tabButler Quotation Item`
+        where parent = %s and parenttype = 'Butler Quotation' and ifnull(annex, '') = ''
+        order by idx""",
+        name, as_dict=True,
+    )
+
+
+def is_legacy_quotation(name):
+    """Made before placements: it has amenity rows, and none carries a placement id."""
+    return bool(frappe.db.sql(
+        """select 1 from `tabButler Quotation Item` where parent = %s
+        and parenttype = 'Butler Quotation' and ifnull(annex, '') = '' limit 1""", name
+    )) and not frappe.db.exists(
+        "Butler Quotation Item",
+        {"parent": name, "parenttype": "Butler Quotation", "placement_id": ["is", "set"]},
+    )
+
+
+def convert_legacy_quotation(name):
+    """Rebuild a pre-placement quotation from its Facility drawing: one row per drawn room,
+    annexes from each Amenity, priced at today's standards, devices counted — and a timeline
+    record of what it was before. Used once, by the convert_legacy_quotations patch."""
+    doc = frappe.get_doc("Butler Quotation", name)
+    if doc.docstatus != 0:
+        frappe.throw(_("{0} is not a draft.").format(name))
+    geometry = parse_geometry(doc.geometry)
+    if not geometry.get("floors"):
+        frappe.throw(_("{0} has no Facility layout to rebuild from.").format(name))
+
+    geometry, unresolved = normalise_geometry(geometry)
+    if unresolved:
+        frappe.throw(_("{0}: these drawn amenities don't exist: {1}").format(
+            name, ", ".join(unresolved)))
+
+    old_total = flt(doc.grand_total)
+    old_rows = legacy_rows(name)  # read before the save replaces them
+
+    doc.geometry = json.dumps(geometry)
+    doc.set("amenities", rows_from_geometry(geometry))
+    doc.save(ignore_permissions=True)
+
+    rooms = sum(1 for row in doc.amenities if not row.annex)
+    devices = [(d.device, cint(d.device_count)) for d in doc.devices]
+    doc.add_comment("Comment", conversion_record(doc, old_total, old_rows, rooms, devices))
+    return {"old_total": old_total, "new_total": flt(doc.grand_total), "rooms": rooms,
+            "annex_rows": sum(1 for row in doc.amenities if row.annex), "devices": devices}
+
+
+def conversion_record(doc, old_total, old_rows, rooms, devices):
+    """The timeline note left on a converted quotation, so its old figures stay readable."""
+    currency = doc.currency
+    lines = "".join(
+        "<tr><td>{0}</td><td>{1}</td><td style='text-align:right'>{2}</td>"
+        "<td style='text-align:right'>{3}</td><td style='text-align:right'>{4}</td></tr>".format(
+            frappe.utils.escape_html(r.amenity or ""), frappe.utils.escape_html(r.floor_type or ""),
+            cint(r.qty), fmt_money(r.rate, currency=currency), fmt_money(r.amount, currency=currency))
+        for r in old_rows
+    )
+    table = (
+        "<table class='table table-bordered table-sm'><thead><tr><th>{0}</th><th>{1}</th>"
+        "<th>{2}</th><th>{3}</th><th>{4}</th></tr></thead><tbody>{5}</tbody></table>".format(
+            _("Amenity"), _("Floor"), _("Qty"), _("Rate"), _("Amount"), lines)
+        if old_rows else ""
+    )
+    device_text = ", ".join(f"{frappe.utils.escape_html(d)} × {n}" for d, n in devices) or _("none")
+    return "<p>{0}</p><p>{1}</p><p>{2}</p>{3}".format(
+        _("Converted to the current layout: one row per drawn room, annexes from each Amenity, "
+          "priced at today's standards."),
+        _("Grand Total: {0} → {1} · {2} rooms").format(
+            fmt_money(old_total, currency=currency), fmt_money(doc.grand_total, currency=currency), rooms),
+        _("Light system devices: {0}").format(device_text),
+        ("<p>" + _("The rows before the conversion:") + "</p>" + table) if table else "",
+    )
+
+
+@frappe.whitelist()
+def refresh_amenity_fields(name):
+    """"Refresh from Amenities": bring a draft's rows up to date with their Amenity and
+    Annex records, and recount its light system devices — without saving or repricing.
+
+    It never touches composition (which annexes a room has, their quantity, UOM or price)
+    and never changes a room's light system; those belong to the Facility Builder and the
+    quotation. Safe to run as often as the Amenities change."""
+    doc = frappe.get_doc("Butler Quotation", name)
+    doc.check_permission("write")
+    if doc.docstatus != 0:
+        frappe.throw(_("Only a draft quotation can be refreshed."))
+
+    meta = frappe.get_meta("Butler Quotation Item")
+    source_field = {f: meta.get_field(f).fetch_from.split(".", 1)[1]
+                    for f in REFRESH_FROM_AMENITY + REFRESH_FROM_ANNEX}
+
+    def blank(value):
+        return None if value in (None, "", 0) else value
+
+    rows_updated = 0
+    for row in doc.amenities:
+        sources = [("Amenity", row.amenity, REFRESH_FROM_AMENITY)]
+        if row.annex:
+            sources.append(("Annex", row.annex, REFRESH_FROM_ANNEX))
+        changes = {}
+        for doctype, link, fields in sources:
+            if not link:
+                continue
+            values = frappe.get_cached_value(
+                doctype, link, [source_field[f] for f in fields], as_dict=True) or {}
+            for f in fields:
+                if blank(row.get(f)) != blank(values.get(source_field[f])):
+                    changes[f] = values.get(source_field[f])
+        if changes:
+            row.db_set(changes, update_modified=False)
+            rows_updated += 1
+
+    # The device count reads the light-system split pricing already stored on each row,
+    # so it is recounted here without repricing (docs/light_system_devices.md).
+    stored_devices = {row.name: row.light_system_device for row in doc.amenities if not row.annex}
+    doc.set_light_system_devices()
+    for row in doc.amenities:
+        if not row.annex and row.light_system_device != stored_devices.get(row.name):
+            row.db_set("light_system_device", row.light_system_device, update_modified=False)
+    frappe.db.delete("Quotation Light System Item",
+                     {"parent": doc.name, "parenttype": doc.doctype, "parentfield": "devices"})
+    for idx, device in enumerate(doc.devices, start=1):
+        device.update({"parent": doc.name, "parenttype": doc.doctype, "parentfield": "devices", "idx": idx})
+        device.db_insert()
+    # one write that also moves `modified`, so an open form knows to reload
+    frappe.db.set_value("Butler Quotation", doc.name, "total_lines", doc.total_lines)
+
+    return {"rows_updated": rows_updated,
+            "devices": [(d.device, cint(d.device_count)) for d in doc.devices]}

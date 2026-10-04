@@ -113,9 +113,17 @@
 					     priced from its own standard rate across every line. -->
 					<div class="fb-light-field" ref="lightControl"></div>
 					<div v-if="lightHint" class="fb-features-hint">{{ lightHint }}</div>
+					<!-- Only for a system other than the default: the default system's lines
+					     are served by one device for the whole facility, picked in the
+					     toolbar. v-show, not v-if, so the control's host div is permanent. -->
+					<div v-show="showDevice" class="fb-features-sublabel">{{ __("Light System Device") }}</div>
+					<div v-show="showDevice" class="fb-light-field" ref="deviceControl"></div>
+					<div v-if="showDevice && deviceHint" class="fb-features-hint">{{ deviceHint }}</div>
 				</div>
 
-				<div v-if="hasSound" class="fb-features-section fb-features-divided">
+				<!-- Always offered: an Amenity with no sound price of its own is charged
+				     Butler Settings' default when this is ticked. -->
+				<div class="fb-features-section fb-features-divided">
 					<div class="fb-features-label">
 						<span>
 							<span class="fb-section-icon" v-html="ICONS.sound"></span>
@@ -210,7 +218,20 @@ const lightHint = computed(() => {
 	// Not configured here: nothing splits the lines, so it covers all of them.
 	return __("All {0} lines, at its standard price", [lines]) + note;
 });
-const hasSound = computed(() => flt(options.value.sound_system_price) > 0);
+// The device is a whole-facility concern (how many controllers to buy), not pricing — it
+// never changes what this room costs. See docs/light_system_devices.md.
+const showDevice = computed(
+	() =>
+		Boolean(room.value?.light_system) &&
+		room.value.light_system !== store.default_light_system.value
+);
+const deviceHint = computed(() => {
+	const system = room.value?.light_system;
+	const devices = store.devices_for(system);
+	if (!devices.length) return __("{0} has no devices configured", [__(system)]);
+	const device = devices.find((d) => d.device === room.value?.light_system_device);
+	return device ? __("{0} channels per device", [cint(device.channels_count)]) : "";
+});
 const swatch = computed(() =>
 	room.value ? resolveColor(room.value.category, store.category_colors.value) : "transparent"
 );
@@ -268,6 +289,8 @@ const addControl = ref(null);
 let addCtrl = null;
 const lightControl = ref(null);
 let lightCtrl = null;
+const deviceControl = ref(null);
+let deviceCtrl = null;
 
 function ensureAddControl() {
 	if (addCtrl || !addControl.value) return;
@@ -312,7 +335,8 @@ function ensureLightControl() {
 			onchange: () => {
 				const picked = lightCtrl.get_value() || null;
 				if (picked === (room.value?.light_system || null)) return; // programmatic sync
-				store.set_room_features(room.value.id, { light_system: picked });
+				// also resets the device to the new system's default
+				store.set_room_light_system(room.value.id, picked);
 			},
 		},
 		render_input: true,
@@ -325,9 +349,47 @@ function syncLightControl() {
 	lightCtrl?.set_value(room.value?.light_system || "");
 }
 
+// Only the devices configured on the room's own system — any other would have no channel
+// count to divide by, and the server would swap it for the system's default anyway.
+function ensureDeviceControl() {
+	if (deviceCtrl || !deviceControl.value) return;
+	deviceCtrl = frappe.ui.form.make_control({
+		parent: deviceControl.value,
+		df: {
+			fieldtype: "Link",
+			fieldname: "light_system_device",
+			options: "Light System Device",
+			placeholder: __("Device"),
+			get_query: () => {
+				const names = store.devices_for(room.value?.light_system).map((d) => d.device);
+				// an empty `in` is not "nothing", so ask for a name that cannot exist
+				return { filters: { name: ["in", names.length ? names : [""]] } };
+			},
+			onchange: () => {
+				const picked = deviceCtrl.get_value() || null;
+				if (picked === (room.value?.light_system_device || null)) return; // programmatic sync
+				// a non-default system always has a device, so clearing means "its default"
+				store.set_room_features(room.value.id, {
+					light_system_device: picked || store.default_device_for(room.value.light_system),
+				});
+				nextTick(syncDeviceControl);
+			},
+		},
+		render_input: true,
+		only_input: true,
+	});
+	deviceCtrl.$input?.attr("disabled", store.read_only.value);
+}
+
+function syncDeviceControl() {
+	deviceCtrl?.set_value(room.value?.light_system_device || "");
+}
+
 function destroyControls() {
 	lightCtrl?.$wrapper?.remove();
 	lightCtrl = null;
+	deviceCtrl?.$wrapper?.remove();
+	deviceCtrl = null;
 	addCtrl?.$wrapper?.remove();
 	addCtrl = null;
 }
@@ -343,6 +405,8 @@ watch(
 			ensureAddControl();
 			ensureLightControl();
 			syncLightControl();
+			ensureDeviceControl();
+			syncDeviceControl();
 		});
 	},
 	{ immediate: true }
@@ -375,11 +439,15 @@ watch(
 		if (!id) {
 			lightCtrl?.$wrapper?.remove();
 			lightCtrl = null;
+			deviceCtrl?.$wrapper?.remove();
+			deviceCtrl = null;
 			return;
 		}
 		nextTick(() => {
 			ensureLightControl();
 			syncLightControl();
+			ensureDeviceControl();
+			syncDeviceControl();
 		});
 	},
 	{ immediate: true }
@@ -388,6 +456,7 @@ watch(
 // a light system changed elsewhere (Reset, Apply to all) still has to reach its control —
 // set_value alone, never a re-render, so the guard in onchange stays honest
 watch(() => room.value?.light_system, () => nextTick(syncLightControl));
+watch(() => room.value?.light_system_device, () => nextTick(syncDeviceControl));
 
 onBeforeUnmount(destroyControls);
 </script>
@@ -544,6 +613,11 @@ onBeforeUnmount(destroyControls);
 .fb-features-hint {
 	color: var(--text-muted);
 	font-size: var(--text-xs);
+}
+.fb-features-sublabel {
+	color: var(--text-light);
+	font-size: var(--text-xs);
+	margin-top: 2px;
 }
 .fb-annex {
 	display: flex;

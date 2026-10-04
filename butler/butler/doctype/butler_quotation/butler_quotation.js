@@ -143,6 +143,12 @@ frappe.ui.form.on("Butler Quotation", {
             frappe.set_route("facility-builder", "quotation", frm.doc.name);
         });
 
+        // Bring the rows up to date with their Amenities (Butler Manager, image, category…)
+        // and recount the light system devices. No prices move. docs/legacy_quotations.md
+        if (frm.doc.docstatus === 0) {
+            frm.add_custom_button(__("Refresh from Amenities"), () => refresh_from_amenities(frm));
+        }
+
         // Create -> Sales Order (Amenities and Bundle orders, while submitted and
         // not fully ordered/lost/cancelled).
         if (
@@ -660,6 +666,30 @@ function recalculate_quotation(frm) {
     }, 300);
 }
 
+// "Refresh from Amenities": re-copies the descriptive fields from each Amenity and Annex
+// and recounts the devices on the server, without saving or repricing, then reloads.
+function refresh_from_amenities(frm) {
+    if (frm.is_dirty()) {
+        frappe.msgprint(__("Save the quotation before refreshing it from the Amenities."));
+        return;
+    }
+    frappe
+        .call({
+            method: "butler.butler.doctype.butler_quotation.butler_quotation.refresh_amenity_fields",
+            args: { name: frm.doc.name },
+            freeze: true,
+            freeze_message: __("Refreshing from Amenities…"),
+        })
+        .then((r) => {
+            const result = r.message || {};
+            frm.reload_doc();
+            frappe.show_alert({
+                message: __("{0} rows updated · devices recounted", [result.rows_updated || 0]),
+                indicator: "green",
+            });
+        });
+}
+
 // Mount the line editor into the `amenities_html` field. The `amenities` table itself is
 // hidden and read-only — it holds two different row types that a flat grid can't present
 // (see docs/quotation_pricing/annexes.md), so this renders it grouped floor → amenity →
@@ -685,7 +715,8 @@ frappe.ui.form.on("Butler Quotation Item", {
         frappe.model.set_value(cdt, cdn, "base_exchange_rate", null);
         recalculate_quotation(frm);
     },
-    // the four user-editable prices, one per priced component
+    // the four Quotation Prices on a line, one per priced component (see
+    // docs/quotation_pricing/reference.md: the three price tiers)
     qtn_annex_price: (frm) => recalculate_quotation(frm),
     qtn_light_system_price: (frm) => recalculate_quotation(frm),
     qtn_sound_system_price: (frm) => recalculate_quotation(frm),

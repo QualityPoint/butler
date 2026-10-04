@@ -4,3 +4,5 @@
 
 [post_model_sync]
 # Patches added in this section will be executed after doctypes are migrated
+butler.patches.v1_0.add_light_system_devices
+butler.patches.v1_0.convert_legacy_quotations

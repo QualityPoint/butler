@@ -1,0 +1,105 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_import": 1,
+ "allow_rename": 1,
+ "autoname": "field:device_name",
+ "creation": "2026-10-03 12:13:38.533784",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "device_name",
+  "description",
+  "image",
+  "column_break_eoas",
+  "manufacturer",
+  "warranty",
+  "warranty_uom"
+ ],
+ "fields": [
+  {
+   "fieldname": "device_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Device Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "column_break_eoas",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "image",
+   "fieldtype": "Attach Image",
+   "hidden": 1,
+   "label": "Image",
+   "no_copy": 1
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  },
+  {
+   "fieldname": "manufacturer",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": " Manufacturer "
+  },
+  {
+   "fieldname": "warranty",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Warranty",
+   "non_negative": 1,
+   "precision": "1"
+  },
+  {
+   "fieldname": "warranty_uom",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": " Warranty UOM ",
+   "options": "\nYears\nMonths\nWeeks\nDays"
+  }
+ ],
+ "grid_page_length": 50,
+ "image_field": "image",
+ "links": [],
+ "modified": "2026-10-03 12:27:05.619015",
+ "modified_by": "Administrator",
+ "module": "Butler",
+ "name": "Light System Device",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales Master Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Sales Manager"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Sales User"
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "show_preview_popup": 1,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

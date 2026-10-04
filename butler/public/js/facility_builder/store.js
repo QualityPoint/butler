@@ -29,6 +29,14 @@ export function getStore(mode, target_name) {
 	let bundle_limits = ref({}); // { category -> amenity_count } for the active bundle
 	let dependency_graph = ref({}); // { dependant amenity -> [primary amenity, ...] }
 	let default_light_system = ref(null); // Light System.is_default — fitted unless overridden
+	// { system -> [{ device, channels_count, is_default }] } — the controllers each system
+	// can be built with. Devices are a whole-facility concern, not pricing: see
+	// docs/light_system_devices.md.
+	let light_system_devices = ref({});
+	// the one device serving every line of the default system, across the whole facility;
+	// stored on the quotation's `devices` row ticked is_default
+	let default_light_system_device = ref(null);
+	let _saved_default_device = null; // what the quotation carried when it was loaded
 
 	// order config (mirrors the quotation's own fields — read on open, written on save)
 	let order_type = ref("Amenities"); // "Amenities" | "Bundle" | "Quotation"
@@ -255,7 +263,25 @@ export function getStore(mode, target_name) {
 			load_bundle_limits(),
 			load_dependency_graph(),
 			load_default_light_system(),
+			load_light_system_devices(),
 		]).then(() => seed_light_systems());
+	}
+
+	function load_light_system_devices() {
+		return frappe
+			.xcall("butler.butler.doctype.light_system.light_system.get_light_system_devices")
+			.then((r) => (light_system_devices.value = r || {}));
+	}
+
+	// The device a system is fitted with unless someone picks another: its `is_default`
+	// row, else its first — the same rule the server resolves with.
+	function default_device_for(system) {
+		const list = devices_for(system);
+		return (list.find((d) => d.is_default) || list[0])?.device || null;
+	}
+
+	function devices_for(system) {
+		return light_system_devices.value[system] || [];
 	}
 
 	// Which system is fitted when nobody chooses one. `price_light_system` applies the
@@ -279,9 +305,31 @@ export function getStore(mode, target_name) {
 					room.light_system = default_light_system.value;
 					touched = true;
 				}
+				// a room on another system names its device — seeded with that system's
+				// default, the same one the server would settle on
+				if (
+					room.amenity &&
+					room.light_system !== default_light_system.value &&
+					!room.light_system_device
+				) {
+					const device = default_device_for(room.light_system);
+					if (device) {
+						room.light_system_device = device;
+						touched = true;
+					}
+				}
 			}
 		}
 		if (touched) suppress_dirty_once();
+
+		// The facility-wide default device: what the quotation already carries while it is
+		// still one of the default system's devices, else that system's own default. Not
+		// geometry, so it never reaches the dirty watcher.
+		const saved = _saved_default_device;
+		default_light_system_device.value =
+			saved && devices_for(default_light_system.value).some((d) => d.device === saved)
+				? saved
+				: default_device_for(default_light_system.value);
 	}
 
 	// geometry is a JSON field: Frappe returns it as a string, but tolerate an already-parsed
@@ -328,6 +376,8 @@ export function getStore(mode, target_name) {
 				quotation.value = doc;
 				design.value = parse_geometry(doc.geometry);
 				adopt_row_aliases(doc.amenities);
+				_saved_default_device =
+					(doc.devices || []).find((d) => cint(d.is_default))?.device || null;
 				order_type.value = doc.order_type || "Amenities";
 				bundle_type.value = doc.bundle_type || null;
 				active_floor_type.value = design.value.floors[0]?.floor_type ?? null;
@@ -489,6 +539,7 @@ export function getStore(mode, target_name) {
 					// typed — the trim only asks "is there a name here", it does not edit it.
 					alias: r.alias?.trim() ? r.alias : null,
 					light_system: r.light_system || null,
+					light_system_device: r.light_system_device || null,
 					has_sound_system: r.has_sound_system ? 1 : 0,
 					annexes_customised: customised ? 1 : 0,
 				});
@@ -512,6 +563,23 @@ export function getStore(mode, target_name) {
 		}
 		return rows;
 	}
+	// The quotation counts its controller devices itself (set_light_system_devices); the
+	// builder only has to tell it which device serves the default system, on the row ticked
+	// is_default. Every other row is left as loaded and rebuilt by the server.
+	function build_device_rows(rows) {
+		const out = (rows || []).filter((d) => !cint(d.is_default));
+		const device = default_light_system_device.value;
+		if (!device) return out;
+		const current = (rows || []).find((d) => cint(d.is_default));
+		out.unshift({
+			...(current || { doctype: "Quotation Light System Item" }),
+			light_system: default_light_system.value,
+			device,
+			is_default: 1,
+		});
+		return out;
+	}
+
 	// returns false (with a warning) if the order config is incomplete
 	function validate_order() {
 		if (order_type.value === "Bundle" && !bundle_type.value) {
@@ -560,6 +628,7 @@ export function getStore(mode, target_name) {
 		quotation.value.order_type = order_type.value;
 		quotation.value.bundle_type = order_type.value === "Bundle" ? bundle_type.value : null;
 		quotation.value.amenities = build_amenity_rows();
+		quotation.value.devices = build_device_rows(quotation.value.devices);
 
 		return Promise.resolve(
 			frappe.call("frappe.client.save", { doc: quotation.value }).then(() => {
@@ -582,6 +651,7 @@ export function getStore(mode, target_name) {
 			bundle_type: order_type.value === "Bundle" ? bundle_type.value : null,
 			geometry: JSON.stringify(design.value),
 			amenities: build_amenity_rows(),
+			devices: build_device_rows([]),
 		};
 		return Promise.resolve(
 			frappe.call("frappe.client.insert", { doc }).then((r) => {
@@ -1183,7 +1253,25 @@ export function getStore(mode, target_name) {
 	// Thin named wrappers over update_room, the way set_point_style is, so the rule that
 	// editing materialises the inherited list lives here rather than in the component.
 	function set_room_features(id, patch) {
-		update_room(id, patch); // { annexes?, light_system?, has_sound_system? }
+		update_room(id, patch); // { annexes?, light_system?, light_system_device?, has_sound_system? }
+	}
+
+	// Picking a system also picks its device: that system's default, or none at all for
+	// the default system, whose lines the facility-wide default device serves.
+	function set_room_light_system(id, system) {
+		set_room_features(id, {
+			light_system: system,
+			light_system_device:
+				system && system !== default_light_system.value ? default_device_for(system) : null,
+		});
+	}
+
+	// The whole facility's device for the default system. Header state, not geometry, so
+	// the dirty watcher never sees it — flag it here, the way set_order_type does.
+	function set_default_light_system_device(device) {
+		if (read_only.value) return;
+		default_light_system_device.value = device || default_device_for(default_light_system.value);
+		dirty.value = true;
 	}
 
 	function set_room_annexes(id, list) {
@@ -1229,6 +1317,7 @@ export function getStore(mode, target_name) {
 		update_room(id, {
 			annexes: undefined,
 			light_system: default_light_system.value || null,
+			light_system_device: null,
 			has_sound_system: 0,
 		});
 	}
@@ -1253,6 +1342,7 @@ export function getStore(mode, target_name) {
 				? source.annexes.map((a) => ({ ...a }))
 				: undefined,
 			light_system: source.light_system || null,
+			light_system_device: source.light_system_device || null,
 			has_sound_system: source.has_sound_system ? 1 : 0,
 		};
 		let touched = 0;
@@ -1359,6 +1449,11 @@ export function getStore(mode, target_name) {
 		amenity_label,
 		amenity_is_short,
 		default_light_system,
+		light_system_devices,
+		default_light_system_device,
+		default_device_for,
+		devices_for,
+		set_default_light_system_device,
 		set_room_alias,
 		room_label,
 		primaries_for,
@@ -1423,6 +1518,7 @@ export function getStore(mode, target_name) {
 		set_active_layer,
 		load_amenity_catalogue,
 		set_room_features,
+		set_room_light_system,
 		set_room_annexes,
 		add_room_annex,
 		remove_room_annex,

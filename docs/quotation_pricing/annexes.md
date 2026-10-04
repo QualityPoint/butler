@@ -35,6 +35,12 @@ on the document) is adopted by the *nearest preceding* amenity row. That is also
 migration was needed when the field was introduced — the migration is each document's
 next save.
 
+> Annex rows seeded by `expand_amenity_rows` get their fetched details (name, category,
+> manufacturer, icon) straight away (`fill_fetched_fields`). Frappe's own `fetch_from` runs
+> before `before_validate`, so they used to stay blank until the next save. Quotations made
+> before the current row model are converted once by a patch; see
+> [legacy_quotations.md](../legacy_quotations.md).
+
 `order_amenity_rows()` still lays the table out as `amenity row → its annex rows`, but
 now only so it reads well in a grid. Re-sorting the table can no longer reassign anything.
 
@@ -54,7 +60,7 @@ slot in between two of the first's.
 | `clear_row_type_fields` | blanks the fields belonging to the *other* row type — stale data, not a user error, so it is cleared rather than rejected |
 | `ensure_placement_ids` | gives every row an id and re-homes any annex row pointing at a placement that isn't there |
 | `expand_amenity_rows` | seeds an amenity row's annex rows from `Amenity.annexes` when it has none and isn't flagged `annexes_customised` — it fills an empty group, it does not top up a short one |
-| `carry_forward_overrides` | restores what the quotation owns onto rows a Facility Builder save has just rebuilt |
+| `carry_forward_overrides` | restores what the quotation owns (its Quotation Prices and Bundle designations) onto rows a Facility Builder save has just rebuilt |
 | `order_amenity_rows` | lays the table out group by group and renumbers `idx` |
 
 Because of `expand_amenity_rows`, every entry point — the Facility Builder, a data
@@ -108,11 +114,12 @@ It only fills what the incoming row left blank, so a form save that genuinely se
 price still wins.
 
 **The standard mirrors are not optional, and the reason is easy to miss.**
-`track_add_on_price` decides whether a price is a negotiated override or a standard to
-re-derive by comparing it against `previous_standard × previous_qtn_rate` — and it reads
-`previous_standard` off the row. Carry only the `qtn_` price and `previous_standard`
-arrives as `0`, the comparison fails, and an ordinary standard price is misread as
-negotiated and **frozen for good**: it stops following its master forever. The carry does
+`track_add_on_price` decides whether a Quotation Price has been changed by the user or is
+still following its standard by comparing it against `previous_standard ×
+previous_qtn_rate`, and it reads `previous_standard` off the row. Carry only the `qtn_`
+price and `previous_standard` arrives as `0`, the comparison fails, and a Quotation Price
+that was only following its standard is misread as changed and **frozen for good**: it
+stops following its master forever. The carry does
 not decide anything itself; it just supplies the value the existing rule compares against.
 
 ---
@@ -153,7 +160,7 @@ as a whole.
 | Add-on | Source | Amount |
 |---|---|---|
 | Light system | the `Amenity.light_systems` row matching the chosen `light_system`, else the **Light System master** | `±price × used_lines`, plus the default system's `±price × remaining lines` — see [Light systems](#light-systems) |
-| Sound system | `Amenity.sound_system_price`, a flat figure | the price when `has_sound_system`, else `0` |
+| Sound system | `Amenity.sound_system_price`, a flat figure — or, when that is `0`, **Butler Settings → `sound_system_default_price`** | the price when `has_sound_system`, else `0` |
 | Floor extra | `Amenity.floor_extra_price` | `floor_price × floor_qty` |
 
 `used_lines`, `light_system_price` and `light_system_pricing_mode` are **copied** by
@@ -206,12 +213,17 @@ system if it configures one, otherwise that system's master price. Only its
 > placement at qty 1, and wrong everywhere else. `price_floor_extra` follows the same
 > convention with `floor_qty`.
 
-> **Only the selection is negotiable.** `qtn_light_system_price` overrides the selected
-> system's per-line price via `track_add_on_price`. The fill is charged at standard: it is
-> not what was chosen, it is what covers the rest. It is recorded read-only on the row
+> **Only the selection has a Quotation Price.** `qtn_light_system_price` is the selected
+> system's per-line price, settled by `track_add_on_price`. The fill is charged at
+> standard: it is not what was chosen, it is what covers the rest. It is recorded read-only on the row
 > (`default_system`, `default_system_lines`, `default_system_price`,
 > `default_system_pricing_mode`, `default_system_amount` and their `qtn_`/`base_` mirrors)
 > so an old quotation can still be explained after the default changes.
+
+> **The line split also feeds the device count — but that is not pricing.** How many
+> lighting controllers the facility needs is counted from these same `used_lines` /
+> `default_system_lines`, after pricing and without moving any money. See
+> [light_system_devices.md](../light_system_devices.md).
 
 `Neutral` is retired from `Amenity Light System` and `Light System` — both now require
 `Add` or `Subtract`. `Butler Quotation Item.light_system_pricing_mode` still offers it, for
@@ -227,6 +239,15 @@ its lines — when the amenity is `depends_on_floor_count`, else `0`.
 **Sound system is the exception that doesn't scale.** It is a single flat price with no
 mode and nothing to choose, so `has_sound_system` is the only thing distinguishing
 "not fitted" from "fitted".
+
+It is **offered on every amenity**, not only on those with a sound price. An Amenity whose
+`sound_system_price` is `0` is charged Butler Settings' `sound_system_default_price`
+instead. That default is in **company currency**, so `price_sound_system` converts it into
+the amenity's currency through the row's `base_exchange_rate` before it becomes the row's
+standard. A 750 SAR default on a USD amenity at 3.75 is a 200 USD standard, back to 750 on a
+SAR quotation. From there it behaves exactly like an Amenity price: the
+`qtn_sound_system_price` Quotation Price follows it until the user changes it, and a later
+change to the default flows through to rooms whose Quotation Price is unchanged.
 
 ---
 

@@ -14,7 +14,9 @@
   "pricing_mode",
   "column_break_nuzj",
   "description",
-  "image"
+  "image",
+  "device_configuration_section",
+  "devices"
  ],
  "fields": [
   {
@@ -65,12 +67,24 @@
    "label": "Pricing Mode",
    "options": "\nAdd\nSubtract",
    "reqd": 1
+  },
+  {
+   "fieldname": "device_configuration_section",
+   "fieldtype": "Section Break",
+   "label": "Device Configuration"
+  },
+  {
+   "fieldname": "devices",
+   "fieldtype": "Table",
+   "label": "Devices",
+   "options": "Light System Device Item",
+   "reqd": 1
   }
  ],
  "grid_page_length": 50,
  "image_field": "image",
  "links": [],
- "modified": "2026-09-14 16:13:06.326487",
+ "modified": "2026-10-03 12:34:29.398883",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Light System",

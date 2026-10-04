@@ -50,8 +50,8 @@ isn't one of its amenity's own configured annexes.
 
 ## Annex price — `maintain_annex_price_action`
 
-`qtn_annex_price` is the only editable price with a published standard, so it is the only
-one governed. The standard is the **Annex Price** for `(annex, amenity, facility_type)`,
+The annex Quotation Price (`qtn_annex_price`) is the only Quotation Price with a published
+standard, so it is the only one governed. The standard is the **Annex Price** for `(annex, amenity, facility_type)`,
 falling back to the facility-type-agnostic row.
 
 | `order_type` | Checks (runs in `validate`) |
@@ -59,8 +59,9 @@ falling back to the facility-type-agnostic row.
 | **Amenities** / Quotation | **every** annex row whose `qtn_annex_price` deviates from its Annex Price standard by more than `0.005` |
 | **Bundle** | the same, **plus** `bundle_price` discounted past `max_discount` vs `default_bundle_price` |
 
-The light system, sound system and floor prices are also editable but are **not**
-governed — they have no published per-facility-type standard to deviate from.
+The light system, sound system and floor Quotation Prices can also be changed, but they
+are **not** governed: they have no published per-facility-type standard to deviate from.
+See [reference.md](./reference.md#the-three-price-tiers-and-the-quotation-price).
 
 For Bundle: the **line-level** discount — `(default_bundle_price − bundle_price) /
 default_bundle_price × 100` (ERPNext item-discount style) — must be `≤ max_discount`;

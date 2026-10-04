@@ -42,6 +42,8 @@ A hidden, read-only `JSON` field on the **Butler Quotation** doctype. Holds the 
             { "annex": "AC", "qty": 2, "uom": "Nos" }
           ],
           "light_system": "DALI",        // any Light System; seeded with the default
+          "light_system_device": "DALI Gateway 64", // only off the default system; seeded with
+                                         // that system's default device
           "has_sound_system": 1
         }
       ]
@@ -98,9 +100,10 @@ Features layer configured. It does **not** price on the client; the **server** d
   A placement may drop *some* of its annexes but not all — an amenity is what it is
   composed of, and the master makes that table mandatory.
 - **Preservation** — `carry_forward_overrides` copies the quotation's own figures back
-  onto the rebuilt rows, matched on `placement_id`: the negotiated `qtn_*` prices, their
+  onto the rebuilt rows, matched on `placement_id`: the Quotation Prices (`qtn_*`), their
   standard mirrors, `qtn_exchange_rate`, and the `additional_amenity` tick. Without it a
-  builder save would wipe every price anyone had negotiated.
+  builder save would wipe every Quotation Price anyone had changed. The builder never
+  sets a Quotation Price itself; they are changed on the quotation only.
 - **Pricing** — `calculate_totals()` (in `validate`) resolves each annex against **Annex
   Price**, applies the light/sound/floor add-ons, and fills the three currency tiers and
   the base mirrors.
@@ -113,6 +116,11 @@ configuration and consolidation cannot both be true.
 The `amenities` table is **regenerated** from geometry each save. Composition is therefore
 read-only on the quotation form — the builder owns *what is sold*, the quotation owns
 *what it costs*.
+
+**Light system devices.** Each row also carries the room's `light_system_device`, and the
+toolbar's facility-wide *Default Light System Device* is written onto the quotation's `devices` row
+ticked `is_default`. The server counts the controllers from there; see
+[light_system_devices.md](../light_system_devices.md).
 
 > **Facility mode** doesn't update an existing quotation — its Save **inserts a new draft Butler Quotation** (with this same rollup) and routes to it. See [persistence.md](persistence.md).
 

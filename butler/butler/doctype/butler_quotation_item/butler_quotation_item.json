@@ -2,7 +2,7 @@
  "actions": [],
  "allow_bulk_edit": 1,
  "allow_rename": 1,
- "creation": "2025-12-30 15:57:02.513717",
+ "creation": "2026-09-14 16:37:53.353263",
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
@@ -12,6 +12,7 @@
   "amenity_category",
   "floor_type",
   "column_break_wfcb",
+  "butler_manager",
   "is_system_core",
   "is_dependant_amenity",
   "depends_on_floor_count",
@@ -41,12 +42,14 @@
   "qtn_amenity_net_price",
   "qtn_amenity_amount",
   "qtn_amenity_net_amount",
+  "quotation_price_changed",
   "column_break_pilj",
   "base_amenity_net_price",
   "base_amenity_amount",
   "base_amenity_net_amount",
   "light_system_section",
   "light_system",
+  "light_system_device",
   "used_lines",
   "total_lines",
   "column_break_buvl",
@@ -175,7 +178,14 @@
    "fieldtype": "Data",
    "label": "Placement",
    "length": 20,
-   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "description": "Set by pricing when any Quotation Price on this placement (an annex, light system, sound system or floor price) differs from its standard.",
+   "fieldname": "quotation_price_changed",
+   "fieldtype": "Check",
+   "label": "Quotation Price Changed",
    "read_only": 1
   },
   {
@@ -270,6 +280,14 @@
    "fieldtype": "Link",
    "label": "Light System",
    "options": "Light System"
+  },
+  {
+   "description": "Set in the Facility Builder. Blank when the row uses the default Light System, whose device is chosen once for the whole facility.",
+   "fieldname": "light_system_device",
+   "fieldtype": "Link",
+   "label": "Light System Device",
+   "options": "Light System Device",
+   "read_only": 1
   },
   {
    "fieldname": "column_break_buvl",
@@ -932,13 +950,21 @@
    "options": "Company:company:default_currency",
    "print_hide": 1,
    "read_only": 1
+  },
+  {
+   "fetch_from": "amenity.butler_manager",
+   "fieldname": "butler_manager",
+   "fieldtype": "Link",
+   "label": "Butler Manager",
+   "options": "Butler Manager",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-09-14 12:14:41.286475",
+ "modified": "2026-10-03 18:00:40.000000",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Butler Quotation Item",

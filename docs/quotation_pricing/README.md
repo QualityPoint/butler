@@ -58,13 +58,17 @@ before_validate ──────────► validate ───────
   │ shape the rows           │ recompute prices         │ enforce hard rules
   │ • default company        │ • set_bundle_breakdown   │ • validate_dependencies
   │ • default valid          │ • calculate_totals       │ • validate_bundle_amenities
-  │ • clear add. flag        │ • annex-price WARN/STOP  │   (unfulfilled / undesignated)
-  │ • clear_row_type_fields  │ • validate_row_types     │
-  │ • ensure_placement_ids   │ • validate_dependencies  │
-  │ • expand_amenity_rows    │   (WARN)                 │
-  │ • carry_forward_overrid. │ • validate_valid_till    │
-  │ • order_amenity_rows     │                          │
+  │ • clear add. flag        │ • set_light_system_dev.* │   (unfulfilled / undesignated)
+  │ • clear_row_type_fields  │ • annex-price WARN/STOP  │
+  │ • ensure_placement_ids   │ • validate_row_types     │
+  │ • expand_amenity_rows    │ • validate_dependencies  │
+  │ • carry_forward_overrid. │   (WARN)                 │
+  │ • order_amenity_rows     │ • validate_valid_till    │
 ```
+
+`*` `set_light_system_devices` is **not pricing**: it counts the lighting controllers the
+whole facility needs from the line split `calculate_totals` just settled, and moves no
+money. See [light_system_devices.md](../light_system_devices.md).
 
 `before_validate` is where the two row types are shaped: wrong-type fields are cleared,
 every row is given the `placement_id` of the drawn amenity it belongs to, missing annex
@@ -128,8 +132,8 @@ These are used by both order types — see [amenities.md](./amenities.md) for de
 | Annex-composed amenity pricing (amenity + annex row types, server-side row shaping) | **Implemented** |
 | Per-facility-type annex pricing via **Annex Price** (`get_annex_price`) | **Implemented** |
 | Per-amenity add-ons: light system (per-line, Add/Subtract, default-system fill), flat sound system, additive floor extra | **Implemented** |
-| Three currency tiers on the line (`amenity` / `qtn_` / `base_`), `qtn_annex_price` authoritative | **Implemented** |
-| `amenities_html` custom line editor (the child table itself is hidden + read-only) | _Planned_ |
+| Three price tiers on the line: standard / **Quotation Price** (`qtn_`) / company (`base_`); five Quotation Prices, changed on the quotation only ([reference.md](./reference.md#the-three-price-tiers-and-the-quotation-price)) | **Implemented** |
+| `amenities_html` line editor: master–detail, with search and filters (the child table itself is hidden + read-only). See [quotation_line_editor.md](../quotation_line_editor.md) | **Implemented** |
 | Bundle flat price + breakdown population | **Implemented** |
 | Annex-price governance (`maintain_annex_price_action` + override role) | **Implemented** |
 | Bundle composition validation (currently exact-match) | **Implemented** |

@@ -10,7 +10,7 @@ Quick lookup for the fields and functions the pricing engine touches. `*` = _Pla
 |---|---|---|
 | `order_type` | Select | `Bundle` / `Quotation` / `Amenities` |
 | `bundle_type` | Link → Butler Bundle | Bundle orders only |
-| `bundle_price` | Currency | flat charge; editable* |
+| `bundle_price` | Currency | flat charge; the header's **Quotation Price*** |
 | `default_bundle_price` * | Currency (ro) | bundle's standard price |
 | `bundle_currency` | Link → Currency (ro) | from the bundle |
 | `bundle_items` | Table → Bundle Item (ro) | composition breakup |
@@ -67,12 +67,13 @@ One table, **two row types** — an amenity row (`annex` empty) and its annex ro
 | `qtn_amenity_net_price` / `qtn_amenity_net_amount` | Currency (ro) | pro-rata share of the header discount |
 | `light_system` | Link → Light System | user-set, any system in the master; blank adopts the default and is written back |
 | `used_lines` / `total_lines` / `light_system_pricing_mode` | (ro) | copied from `Amenity.light_systems`, or the master when it configures none (then `used_lines = total_lines`) |
-| `light_system_price` / `qtn_light_system_price` | Currency | `qtn_` is editable |
+| `light_system_price` / `qtn_light_system_price` | Currency | standard / **Quotation Price** |
 | `light_system_amount` | Currency (ro) | `±price × used_lines` per the mode |
 | `default_system` / `default_system_lines` / `default_system_price` / `default_system_pricing_mode` / `default_system_amount` | (ro) | the default system covering the lines the selection did not, with `qtn_`/`base_` mirrors |
 | `has_sound_system` | Check (user-set) | the only "fitted / not fitted" signal |
-| `sound_system_price` / `qtn_sound_system_price` | Currency | flat; `qtn_` is editable |
-| `floor_price` / `qtn_floor_price` | Currency | from `Amenity.floor_extra_price`; `qtn_` is editable |
+| `sound_system_price` / `qtn_sound_system_price` | Currency | flat; the Amenity's price, else Butler Settings' default converted to the amenity currency / **Quotation Price** |
+| `floor_price` / `qtn_floor_price` | Currency | from `Amenity.floor_extra_price` / **Quotation Price** |
+| `quotation_price_changed` | Check (ro) | set by pricing when any of this placement's Quotation Prices differs from its standard; moves no money |
 | `floor_qty` | Int (ro) | `floor_count` when floor-dependent, else `0` |
 | `floor_amount` | Currency (ro) | `floor_price × floor_qty` |
 | `base_*` twins | Currency (ro) | company-currency mirrors |
@@ -87,7 +88,7 @@ One table, **two row types** — an amenity row (`annex` empty) and its annex ro
 | `annex_stock_uom` / `conversion_factor` | (ro) | via the Annex's Item; **stock qty only, never the money** |
 | `annex_price_list` | Link → Annex Price | which record supplied the standard |
 | `annex_price` | Currency (ro) | the standard, amenity currency, per `annex_uom` |
-| `qtn_annex_price` | Currency | **the one user-authoritative price**; deviation is governed |
+| `qtn_annex_price` | Currency | **Quotation Price**; the only one checked against a standard |
 | `qtn_annex_amount` | Currency (ro) | `qtn_annex_price × annex_quantity` |
 | `qtn_annex_net_price` / `qtn_annex_net_amount` | Currency (ro) | pro-rata discount share (guidance only) |
 | `annex_name` / `annex_category` / `manufacturer` / `warranty` / `warranty_uom` | (ro) | `fetch_from` annex |
@@ -122,7 +123,7 @@ An amenity has **no flat price** — it is composed from its annexes.
 | `annexes` | Table → Amenity Annex Item | `annex`, `qty`, `uom`, `rate` — the composition |
 | `total` | Currency (ro) | `Σ qty × rate` over `annexes` — **annexes only**, no add-ons |
 | `light_systems` | Table → Amenity Light System | `system_name`, `used_lines`, `price`, `pricing_mode` — **alternative** ways to wire the amenity; a quotation line picks one, and the default system fills the lines it leaves |
-| `sound_system_price` | Currency | a single flat price; no mode, nothing to choose |
+| `sound_system_price` | Currency | a single flat price; no mode, nothing to choose. `0` falls back to Butler Settings' `sound_system_default_price` |
 | `depends_on_floor_count` | Check | enables `floor_extra_price` |
 | `floor_extra_price` | Currency | multiplied by the floor count and **added** to the price |
 | `lines` | Int | how many lines the amenity has. Each light system's `used_lines` must fit within it **on its own** — they are alternatives, never in use at once, so there is no shared budget to add up |
@@ -150,6 +151,7 @@ Replaces the old `Amenity.facility_type_prices`. Keyed **(annex, amenity, facili
 | `action_if_bundle_items_unfulfilled` | Select | `Stop` / `Warn` |
 | `role_to_override_unfulfilled_stop_action` | Link → Role | shown when action = `Stop` |
 | `default_valid_till` | Int | default validity days |
+| `sound_system_default_price` | Currency (company currency) | charged for a ticked sound system on an Amenity with no `sound_system_price`; converted to the amenity's currency |
 
 ---
 
@@ -168,12 +170,38 @@ base_<x>            = qtn_<x> × document rate               (company currency)
 default_bundle[doc] = bundle_price × bundle_conversion_rate / conversion_rate
 ```
 
-**Only `qtn_annex_price` is user-authoritative.** While it still equals the previous
-standard it keeps *tracking* it, so a currency or rate change re-converts it instead of
-leaving a stale figure; once genuinely overridden it is preserved and **back-converted**
-into `annex_price` (the amenity-currency tier), and the deviation is governed. Everything
-above the annex derives upward in amenity currency and is then projected out to `qtn_` and
-`base_` — a derived `qtn_` value is never round-tripped back down.
+### The three price tiers, and the Quotation Price
+
+| Tier | Prefix · currency | Fields | Who sets it |
+|---|---|---|---|
+| **Standard** | none · the amenity's | `annex_price`, `light_system_price`, `sound_system_price`, `floor_price`, `default_bundle_price` | the masters: Annex Price, Amenity, Light System, Butler Settings, Butler Bundle. Read-only |
+| **Quotation Price** | `qtn_` · the quotation's | `qtn_annex_price`, `qtn_light_system_price`, `qtn_sound_system_price`, `qtn_floor_price`, and the header's `bundle_price` | the user, **on the quotation only**. The Facility Builder never sets one |
+| **Company** | `base_` · the company's | every `base_*` | derived. Read-only |
+
+Every other quotation-currency field (`qtn_annex_amount`, `qtn_amenity_price`, the net
+prices, the default-system fill, the totals) is **calculated** and read-only. Those five
+are the only prices a user can change.
+
+**A Quotation Price follows its standard until the user changes it.** While it still equals
+the standard at the rate that produced it, each recalculation re-derives it, so a currency
+change, a new exchange rate or a different light system moves it. Once the user types a
+different figure it is a **changed Quotation Price** and is kept: across recalculations,
+currency changes, and Facility Builder saves (`carry_forward_overrides`). `price_annex_row`
+and `track_add_on_price` make that decision. Each amenity row records whether any of its
+Quotation Prices has changed in the read-only `quotation_price_changed`, which the line
+editor filters on.
+
+Two things set the annex Quotation Price apart from the other three:
+
+- **It is the only one checked.** It has a published standard per facility type (Annex
+  Price), so a change is governed by `maintain_annex_price_action`. See
+  [validations.md](./validations.md#annex-price--maintain_annex_price_action). The light
+  system, sound system and floor prices can be changed freely.
+- **It is converted back.** A changed annex Quotation Price is divided back into
+  `annex_price`, so the amenity-currency roll-up uses it. The add-ons keep their standard
+  in the amenity-currency field and are charged from the Quotation Price directly.
+  Everything above the annex derives upward in amenity currency and is projected out to
+  `qtn_` and `base_`. A calculated `qtn_` value is never converted back down.
 
 **The `exchange_rates` table is the single editable source of rates.** `sync_exchange_rates`
 maintains one row per **distinct** non-company currency on the quotation (the document

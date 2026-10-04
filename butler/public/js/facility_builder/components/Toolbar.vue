@@ -105,6 +105,17 @@
 				/>
 			</div>
 
+			<!-- Whole-facility, so it lives here rather than in a room's panel: the one device
+			     serving every line of the default light system, on every room. -->
+			<div
+				v-if="store.default_light_system.value"
+				class="fb-toolbar-group"
+				:title="__('The device serving every {0} line in the facility', [__(store.default_light_system.value)])"
+			>
+				<label>{{ __("Default Light System Device") }}</label>
+				<div class="fb-default-device" ref="defaultDeviceControl"></div>
+			</div>
+
 			<div class="fb-spacer" />
 
 			<template v-if="room">
@@ -200,7 +211,7 @@
 </template>
 
 <script setup>
-import { inject, computed } from "vue";
+import { inject, computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import { room_length_m } from "../utils";
 import RoomAliasInput from "./RoomAliasInput.vue";
 
@@ -219,6 +230,60 @@ function stepLayer(delta) {
 	const next = LAYERS[(at + delta + LAYERS.length) % LAYERS.length];
 	store.set_active_layer(next.value);
 }
+
+// --- facility-wide default light system device (Features layer) -----------------------
+// ToolDock's lifecycle: the host div sits behind the layer's v-if, so build the control
+// when it appears, sync it behind a guard, and drop it when it goes.
+const defaultDeviceControl = ref(null);
+let defaultDeviceCtrl = null;
+
+function ensureDefaultDeviceControl() {
+	if (defaultDeviceCtrl || !defaultDeviceControl.value) return;
+	defaultDeviceCtrl = frappe.ui.form.make_control({
+		parent: defaultDeviceControl.value,
+		df: {
+			fieldtype: "Link",
+			fieldname: "default_light_system_device",
+			options: "Light System Device",
+			placeholder: __("Device"),
+			// only what the default system is configured with
+			get_query: () => {
+				const names = store
+					.devices_for(store.default_light_system.value)
+					.map((d) => d.device);
+				return { filters: { name: ["in", names.length ? names : [""]] } };
+			},
+			onchange: () => {
+				const picked = defaultDeviceCtrl.get_value() || null;
+				if (picked === (store.default_light_system_device.value || null)) return; // programmatic sync
+				// clearing falls back to the system's own default device
+				store.set_default_light_system_device(picked);
+				nextTick(syncDefaultDevice);
+			},
+		},
+		render_input: true,
+		only_input: true,
+	});
+	defaultDeviceCtrl.$input?.attr("disabled", store.read_only.value);
+}
+function destroyDefaultDeviceControl() {
+	defaultDeviceCtrl?.$wrapper?.remove();
+	defaultDeviceCtrl = null;
+}
+function syncDefaultDevice() {
+	defaultDeviceCtrl?.set_value(store.default_light_system_device.value || "");
+}
+
+watch(
+	() => store.active_layer.value === "features" && Boolean(store.default_light_system.value),
+	(show) => {
+		if (show) nextTick(() => { ensureDefaultDeviceControl(); syncDefaultDevice(); });
+		else destroyDefaultDeviceControl();
+	},
+	{ immediate: true }
+);
+watch(() => store.default_light_system_device.value, () => nextTick(syncDefaultDevice));
+onBeforeUnmount(destroyDefaultDeviceControl);
 
 // how many OTHER placements of the selected amenity would a bulk apply touch
 const similarCount = computed(() => {
@@ -417,6 +482,16 @@ function toggleCalibrate() {
 .fb-toolbar-group label {
 	margin: 0;
 	color: var(--text-light);
+}
+.fb-default-device {
+	width: 11rem;
+}
+.fb-default-device :deep(.frappe-control) {
+	margin-bottom: 0;
+}
+.fb-default-device :deep(.form-control) {
+	height: 26px;
+	font-size: var(--text-sm);
 }
 .fb-scale {
 	display: inline-flex;

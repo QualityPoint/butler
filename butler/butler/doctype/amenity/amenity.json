@@ -12,9 +12,10 @@
   "section_break_pden",
   "amenity",
   "amenity_name",
-  "is_system_core",
-  "column_break_jaun",
   "amenity_category",
+  "butler_manager",
+  "column_break_jaun",
+  "is_system_core",
   "lines",
   "image",
   "amenity_bundle_section",
@@ -145,6 +146,7 @@
   },
   {
    "default": "0",
+   "description": "Leave at 0 to use the default price from Butler Settings.",
    "fieldname": "sound_system_price",
    "fieldtype": "Currency",
    "label": "Sound System Price",
@@ -246,13 +248,20 @@
    "in_standard_filter": 1,
    "label": "Is System Core",
    "no_copy": 1
+  },
+  {
+   "fieldname": "butler_manager",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Butler Manager",
+   "options": "Butler Manager"
   }
  ],
  "grid_page_length": 50,
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-14 11:47:02.538629",
+ "modified": "2026-10-03 16:28:10.000000",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Amenity",
