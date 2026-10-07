@@ -14,7 +14,7 @@ required_apps = ["erpnext"]
 add_to_apps_screen = [
     {
         "name": "butler",
-        "logo": "/assets/butler/images/logo.svg",
+        "logo": "/assets/butler/icons/butler.svg",
         "title": "Butler",
         "route": "/desk/smart-homes",
         "has_permission": "butler.api.permission.has_app_permission",

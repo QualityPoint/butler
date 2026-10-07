@@ -7,3 +7,4 @@
 butler.patches.v1_0.add_light_system_devices
 butler.patches.v1_0.convert_legacy_quotations
 butler.patches.v1_0.sync_quotations_with_amenities
+butler.patches.v1_0.remove_butler_portal_workspace
