@@ -1,0 +1,39 @@
+{
+ "app": "butler",
+ "creation": "2026-10-08 01:32:36.000000",
+ "docstatus": 0,
+ "doctype": "Dock",
+ "idx": 0,
+ "items": [
+  {
+   "added": 0,
+   "hidden": 0,
+   "icon": "butler-smart-home-duotone",
+   "link_to": "Smart Homes",
+   "link_type": "Sidebar",
+   "title": "Smart Homes"
+  },
+  {
+   "added": 0,
+   "hidden": 0,
+   "icon": "butler-setup-duotone",
+   "link_to": "Butler Setup",
+   "link_type": "Sidebar",
+   "title": "Butler Setup"
+  },
+  {
+   "added": 0,
+   "hidden": 0,
+   "icon": "butler-mark-duotone",
+   "link_type": "URL",
+   "title": "Butler Portal",
+   "url": "/desk/butler-portal"
+  }
+ ],
+ "modified": "2026-10-08 01:32:36.000000",
+ "modified_by": "Administrator",
+ "name": "butler",
+ "owner": "Administrator",
+ "standard": 1,
+ "user": ""
+}

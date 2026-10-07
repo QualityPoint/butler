@@ -8,7 +8,7 @@
  "doctype": "Workspace",
  "for_user": "",
  "hide_custom": 0,
- "icon": "organization",
+ "icon": "butler-smart-home-duotone",
  "idx": 0,
  "indicator_color": "green",
  "is_hidden": 0,
@@ -141,7 +141,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-06-23 17:39:24.719132",
+ "modified": "2026-10-08 01:32:36.000000",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Smart Homes",
@@ -151,7 +151,7 @@
  "public": 1,
  "quick_lists": [],
  "roles": [],
- "sequence_id": 18.0,
+ "sequence_id": 1.0,
  "shortcuts": [
   {
    "color": "Grey",

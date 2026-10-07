@@ -1,0 +1,309 @@
+<!-- Butler's dual-tone module icons for the desk dock, sidebars and headers. Each symbol animates
+     while its dock tile is hovered, through the icon-motion custom properties the tile sets
+     (frappe/public/scss/desk/dock.scss): `--icon-motion` (paused | running) and
+     `--icon-motion-opacity` (0 | 1).
+
+     A name must end in `-duotone` for the dock to draw it on the 24px grid with the tile's tones.
+     Every id, class and custom property is prefixed `butler-` so nothing clashes with another
+     app's sprite.
+
+     This sprite is inserted into the page, so the style block below is a document stylesheet. -->
+
+<svg id="butler-module-symbols" aria-hidden="true" style="display: none;" class="icon" xmlns="http://www.w3.org/2000/svg">
+	<style>
+		/* The Butler colours: tan (#c7b299) is the body of a shape, near-black (#0d0d0d) its
+		   detail, as on the logo tiles. light-dark() picks per theme: black would vanish on the dark
+		   tray, so the dark theme uses a deep tan body and a cream detail.
+		     rest     light: #c7b299 / #0d0d0d     dark: #5a4c3c / #e3d3bd
+		     active   light: #b39a7d / #000000     dark: #6e5d48 / #f3e8d8 */
+		:root {
+			--butler-tan: light-dark(#c7b299, #5a4c3c);
+			--butler-ink: light-dark(#0d0d0d, #e3d3bd);
+			--butler-tan-active: light-dark(#b39a7d, #6e5d48);
+			--butler-ink-active: light-dark(#000000, #f3e8d8);
+		}
+		/* Frappe's sprite sets grey tones on every duotone tile and header. These win for Butler's
+		   icons only, through the symbol the tile holds, so other apps keep their own. */
+		.dock-item--duotone:has(use[href^="#icon-butler-"]),
+		.shell-header:hover .header-logo:has(use[href^="#icon-butler-"]),
+		.shell-header.hover .header-logo:has(use[href^="#icon-butler-"]) {
+			--duotone-light: var(--butler-tan);
+			--duotone-dark: var(--butler-ink);
+		}
+		.dock-item--duotone.active:has(use[href^="#icon-butler-"]) {
+			--duotone-light: var(--butler-tan-active);
+			--duotone-dark: var(--butler-ink-active);
+		}
+
+		/* Smart home: the signal pulses out, ring after ring. */
+		.butler-signal path, .butler-signal circle {
+			animation: butler-signal 1.6s ease-in-out infinite;
+			animation-play-state: var(--icon-motion, paused);
+		}
+		.butler-signal :nth-child(2) { animation-delay: 0.2s; }
+		.butler-signal :nth-child(3) { animation-delay: 0.4s; }
+		@keyframes butler-signal {
+			0%, 60%, 100% { opacity: 1; }
+			30% { opacity: 0.15; }
+		}
+		/* Mark: the bow tie gives a little wiggle. */
+		.butler-bow {
+			transform-box: view-box;
+			transform-origin: 12px 9.6px;
+			animation: butler-bow 1.4s ease-in-out infinite;
+			animation-play-state: var(--icon-motion, paused);
+		}
+		@keyframes butler-bow {
+			0%, 60%, 100% { transform: rotate(0); }
+			15% { transform: rotate(-10deg); }
+			35% { transform: rotate(8deg); }
+			50% { transform: rotate(-3deg); }
+		}
+		/* Setup: the slider knobs move along their tracks. */
+		.butler-knob {
+			animation: butler-slide 1.6s ease-in-out infinite;
+			animation-play-state: var(--icon-motion, paused);
+		}
+		.butler-knob:nth-child(2) { animation-delay: 0.2s; animation-direction: reverse; }
+		.butler-knob:nth-child(3) { animation-delay: 0.4s; }
+		@keyframes butler-slide {
+			0%, 100% { transform: translateY(0); }
+			50% { transform: translateY(-3px); }
+		}
+		/* Home: the front door swings open on its left hinge. */
+		.butler-door {
+			transform-box: fill-box;
+			transform-origin: left center;
+			transform: scaleX(calc(1 - 0.7 * var(--icon-motion-opacity, 0)));
+			transition: transform 0.3s ease;
+		}
+		/* Facility: the windows light up one after another. */
+		.butler-window {
+			animation: butler-window 1.6s ease-in-out infinite;
+			animation-play-state: var(--icon-motion, paused);
+		}
+		.butler-window:nth-child(2) { animation-delay: 0.15s; }
+		.butler-window:nth-child(3) { animation-delay: 0.3s; }
+		.butler-window:nth-child(4) { animation-delay: 0.45s; }
+		@keyframes butler-window {
+			0%, 45%, 100% { opacity: 1; }
+			20% { opacity: 0.25; }
+		}
+		/* Builder: the pencil draws along the plan. */
+		.butler-pencil {
+			animation: butler-draw 1.2s ease-in-out infinite;
+			animation-play-state: var(--icon-motion, paused);
+		}
+		@keyframes butler-draw {
+			0%, 100% { transform: translate(0, 0); }
+			25% { transform: translate(-1.2px, 0.4px); }
+			50% { transform: translate(0.3px, -0.3px); }
+			75% { transform: translate(-0.8px, 0.6px); }
+		}
+		/* Quotation: the check mark is ticked again. */
+		.butler-check {
+			stroke-dasharray: 12;
+			animation: butler-tick 1.8s ease-out infinite;
+			animation-play-state: var(--icon-motion, paused);
+		}
+		@keyframes butler-tick {
+			0%, 50%, 100% { stroke-dashoffset: 0; }
+			10% { stroke-dashoffset: 12; }
+		}
+		/* Sales order: the cart rolls forward and back. */
+		.butler-cart {
+			animation: butler-roll 1.4s ease-in-out infinite;
+			animation-play-state: var(--icon-motion, paused);
+		}
+		@keyframes butler-roll {
+			0%, 100% { transform: translateX(0); }
+			50% { transform: translateX(1.5px); }
+		}
+		/* Masters and bundle: the top lifts. */
+		.butler-lift {
+			animation: butler-lift 1.6s ease-in-out infinite;
+			animation-play-state: var(--icon-motion, paused);
+		}
+		@keyframes butler-lift {
+			0%, 60%, 100% { transform: translateY(0); }
+			25% { transform: translateY(-2px); }
+		}
+		/* Twinkle: stars pop (manager, amenity). */
+		.butler-twinkle {
+			transform-box: fill-box;
+			transform-origin: center;
+			animation: butler-twinkle 1.4s ease-in-out infinite;
+			animation-play-state: var(--icon-motion, paused);
+		}
+		.butler-twinkle:nth-child(2) { animation-delay: 0.3s; }
+		@keyframes butler-twinkle {
+			0%, 50%, 100% { transform: scale(1); }
+			20% { transform: scale(0.4); }
+			35% { transform: scale(1.25); }
+		}
+		/* Receipt: the lines print in. */
+		.butler-line {
+			transform-box: fill-box;
+			transform-origin: left center;
+			animation: butler-write 2s ease-out infinite;
+			animation-play-state: var(--icon-motion, paused);
+		}
+		.butler-line:nth-child(2) { animation-delay: 0.2s; }
+		.butler-line:nth-child(3) { animation-delay: 0.4s; }
+		@keyframes butler-write {
+			0%, 45%, 100% { transform: scaleX(1); }
+			8% { transform: scaleX(0); }
+			30% { transform: scaleX(1); }
+		}
+		/* Annex: the plus turns a quarter. */
+		.butler-plus {
+			transform-box: view-box;
+			transform-origin: 12px 12px;
+			animation: butler-plus 1.6s ease-in-out infinite;
+			animation-play-state: var(--icon-motion, paused);
+		}
+		@keyframes butler-plus {
+			0%, 50%, 100% { transform: rotate(0); }
+			30% { transform: rotate(90deg); }
+		}
+		/* Light: the bulb glows. */
+		.butler-rays {
+			opacity: var(--icon-motion-opacity, 0);
+			animation: butler-glow 1s ease-in-out infinite alternate;
+			animation-play-state: var(--icon-motion, paused);
+		}
+		@keyframes butler-glow {
+			from { transform: scale(1); }
+			to { transform: scale(1.06); }
+		}
+		/* Settings: the gear turns. */
+		.butler-gear {
+			transform-box: view-box;
+			transform-origin: 12px 12px;
+			animation: butler-turn 4s linear infinite;
+			animation-play-state: var(--icon-motion, paused);
+		}
+		@keyframes butler-turn { to { transform: rotate(360deg); } }
+	</style>
+
+	<!-- Smart home: a house sending out a signal. -->
+	<symbol viewBox="0 0 24 24" id="icon-butler-smart-home-duotone" stroke="none" style="overflow: visible">
+		<path d="M4.5 10.2 12 4.3l7.5 5.9V20a1.5 1.5 0 0 1-1.5 1.5H6A1.5 1.5 0 0 1 4.5 20z" style="fill: var(--duotone-light, var(--butler-tan))" />
+		<path d="M2.6 11 12 3.3l9.4 7.7" style="fill: none; stroke: var(--duotone-dark, var(--butler-ink)); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round" />
+		<g class="butler-signal">
+			<circle cx="12" cy="17.6" r="1.3" style="fill: var(--duotone-dark, var(--butler-ink))" />
+			<path d="M9.7 15.2a3.3 3.3 0 0 1 4.6 0" style="fill: none; stroke: var(--duotone-dark, var(--butler-ink)); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round" />
+			<path d="M7.7 13a6.1 6.1 0 0 1 8.6 0" style="fill: none; stroke: var(--duotone-dark, var(--butler-ink)); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round" />
+		</g>
+	</symbol>
+
+	<!-- Mark: a butler's jacket and bow tie. -->
+	<symbol viewBox="0 0 24 24" id="icon-butler-mark-duotone" stroke="none" style="overflow: visible">
+		<path d="M3.5 21V7.6L9 3.2l3 6.4 3-6.4 5.5 4.4V21z" style="fill: var(--duotone-light, var(--butler-tan))" />
+		<g class="butler-bow" style="fill: var(--duotone-dark, var(--butler-ink))">
+			<path d="M12 9.6 7.6 7.2v4.8z" /><path d="M12 9.6l4.4-2.4v4.8z" /><circle cx="12" cy="9.6" r="1.2" />
+		</g>
+		<circle cx="12" cy="14.6" r="0.95" style="fill: var(--duotone-dark, var(--butler-ink))" /><circle cx="12" cy="18" r="0.95" style="fill: var(--duotone-dark, var(--butler-ink))" />
+	</symbol>
+
+	<!-- Setup: three sliders. -->
+	<symbol viewBox="0 0 24 24" id="icon-butler-setup-duotone" stroke="none" style="overflow: visible">
+		<g style="fill: var(--duotone-light, var(--butler-tan))"><rect x="4.8" y="3" width="2.4" height="18" rx="1.2" /><rect x="10.8" y="3" width="2.4" height="18" rx="1.2" /><rect x="16.8" y="3" width="2.4" height="18" rx="1.2" /></g>
+		<g style="fill: var(--duotone-dark, var(--butler-ink))"><circle class="butler-knob" cx="6" cy="15" r="2.8" /><circle class="butler-knob" cx="12" cy="9" r="2.8" /><circle class="butler-knob" cx="18" cy="14" r="2.8" /></g>
+	</symbol>
+
+	<!-- Home: a house with a door. -->
+	<symbol viewBox="0 0 24 24" id="icon-butler-home-duotone" stroke="none" style="overflow: visible">
+		<path d="M4.5 10.2 12 4.3l7.5 5.9V20a1.5 1.5 0 0 1-1.5 1.5H6A1.5 1.5 0 0 1 4.5 20z" style="fill: var(--duotone-light, var(--butler-tan))" />
+		<path d="M2.6 11 12 3.3l9.4 7.7" style="fill: none; stroke: var(--duotone-dark, var(--butler-ink)); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round" />
+		<rect class="butler-door" x="9.8" y="14" width="4.4" height="7.5" rx="1" style="fill: var(--duotone-dark, var(--butler-ink))" />
+	</symbol>
+
+	<!-- Facility: a building with a wing. -->
+	<symbol viewBox="0 0 24 24" id="icon-butler-facility-duotone" stroke="none" style="overflow: visible">
+		<rect x="3.5" y="3" width="11" height="18.5" rx="1.6" style="fill: var(--duotone-light, var(--butler-tan))" />
+		<rect x="15.5" y="9" width="5" height="12.5" rx="1.2" style="fill: var(--duotone-dark, var(--butler-ink))" />
+		<g style="fill: var(--duotone-dark, var(--butler-ink))"><rect class="butler-window" x="6" y="6" width="2.4" height="2.4" rx="0.6" /><rect class="butler-window" x="9.6" y="6" width="2.4" height="2.4" rx="0.6" /><rect class="butler-window" x="6" y="10.4" width="2.4" height="2.4" rx="0.6" /><rect class="butler-window" x="9.6" y="10.4" width="2.4" height="2.4" rx="0.6" /></g>
+		<rect x="7.2" y="15.6" width="3.6" height="5.9" rx="0.8" style="fill: var(--duotone-dark, var(--butler-ink))" />
+	</symbol>
+
+	<!-- Builder: a floor plan with a pencil. -->
+	<symbol viewBox="0 0 24 24" id="icon-butler-builder-duotone" stroke="none" style="overflow: visible">
+		<rect x="2.5" y="2.5" width="15.5" height="15.5" rx="2" style="fill: var(--duotone-light, var(--butler-tan))" />
+		<path d="M2.5 10h6.5M9 2.5v10M9 12.5h4M13 12.5V18" style="fill: none; stroke: var(--duotone-dark, var(--butler-ink)); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round" />
+		<path class="butler-pencil" d="M19.6 12.4a1.4 1.4 0 0 1 2 0l.5.5a1.4 1.4 0 0 1 0 2l-6.8 6.8-3.2.8.8-3.2z" style="fill: var(--duotone-dark, var(--butler-ink))" />
+	</symbol>
+
+	<!-- Quotation: a clipboard with a check mark. -->
+	<symbol viewBox="0 0 24 24" id="icon-butler-quotation-duotone" stroke="none" style="overflow: visible">
+		<rect x="4.5" y="3.5" width="15" height="18" rx="2" style="fill: var(--duotone-light, var(--butler-tan))" />
+		<rect x="8.5" y="2" width="7" height="3.6" rx="1.2" style="fill: var(--duotone-dark, var(--butler-ink))" />
+		<path class="butler-check" d="M8.4 13.2l2.5 2.5 4.8-5.1" style="fill: none; stroke: var(--duotone-dark, var(--butler-ink)); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round" />
+	</symbol>
+
+	<!-- Sales order: a shopping cart. -->
+	<symbol viewBox="0 0 24 24" id="icon-butler-cart-duotone" stroke="none" style="overflow: visible">
+		<g class="butler-cart">
+			<path d="M6 6.5h15l-1.8 8a1.6 1.6 0 0 1-1.6 1.3H9a1.6 1.6 0 0 1-1.6-1.3z" style="fill: var(--duotone-light, var(--butler-tan))" />
+			<path d="M2.5 3.5h2.6l2.8 12.3" style="fill: none; stroke: var(--duotone-dark, var(--butler-ink)); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round" />
+			<circle cx="9.5" cy="19.6" r="1.8" style="fill: var(--duotone-dark, var(--butler-ink))" /><circle cx="17" cy="19.6" r="1.8" style="fill: var(--duotone-dark, var(--butler-ink))" />
+		</g>
+	</symbol>
+
+	<!-- Masters: a stack of records. -->
+	<symbol viewBox="0 0 24 24" id="icon-butler-masters-duotone" stroke="none" style="overflow: visible">
+		<path d="M4 6v12.5c0 1.7 3.6 3 8 3s8-1.3 8-3V6z" style="fill: var(--duotone-light, var(--butler-tan))" />
+		<g style="fill: none; stroke: var(--duotone-dark, var(--butler-ink)); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round"><path d="M4 11.4c0 1.7 3.6 3 8 3s8-1.3 8-3" /><path d="M4 16.4c0 1.7 3.6 3 8 3s8-1.3 8-3" /></g>
+		<ellipse class="butler-lift" cx="12" cy="6" rx="8" ry="3" style="fill: var(--duotone-dark, var(--butler-ink))" />
+	</symbol>
+
+	<!-- Manager: a person with a star. -->
+	<symbol viewBox="0 0 24 24" id="icon-butler-manager-duotone" stroke="none" style="overflow: visible">
+		<path d="M2.5 20.6a7 6.6 0 0 1 14 0v.4a.8.8 0 0 1-.8.8H3.3a.8.8 0 0 1-.8-.8z" style="fill: var(--duotone-light, var(--butler-tan))" />
+		<circle cx="9.5" cy="8.6" r="3.9" style="fill: var(--duotone-dark, var(--butler-ink))" />
+		<path class="butler-twinkle" d="M18.6 2.6l.9 2 2.1.3-1.5 1.5.4 2.1-1.9-1-1.9 1 .4-2.1-1.5-1.5 2.1-.3z" style="fill: var(--duotone-dark, var(--butler-ink))" />
+	</symbol>
+
+	<!-- Bundle: two boxes with a third on top. -->
+	<symbol viewBox="0 0 24 24" id="icon-butler-bundle-duotone" stroke="none" style="overflow: visible">
+		<rect x="2.5" y="12.5" width="9" height="9" rx="1.4" style="fill: var(--duotone-light, var(--butler-tan))" />
+		<rect x="12.5" y="12.5" width="9" height="9" rx="1.4" style="fill: var(--duotone-light, var(--butler-tan))" />
+		<rect class="butler-lift" x="7.5" y="3" width="9" height="8.5" rx="1.4" style="fill: var(--duotone-dark, var(--butler-ink))" />
+	</symbol>
+
+	<!-- Receipt (amenity quotation). -->
+	<symbol viewBox="0 0 24 24" id="icon-butler-receipt-duotone" stroke="none" style="overflow: visible">
+		<path d="M5 2.5h14v19l-2.3-1.5-2.4 1.5-2.3-1.5-2.4 1.5-2.3-1.5L5 21.5z" style="fill: var(--duotone-light, var(--butler-tan))" />
+		<g style="fill: var(--duotone-dark, var(--butler-ink))"><rect class="butler-line" x="8" y="7" width="8" height="1.7" rx="0.85" /><rect class="butler-line" x="8" y="10.6" width="8" height="1.7" rx="0.85" /><rect class="butler-line" x="8" y="14.2" width="5" height="1.7" rx="0.85" /></g>
+	</symbol>
+
+	<!-- Amenity: a sparkle. -->
+	<symbol viewBox="0 0 24 24" id="icon-butler-amenity-duotone" stroke="none" style="overflow: visible">
+		<path d="M10.5 2.5l2.2 6.3 6.3 2.2-6.3 2.2-2.2 6.3-2.2-6.3L2 11l6.3-2.2z" style="fill: var(--duotone-light, var(--butler-tan))" />
+		<g style="fill: var(--duotone-dark, var(--butler-ink))">
+			<path class="butler-twinkle" d="M18.5 14.5l1 2.5 2.5 1-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1z" />
+			<circle class="butler-twinkle" cx="19" cy="4.5" r="1.5" />
+		</g>
+	</symbol>
+
+	<!-- Annex: a box with a plus. -->
+	<symbol viewBox="0 0 24 24" id="icon-butler-annex-duotone" stroke="none" style="overflow: visible">
+		<rect x="3" y="3" width="18" height="18" rx="3.5" style="fill: var(--duotone-light, var(--butler-tan))" />
+		<path class="butler-plus" d="M12 7.5v9M7.5 12h9" style="fill: none; stroke: var(--duotone-dark, var(--butler-ink)); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round" />
+	</symbol>
+
+	<!-- Light system: a light bulb. -->
+	<symbol viewBox="0 0 24 24" id="icon-butler-light-duotone" stroke="none" style="overflow: visible">
+		<g class="butler-rays" style="fill: none; stroke: var(--duotone-dark, var(--butler-ink)); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round"><path d="M12 0.6v1.4M3.6 4l1 1M20.4 4l-1 1M1.4 11h1.4M21.2 11h1.4" /></g>
+		<path d="M12 3a6.6 6.6 0 0 0-3.8 12v2.4h7.6V15A6.6 6.6 0 0 0 12 3z" style="fill: var(--duotone-light, var(--butler-tan))" />
+		<path d="M10.2 11.2 12 13l1.8-1.8" style="fill: none; stroke: var(--duotone-dark, var(--butler-ink)); stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round" />
+		<rect x="8.4" y="18.4" width="7.2" height="1.8" rx="0.9" style="fill: var(--duotone-dark, var(--butler-ink))" />
+		<rect x="9.6" y="20.8" width="4.8" height="1.6" rx="0.8" style="fill: var(--duotone-dark, var(--butler-ink))" />
+	</symbol>
+
+	<!-- Settings: a gear. -->
+	<symbol viewBox="0 0 24 24" id="icon-butler-settings-duotone" stroke="none" style="overflow: visible">
+		<g class="butler-gear"><g style="fill: var(--duotone-light, var(--butler-tan))"><circle cx="12" cy="12" r="6.6" /><rect x="10.4" y="2.4000000000000004" width="3.2" height="3.6" rx="0.5" /><rect x="10.4" y="2.4000000000000004" width="3.2" height="3.6" rx="0.5" transform="rotate(45 12 12)" /><rect x="10.4" y="2.4000000000000004" width="3.2" height="3.6" rx="0.5" transform="rotate(90 12 12)" /><rect x="10.4" y="2.4000000000000004" width="3.2" height="3.6" rx="0.5" transform="rotate(135 12 12)" /><rect x="10.4" y="2.4000000000000004" width="3.2" height="3.6" rx="0.5" transform="rotate(180 12 12)" /><rect x="10.4" y="2.4000000000000004" width="3.2" height="3.6" rx="0.5" transform="rotate(225 12 12)" /><rect x="10.4" y="2.4000000000000004" width="3.2" height="3.6" rx="0.5" transform="rotate(270 12 12)" /><rect x="10.4" y="2.4000000000000004" width="3.2" height="3.6" rx="0.5" transform="rotate(315 12 12)" /></g></g>
+		<circle cx="12" cy="12" r="2.8" style="fill: var(--duotone-dark, var(--butler-ink))" />
+	</symbol>
+</svg>

@@ -15,9 +15,9 @@ add_to_apps_screen = [
     {
         "name": "butler",
         "logo": "/assets/butler/images/logo.svg",
-                "title": "Butler",
-                "route": "/butler",
-                "has_permission": "butler.api.permission.has_app_permission"
+        "title": "Butler",
+        "route": "/desk/smart-homes",
+        "has_permission": "butler.api.permission.has_app_permission",
     }
 ]
 
@@ -51,7 +51,7 @@ app_include_js = "butler.bundle.js"
 # Svg Icons
 # ------------------
 # include app icons in desk
-# app_include_icons = "butler/public/icons.svg"
+app_include_icons = ["/assets/butler/icons/module-icons.svg"]
 
 # Home Pages
 # ----------
