@@ -80,7 +80,7 @@ function confirm_remove(floor_type) {
 	   `buttontext`, which is black, and --card-bg is --gray-900 in dark mode. That is the
 	   black-on-black tab. Every bare button that paints its own background needs this. */
 	color: var(--text-color);
-	border-radius: var(--border-radius);
+	border-radius: var(--radius, 8px);
 	padding: 4px 10px;
 	font-size: var(--text-sm);
 	white-space: nowrap;
@@ -109,7 +109,7 @@ function confirm_remove(floor_type) {
 	justify-content: center;
 	width: 18px;
 	height: 18px;
-	border-radius: var(--border-radius-tiny, 4px);
+	border-radius: var(--radius-sm, 4px);
 	--icon-stroke: var(--red-500, #e03636);
 	background: rgba(224, 54, 54, 0.12);
 }

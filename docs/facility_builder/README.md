@@ -16,7 +16,7 @@ The builder runs in one of **two modes**, carried in the route as `facility-buil
 - **Quotation mode** (`…/quotation/<quotation>`) — opened from the **Butler Quotation** form. Edits that quotation's layout; **draft-only** (Submitted/Cancelled open read-only). The facility is read from `quotation.facility` (blueprint files only).
 
 In both modes you:
-- Filter the amenity palette by **Order Type** (Amenities / Bundle / Quotation), **Bundle** (when Order Type = Bundle), one-or-more **Butler Managers** and **Amenity Categories** (MultiSelectList), and a single **Amenity**. Each filter offers every master record of its doctype.
+- Filter the amenity palette by **Order Type** (Amenities / Bundle / Quotation), **Bundle** (when Order Type = Bundle), one-or-more **Butler Managers**, **Facility Types** and **Amenity Categories** (MultiSelectList), and a single **Amenity**. Each filter offers every master record of its doctype.
 - Pick a **Floor Type** (tabs), **select an amenity** from the palette (the active amenity shows in the toolbar), then **draw it on the canvas** with the active tool — **Select** (default; click/drag to select & move), Freehand, Point, Rectangle, Ellipse, Line, Triangle/Pentagon/Hexagon. (No drag-drop or double-click.)
 - Rooms are rect/ellipse/polygon/line/point, each one placed amenity on that floor. Multi-select (click / Shift-click / Ctrl+A), copy-paste (Ctrl+C/V), group-move, and snap-to-shapes (so they touch) are supported.
 - The layout is saved as one JSON field (`Butler Quotation.geometry`); on save the builder writes the quotation's `amenities` table as **one row per placement**, each tagged with that placement's `placement_id`, and the **server** seeds any missing annex rows and prices everything.

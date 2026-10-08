@@ -426,7 +426,7 @@ function toggleCalibrate() {
 	gap: 2px;
 	padding: 2px;
 	background: var(--control-bg);
-	border-radius: var(--border-radius-md);
+	border-radius: var(--radius-md, 10px);
 	box-shadow: inset 0 0 0 1px var(--border-color);
 	flex-shrink: 0;
 }
@@ -440,7 +440,7 @@ function toggleCalibrate() {
 	line-height: 1;
 	height: 26px;
 	padding: 0 12px;
-	border-radius: calc(var(--border-radius-md) - 2px);
+	border-radius: calc(var(--radius-md, 10px) - 2px);
 	cursor: pointer;
 	white-space: nowrap;
 	transition: background 100ms ease, color 100ms ease, box-shadow 100ms ease;
@@ -508,7 +508,7 @@ function toggleCalibrate() {
 	   black text, which survives dark mode as a bright rectangle */
 	background: var(--control-bg);
 	color: var(--text-color);
-	border-radius: var(--border-radius);
+	border-radius: var(--radius, 8px);
 	padding: 0 6px;
 }
 /* the empty label line is what pushed the input to the bottom — drop it */

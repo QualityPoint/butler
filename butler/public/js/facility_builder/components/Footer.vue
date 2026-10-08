@@ -139,7 +139,7 @@ function showDependencies() {
 	   black text, which survives dark mode as a bright rectangle */
 	background: var(--control-bg);
 	color: var(--text-color);
-	border-radius: var(--border-radius);
+	border-radius: var(--radius, 8px);
 	padding: 0 6px;
 }
 .fb-input-scale {
@@ -159,7 +159,7 @@ function showDependencies() {
 	min-width: 0;
 	padding: 3px 8px;
 	border: 0;
-	border-radius: var(--border-radius);
+	border-radius: var(--radius, 8px);
 	background: transparent;
 	color: var(--orange-600, #b7791f);
 	font-size: var(--text-sm);

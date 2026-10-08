@@ -17,6 +17,13 @@ const DEFAULT_POINT_SIZE = 24;
 //                   the route switches to it. Nothing persists on the Facility but blueprint files.
 //   • "quotation" → edit an existing Butler Quotation's geometry (draft-only).
 // Rooms represent AMENITIES (room.amenity), colored by their Amenity Category.
+// The palette's filters over a field of the Amenity, in sidebar order. Each offers every
+// record of `doctype` (labelled by `label_field` when it has one) with its amenity count.
+const RECORD_FILTERS = [
+	{ field: "butler_manager", doctype: "Butler Manager", label_field: "manager_name", label: "Butler Manager" },
+	{ field: "facility_type", doctype: "Facility Type", label: "Facility Type" },
+];
+
 export function getStore(mode, target_name) {
 	const is_facility_mode = mode === "facility";
 
@@ -26,7 +33,7 @@ export function getStore(mode, target_name) {
 	let design = ref(null); // parsed geometry envelope (spatial only)
 	let amenities = ref([]); // Amenity catalog (palette)
 	let categories = ref([]); // Amenity Category catalog (filters + colors)
-	let managers = ref([]); // Butler Manager records (the "Butler Manager" filter's options)
+	let record_options = ref({}); // field -> every record of its doctype, for RECORD_FILTERS
 	let bundle_limits = ref({}); // { category -> amenity_count } for the active bundle
 	let dependency_graph = ref({}); // { dependant amenity -> [primary amenity, ...] }
 	let default_light_system = ref(null); // Light System.is_default — fitted unless overridden
@@ -48,7 +55,7 @@ export function getStore(mode, target_name) {
 
 	// palette filter state (ephemeral — not persisted)
 	let selected_categories = ref([]); // category names chosen in the "Amenity Category" multiselect
-	let selected_managers = ref([]); // Butler Managers chosen in the "Butler Manager" multiselect
+	let selected_records = ref({}); // field -> the records chosen in its RECORD_FILTERS multiselect
 	let selected_amenity = ref(null); // single amenity chosen in the "Amenity" link filter
 
 	// active tool: select (default) | pen (freehand) | point | rect | ellipse | triangle | pentagon | hexagon
@@ -167,30 +174,28 @@ export function getStore(mode, target_name) {
 		return cats;
 	});
 
-	// The "Butler Manager" filter's options: every Butler Manager record, each with how many
-	// amenities it has in the current order/bundle scope. The palette's top filter, so it is
-	// not narrowed by the category filter below it.
-	let available_managers = computed(() => {
+	// A record filter's options: every record of its doctype, each with how many amenities
+	// carry it in the current order/bundle scope (not narrowed by the other filters).
+	function record_filter_choices(field) {
 		const allowed = new Set(available_categories.value.map((c) => c.name));
 		const counts = {};
 		for (const a of amenities.value) {
-			if (a.butler_manager && allowed.has(a.amenity_category)) {
-				counts[a.butler_manager] = (counts[a.butler_manager] || 0) + 1;
-			}
+			if (a[field] && allowed.has(a.amenity_category)) counts[a[field]] = (counts[a[field]] || 0) + 1;
 		}
-		return managers.value.map((m) => ({
-			name: m.name,
-			label: m.manager_name || m.name,
-			count: counts[m.name] || 0,
-		}));
-	});
+		return (record_options.value[field] || []).map((r) => ({ ...r, count: counts[r.name] || 0 }));
+	}
 
-	// amenities after order/bundle + category + Butler Manager filtering
+	// amenities after order/bundle + category + record filtering (strict: a chosen value lists
+	// only the amenities that carry it)
 	let category_filtered_amenities = computed(() => {
 		const allowed = new Set(allowed_category_names.value);
-		const managers = new Set(selected_managers.value);
 		return amenities.value.filter(
-			(a) => allowed.has(a.amenity_category) && (!managers.size || managers.has(a.butler_manager))
+			(a) =>
+				allowed.has(a.amenity_category) &&
+				RECORD_FILTERS.every(({ field }) => {
+					const picked = selected_records.value[field] || [];
+					return !picked.length || picked.includes(a[field]);
+				})
 		);
 	});
 
@@ -286,7 +291,7 @@ export function getStore(mode, target_name) {
 		return Promise.all([
 			load_amenities(),
 			load_categories(),
-			load_managers(),
+			load_record_filters(),
 			load_bundle_limits(),
 			load_dependency_graph(),
 			load_default_light_system(),
@@ -389,7 +394,7 @@ export function getStore(mode, target_name) {
 				selected_ids.value = [];
 				active_amenity.value = null;
 				selected_categories.value = [];
-				selected_managers.value = [];
+				selected_records.value = {};
 
 				const finish = () =>
 					load_catalogs().then(() =>
@@ -434,7 +439,7 @@ export function getStore(mode, target_name) {
 				selected_ids.value = [];
 				active_amenity.value = null;
 				selected_categories.value = [];
-				selected_managers.value = [];
+				selected_records.value = {};
 				load_catalogs().then(() =>
 					nextTick(() => {
 						dirty.value = false;
@@ -450,19 +455,26 @@ export function getStore(mode, target_name) {
 			.get_list("Amenity", {
 				// only what the palette needs (name, label, category for colour, image);
 				// pricing/flags are resolved server-side, never on the client
-				fields: ["name", "amenity_name", "amenity_category", "image", "butler_manager"],
+				fields: ["name", "amenity_name", "amenity_category", "image", ...RECORD_FILTERS.map((f) => f.field)],
 				filters: [["disabled", "=", 0]],
 				limit: 0,
 			})
 			.then((rows) => (amenities.value = rows));
 	}
 
-	// Every Butler Manager record, so the filter lists them all — including one no Amenity
-	// is linked to yet (it then shows 0 amenities).
-	function load_managers() {
-		return frappe.db
-			.get_list("Butler Manager", { fields: ["name", "manager_name"], limit: 0, order_by: "name asc" })
-			.then((rows) => (managers.value = rows || []));
+	// Every record of each RECORD_FILTERS doctype, so a filter lists them all — including one
+	// no Amenity carries yet (it then shows 0 amenities).
+	function load_record_filters() {
+		return Promise.all(
+			RECORD_FILTERS.map(({ field, doctype, label_field }) =>
+				frappe.db
+					.get_list(doctype, { fields: ["name", ...(label_field ? [label_field] : [])], limit: 0, order_by: "name asc" })
+					.then((rows) => {
+						const options = (rows || []).map((r) => ({ name: r.name, label: (label_field && r[label_field]) || r.name }));
+						record_options.value = { ...record_options.value, [field]: options };
+					})
+			)
+		);
 	}
 
 	function load_categories() {
@@ -506,7 +518,7 @@ export function getStore(mode, target_name) {
 		order_type.value = value || "Amenities";
 		if (order_type.value !== "Bundle") bundle_type.value = null;
 		selected_categories.value = [];
-		selected_managers.value = [];
+		selected_records.value = {};
 		selected_amenity.value = null;
 		dirty.value = true;
 		load_bundle_limits();
@@ -515,7 +527,7 @@ export function getStore(mode, target_name) {
 	function set_bundle_type(value) {
 		bundle_type.value = value || null;
 		selected_categories.value = [];
-		selected_managers.value = [];
+		selected_records.value = {};
 		selected_amenity.value = null;
 		dirty.value = true;
 		load_bundle_limits();
@@ -526,9 +538,9 @@ export function getStore(mode, target_name) {
 		selected_amenity.value = null; // narrowing categories resets the amenity filter
 	}
 
-	function set_selected_managers(list) {
-		selected_managers.value = Array.isArray(list) ? list : [];
-		selected_amenity.value = null; // narrowing managers resets the amenity filter, as categories do
+	function set_record_filter(field, list) {
+		selected_records.value = { ...selected_records.value, [field]: Array.isArray(list) ? list : [] };
+		selected_amenity.value = null; // narrowing resets the amenity filter, as categories do
 	}
 
 	function set_selected_amenity(value) {
@@ -1433,8 +1445,9 @@ export function getStore(mode, target_name) {
 		order_type,
 		bundle_type,
 		selected_categories,
-		selected_managers,
-		available_managers,
+		record_filters: RECORD_FILTERS,
+		selected_records,
+		record_filter_choices,
 		selected_amenity,
 		active_tool,
 		active_amenity,
@@ -1507,7 +1520,7 @@ export function getStore(mode, target_name) {
 		set_order_type,
 		set_bundle_type,
 		set_selected_categories,
-		set_selected_managers,
+		set_record_filter,
 		set_selected_amenity,
 		set_active_amenity,
 		add_floor,

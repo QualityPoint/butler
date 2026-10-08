@@ -68,7 +68,7 @@ const placement_key = (row) => row.placement_id || row.name;
 const MASTER_DETAIL_STYLE = `
 .butler-md { display: grid; grid-template-columns: minmax(240px, 340px) minmax(0, 1fr);
     height: clamp(420px, 70vh, 720px); margin-top: .75rem;
-    border: 1px solid var(--border-color); border-radius: var(--border-radius-md); overflow: hidden; }
+    border: 1px solid var(--border-color); border-radius: var(--radius-md, 10px); overflow: hidden; }
 .butler-room-list { overflow-y: auto; border-right: 1px solid var(--border-color); outline: none; }
 .butler-room-list:focus-visible { box-shadow: inset 0 0 0 2px var(--btn-primary); }
 .butler-room-detail { overflow-y: auto; min-width: 0; }
@@ -121,7 +121,7 @@ const MASTER_DETAIL_STYLE = `
 // Bumped whenever this file changes, so a stale bundle can be identified from the browser
 // console rather than guessed at: butler.ui.AmenitiesEditor.BUILD
 butler.ui.AmenitiesEditor = class AmenitiesEditor {
-    static BUILD = "2026-10-05-manager-records";
+    static BUILD = "2026-10-08-radius-tokens";
 
     // The list's filter chips. `label` is a function so the translation is looked up when
     // the chip is drawn, not when this file loads. `editor` answers what a row can't on its
@@ -664,7 +664,7 @@ butler.ui.AmenitiesEditor = class AmenitiesEditor {
                     border:1px solid ${active ? "var(--btn-primary, #1f272e)" : "var(--border-color)"};
                     background:${bg};color:${fg};
                     font-weight:${active ? 600 : 400};
-                    border-radius:var(--border-radius);
+                    border-radius:var(--radius, 8px);
                     padding:4px 10px;font-size:var(--text-sm)">
                     <span class="butler-tab-name"></span>
                     <span class="butler-tab-count" style="font-size:var(--text-xs);border-radius:8px;padding:0 6px;

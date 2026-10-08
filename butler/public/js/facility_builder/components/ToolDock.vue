@@ -271,7 +271,7 @@ onBeforeUnmount(destroyIconControl);
 	height: 26px;
 	padding: 0;
 	border: 1px solid var(--border-color);
-	border-radius: var(--border-radius);
+	border-radius: var(--radius, 8px);
 	background: none;
 	cursor: pointer;
 	flex-shrink: 0;
@@ -283,7 +283,7 @@ onBeforeUnmount(destroyIconControl);
 	border: 1px solid var(--border-color);
 	background: var(--control-bg);
 	color: var(--text-color);
-	border-radius: var(--border-radius);
+	border-radius: var(--radius, 8px);
 	padding: 0 6px;
 }
 /* the Frappe Icon control, stripped of its label line the way the toolbar already does */

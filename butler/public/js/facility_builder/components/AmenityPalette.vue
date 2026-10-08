@@ -41,8 +41,8 @@
 		</div>
 
 		<div class="fb-filters">
-			<div class="fb-field">
-				<div ref="managerControl"></div>
+			<div v-for="filter in store.record_filters" :key="filter.field" class="fb-field">
+				<div :ref="(el) => (recordHosts[filter.field] = el)"></div>
 			</div>
 
 			<div class="fb-field">
@@ -114,8 +114,8 @@ const store = inject("$store");
 
 const bundles = ref([]);
 const categoryControl = ref(null);
-const managerControl = ref(null);
-let managerCtrl = null;
+const recordHosts = {}; // field -> host element of its record filter (Butler Manager, Facility Type)
+const recordCtrls = {}; // field -> its MultiSelectList
 const amenityControl = ref(null);
 let catCtrl = null;
 let amenityCtrl = null;
@@ -205,21 +205,23 @@ onMounted(() => {
 		() => store.set_selected_categories(catCtrl.get_value())
 	);
 
-	// Butler Manager, the top filter and a MultiSelectList like Amenity Category: every
-	// Butler Manager record, each with its amenity count in the order / bundle scope. MultiSelectList writes `label`
-	// straight into its HTML, so the name is escaped.
-	managerCtrl = make_filter(
-		managerControl.value,
-		"butler_managers_filter",
-		__("Butler Manager"),
-		() =>
-			store.available_managers.value.map((m) => ({
-				value: m.name,
-				label: frappe.utils.escape_html(m.label),
-				description: __("{0} amenities", [m.count]),
-			})),
-		() => store.set_selected_managers(managerCtrl.get_value())
-	);
+	// The record filters (store.js RECORD_FILTERS): a MultiSelectList each, over every record
+	// of its doctype with its amenity count. MultiSelectList writes `label` straight into its
+	// HTML, so the name is escaped.
+	for (const { field, label } of store.record_filters) {
+		recordCtrls[field] = make_filter(
+			recordHosts[field],
+			`${field}_filter`,
+			__(label),
+			() =>
+				store.record_filter_choices(field).map((r) => ({
+					value: r.name,
+					label: frappe.utils.escape_html(r.label),
+					description: __("{0} amenities", [r.count]),
+				})),
+			() => store.set_record_filter(field, recordCtrls[field].get_value())
+		);
+	}
 
 	// Amenity filter is a single Link over every enabled Amenity record (a disabled one can't
 	// be drawn); the other filters narrow the palette list, not this field's options
@@ -248,19 +250,19 @@ watch(
 	() => [store.order_type.value, store.bundle_type.value],
 	() => {
 		catCtrl?.set_value([]);
-		managerCtrl?.set_value([]);
+		for (const ctrl of Object.values(recordCtrls)) ctrl.set_value([]);
 		amenityCtrl?.set_value("");
 	}
 );
-// narrowing categories or managers resets the amenity filter (store already cleared it)
+// narrowing categories or a record filter resets the amenity filter (store already cleared it)
 watch(
-	() => [store.selected_categories.value, store.selected_managers.value],
+	() => [store.selected_categories.value, store.selected_records.value],
 	() => amenityCtrl?.set_value("")
 );
 
 onBeforeUnmount(() => {
 	catCtrl?.$wrapper?.remove();
-	managerCtrl?.$wrapper?.remove();
+	for (const ctrl of Object.values(recordCtrls)) ctrl.$wrapper?.remove();
 	amenityCtrl?.$wrapper?.remove();
 });
 </script>
@@ -304,7 +306,7 @@ onBeforeUnmount(() => {
 	width: 100%;
 	height: 28px;
 	border: 1px solid var(--border-color);
-	border-radius: var(--border-radius);
+	border-radius: var(--radius, 8px);
 	padding: 0 6px;
 	background: var(--card-bg, #fff);
 	/* form controls do not inherit `color`: unset, the text stays the UA's black on a
@@ -364,7 +366,7 @@ onBeforeUnmount(() => {
 	align-items: center;
 	gap: 8px;
 	border: 1px solid var(--border-color);
-	border-radius: var(--border-radius);
+	border-radius: var(--radius, 8px);
 	padding: 6px 8px;
 	background: var(--card-bg, #fff);
 	cursor: pointer;

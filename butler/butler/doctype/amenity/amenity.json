@@ -4,7 +4,7 @@
  "allow_import": 1,
  "allow_rename": 1,
  "autoname": "field:amenity_name",
- "creation": "2026-02-02 18:24:19.258634",
+ "creation": "2026-10-03 16:28:25.516725",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
@@ -13,11 +13,14 @@
   "amenity",
   "amenity_name",
   "amenity_category",
-  "butler_manager",
   "column_break_jaun",
   "is_system_core",
   "lines",
   "image",
+  "section_break_ucte",
+  "butler_manager",
+  "column_break_izsf",
+  "facility_type",
   "amenity_bundle_section",
   "currency",
   "annexes",
@@ -255,13 +258,29 @@
    "in_standard_filter": 1,
    "label": "Butler Manager",
    "options": "Butler Manager"
+  },
+  {
+   "fieldname": "section_break_ucte",
+   "fieldtype": "Section Break",
+   "label": "Classification"
+  },
+  {
+   "fieldname": "column_break_izsf",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "facility_type",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Facility Type",
+   "options": "Facility Type"
   }
  ],
  "grid_page_length": 50,
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-03 16:28:10.000000",
+ "modified": "2026-10-08 13:11:45.294994",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Amenity",

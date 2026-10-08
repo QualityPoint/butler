@@ -676,7 +676,7 @@ onBeforeUnmount(destroyControls);
 	   token, because the transparency is the point: it has to tint whatever is behind it. */
 	background: rgba(224, 54, 54, 0.12);
 	border: 1px solid rgba(224, 54, 54, 0.28);
-	border-radius: var(--border-radius-tiny, 4px);
+	border-radius: var(--radius-sm, 4px);
 }
 .fb-annex-remove:hover:not(:disabled),
 .fb-annex-remove:focus:not(:disabled) {
@@ -700,7 +700,7 @@ onBeforeUnmount(destroyControls);
 .fb-input {
 	height: 26px;
 	border: 1px solid var(--border-color);
-	border-radius: var(--border-radius);
+	border-radius: var(--radius, 8px);
 	background: var(--control-bg);
 	padding: 0 6px;
 	/* form controls do not inherit `color`: unset, the text stays the UA's black on a

@@ -54,6 +54,21 @@ app_include_css = [
 ]
 ```
 
+### Frappe's radius tokens
+
+Frappe 16.51 (Espresso tokens) dropped `--border-radius`, `--border-radius-md`, `--border-radius-tiny`
+and the rest without aliases, despite the comment in `espresso/_borders.scss`. An undefined
+variable makes `border-radius` fall back to `0`, so every corner using one turned square. Use the
+Espresso scale from `frappe/public/css/espresso/radius.css`, with a pixel fallback:
+
+| Old | Use |
+|---|---|
+| `--border-radius-tiny` | `var(--radius-sm, 4px)` |
+| `--border-radius` | `var(--radius, 8px)` |
+| `--border-radius-md` | `var(--radius-md, 10px)` |
+| `--border-radius-lg` | `var(--radius-lg, 12px)` |
+| `--border-radius-full` | `var(--radius-full, 9999px)` |
+
 ---
 
 ## Tailwind CSS — Safe Integration
