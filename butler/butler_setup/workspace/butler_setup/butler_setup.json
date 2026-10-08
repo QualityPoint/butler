@@ -1,5 +1,4 @@
 {
- "app": "butler",
  "charts": [],
  "content": "[{\"id\": \"6d09648e33\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Butler Manager\", \"col\": 4}}, {\"id\": \"8ec3c83067\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Butler Bundle\", \"col\": 4}}, {\"id\": \"9aa8bbd71b\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Amenity Quotation\", \"col\": 4}}, {\"id\": \"6357330ce1\", \"type\": \"card\", \"data\": {\"card_name\": \"Facility Setup\", \"col\": 4}}, {\"id\": \"86dc8db4be\", \"type\": \"card\", \"data\": {\"card_name\": \"Amenity Setup\", \"col\": 4}}, {\"id\": \"d3b61ec36b\", \"type\": \"card\", \"data\": {\"card_name\": \"Annex Setup\", \"col\": 4}}, {\"id\": \"bc775c4a81\", \"type\": \"card\", \"data\": {\"card_name\": \"Light System Setup\", \"col\": 4}}, {\"id\": \"8cfa8bd08c\", \"type\": \"card\", \"data\": {\"card_name\": \"Settings\", \"col\": 4}}]",
  "creation": "2026-09-01 10:24:37.931141",
@@ -165,7 +164,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-10-08 01:32:36.000000",
+ "modified": "2026-10-08 15:47:07.574388",
  "modified_by": "Administrator",
  "module": "Butler Setup",
  "name": "Butler Setup",
@@ -198,6 +197,7 @@
    "type": "DocType"
   }
  ],
+ "standard": 1,
  "title": "Butler Setup",
  "type": "Workspace"
 }
