@@ -31,6 +31,14 @@ frappe.ui.form.on("Amenity", {
                 }
             };
         });
+
+        // Each Facility Type belongs to the amenity once (validate_facility_types enforces
+        // it server-side) — hide the ones already added.
+        frm.set_query("facility_types", (doc) => ({
+            filters: {
+                name: ["not in", (doc.facility_types || []).map((row) => row.facility_type)],
+            },
+        }));
     },
 
     refresh(frm) {

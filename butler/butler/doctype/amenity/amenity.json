@@ -20,7 +20,7 @@
   "section_break_ucte",
   "butler_manager",
   "column_break_izsf",
-  "facility_type",
+  "facility_types",
   "amenity_bundle_section",
   "currency",
   "annexes",
@@ -269,18 +269,17 @@
    "fieldtype": "Column Break"
   },
   {
-   "fieldname": "facility_type",
-   "fieldtype": "Link",
-   "in_standard_filter": 1,
-   "label": "Facility Type",
-   "options": "Facility Type"
+   "fieldname": "facility_types",
+   "fieldtype": "Table MultiSelect",
+   "label": "Facility Types",
+   "options": "Amenity Facility Type"
   }
  ],
  "grid_page_length": 50,
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-08 13:11:45.294994",
+ "modified": "2026-10-12 02:43:23.543215",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Amenity",

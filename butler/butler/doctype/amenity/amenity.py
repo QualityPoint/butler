@@ -18,9 +18,30 @@ SIMPLE_DEPENDS_ON = re.compile(r"^eval:\s*doc\.(\w+)\s*;?\s*$")
 
 class Amenity(Document):
     def validate(self):
+        self.validate_facility_types()
         self.validate_light_systems()
         self.validate_dependencies()
         self.calculate_totals()
+
+    def validate_facility_types(self):
+        """Each Facility Type belongs to the amenity once.
+
+        The Table MultiSelect control already hides and drops a value that is picked
+        twice, but only in the form — REST, Data Import and server code write the rows
+        directly, so the rule has to live here too.
+        """
+        seen = set()
+
+        for row in self.facility_types:
+            # an empty facility_type is left to the mandatory check to report
+            if row.facility_type and row.facility_type in seen:
+                frappe.throw(
+                    _("Row #{0}: {1} is already in the Facility Types table.").format(
+                        row.idx, frappe.bold(row.facility_type)
+                    ),
+                    title=_("Duplicate Facility Type"),
+                )
+            seen.add(row.facility_type)
 
     def validate_light_systems(self):
         """Every light system has to be a coherent way of wiring the amenity on its own:

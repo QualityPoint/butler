@@ -19,9 +19,11 @@ const DEFAULT_POINT_SIZE = 24;
 // Rooms represent AMENITIES (room.amenity), colored by their Amenity Category.
 // The palette's filters over a field of the Amenity, in sidebar order. Each offers every
 // record of `doctype` (labelled by `label_field` when it has one) with its amenity count.
+// `table` marks a field that lives in a Table MultiSelect child, so an amenity can carry
+// several values; load_amenities() turns every filter field into a list for that reason.
 const RECORD_FILTERS = [
 	{ field: "butler_manager", doctype: "Butler Manager", label_field: "manager_name", label: "Butler Manager" },
-	{ field: "facility_type", doctype: "Facility Type", label: "Facility Type" },
+	{ field: "facility_type", table: "facility_types", doctype: "Facility Type", label: "Facility Type" },
 ];
 
 export function getStore(mode, target_name) {
@@ -180,13 +182,14 @@ export function getStore(mode, target_name) {
 		const allowed = new Set(available_categories.value.map((c) => c.name));
 		const counts = {};
 		for (const a of amenities.value) {
-			if (a[field] && allowed.has(a.amenity_category)) counts[a[field]] = (counts[a[field]] || 0) + 1;
+			if (!allowed.has(a.amenity_category)) continue;
+			for (const value of a[field]) counts[value] = (counts[value] || 0) + 1;
 		}
 		return (record_options.value[field] || []).map((r) => ({ ...r, count: counts[r.name] || 0 }));
 	}
 
 	// amenities after order/bundle + category + record filtering (strict: a chosen value lists
-	// only the amenities that carry it)
+	// only the amenities that carry it; an amenity matches if it carries any chosen value)
 	let category_filtered_amenities = computed(() => {
 		const allowed = new Set(allowed_category_names.value);
 		return amenities.value.filter(
@@ -194,7 +197,7 @@ export function getStore(mode, target_name) {
 				allowed.has(a.amenity_category) &&
 				RECORD_FILTERS.every(({ field }) => {
 					const picked = selected_records.value[field] || [];
-					return !picked.length || picked.includes(a[field]);
+					return !picked.length || picked.some((value) => a[field].includes(value));
 				})
 		);
 	});
@@ -455,11 +458,35 @@ export function getStore(mode, target_name) {
 			.get_list("Amenity", {
 				// only what the palette needs (name, label, category for colour, image);
 				// pricing/flags are resolved server-side, never on the client
-				fields: ["name", "amenity_name", "amenity_category", "image", ...RECORD_FILTERS.map((f) => f.field)],
+				fields: [
+					"name",
+					"amenity_name",
+					"amenity_category",
+					"image",
+					...RECORD_FILTERS.map(({ field, table }) => (table ? `${table}.${field} as ${field}` : field)),
+				],
 				filters: [["disabled", "=", 0]],
 				limit: 0,
 			})
-			.then((rows) => (amenities.value = rows));
+			.then((rows) => (amenities.value = group_amenity_rows(rows)));
+	}
+
+	// A child-table field comes back as one row per child, so fold the rows into one amenity
+	// each, with every RECORD_FILTERS field as a list of its values.
+	function group_amenity_rows(rows) {
+		const by_name = new Map();
+		for (const row of rows || []) {
+			let amenity = by_name.get(row.name);
+			if (!amenity) {
+				amenity = { ...row };
+				for (const { field } of RECORD_FILTERS) amenity[field] = [];
+				by_name.set(row.name, amenity);
+			}
+			for (const { field } of RECORD_FILTERS) {
+				if (row[field] && !amenity[field].includes(row[field])) amenity[field].push(row[field]);
+			}
+		}
+		return [...by_name.values()];
 	}
 
 	// Every record of each RECORD_FILTERS doctype, so a filter lists them all — including one
