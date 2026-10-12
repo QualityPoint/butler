@@ -129,6 +129,7 @@ An amenity has **no flat price** — it is composed from its annexes.
 | `lines` | Int | how many lines the amenity has. Each light system's `used_lines` must fit within it **on its own** — they are alternatives, never in use at once, so there is no shared budget to add up |
 | `amenity_category` | Link → Amenity Category | |
 
+| `facility_types` | Table MultiSelect → Amenity Facility Type | the Facility Types the amenity is offered for; each **once** (`validate_facility_types`, and the form's dropdown hides the ones already added). **Not a pricing input**: it only feeds the Facility Builder's Facility Type filter. Pricing reads the quotation's own `facility_type` (from its Facility) through Annex Price |
 ## Annex Price (per-facility-type pricing)
 
 Replaces the old `Amenity.facility_type_prices`. Keyed **(annex, amenity, facility_type)**;

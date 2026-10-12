@@ -118,9 +118,11 @@ are still there, on their way out.
 
 ## Worked example
 
-Facility is a Villa on 1 floor. Amenity **Lounge** (`depends_on_floor_count = 1`,
-`floor_extra_price = 50`, `sound_system_price = 200`, a `Dimmer` light system priced 80 in
-`Add` mode), composed of 2 annexes. A Villa-scoped **Annex Price** overrides the AC.
+Facility is a Villa on 1 floor, with **two** Lounges drawn on it. Amenity **Lounge**
+(`depends_on_floor_count = 1`, `floor_extra_price = 50`, `sound_system_price = 200`, a
+`Dimmer` light system priced 80 in `Add` mode), composed of 2 annexes. A Villa-scoped
+**Annex Price** overrides the AC. Both placements are configured alike, so each row prices
+the same:
 
 | Component | Detail | Amount |
 |---|---|---|
@@ -131,7 +133,7 @@ Facility is a Villa on 1 floor. Amenity **Lounge** (`depends_on_floor_count = 1`
 | Sound system | opted in | `200` |
 
 ```
-amenity_price      = 200 + 500 + 50 + 80 + 200 = 1030      (per unit)
-qtn_amenity_amount = 1030 × amenity_qty 1      = 1030
-total                                          = 2060
+amenity_price      = 200 + 500 + 50 + 80 + 200 = 1030      (per placement)
+qtn_amenity_amount = 1030 × amenity_qty 1      = 1030    (each of the 2 rows)
+total              = 1030 + 1030               = 2060
 ```
