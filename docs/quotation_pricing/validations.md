@@ -43,8 +43,10 @@ enforced in `validate_row_types()` instead:
 
 Fields belonging to the *other* row type are **cleared**, not rejected
 (`clear_row_type_fields` in `before_validate`) — they are stale data, not a user error.
-Two things do throw: an annex row matching no amenity row (unattached), and an annex that
-isn't one of its amenity's own configured annexes.
+What does throw is an annex row matching no amenity row (unattached). An annex that isn't one
+of its amenity's own is **not** an error: it is an
+[extra annex](./annexes.md#extra-annexes), priced at 0 until its Quotation Price is set, and
+left out of the annex-price check below.
 
 ---
 

@@ -88,6 +88,7 @@
   "annex",
   "annex_name",
   "annex_category",
+  "is_extra_annex",
   "column_break_xulg",
   "manufacturer",
   "warranty",
@@ -173,7 +174,7 @@
    "reqd": 1
   },
   {
-   "description": "The Facility Builder shape this row was drawn from. Machine key \u2014 never hand-edited.",
+   "description": "The Facility Builder shape this row was drawn from. Machine key — never hand-edited.",
    "fieldname": "placement_id",
    "fieldtype": "Data",
    "label": "Placement",
@@ -361,6 +362,14 @@
    "fieldtype": "Link",
    "label": "Annex Category",
    "options": "Annex Category",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "description": "Set by pricing when this annex is not one of its Amenity's own. It has no Annex Price, so its standard is 0 and its Quotation Price is set on the quotation.",
+   "fieldname": "is_extra_annex",
+   "fieldtype": "Check",
+   "label": "Extra Annex",
    "read_only": 1
   },
   {
@@ -644,7 +653,7 @@
   },
   {
    "default": "1",
-   "description": "Set from the Facility Builder \u2014 one placement per row, summed on consolidation.",
+   "description": "Set from the Facility Builder — one placement per row, summed on consolidation.",
    "fieldname": "amenity_qty",
    "fieldtype": "Float",
    "in_list_view": 1,
@@ -964,7 +973,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-10-03 18:00:40.000000",
+ "modified": "2026-10-12 03:27:37.337362",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Butler Quotation Item",

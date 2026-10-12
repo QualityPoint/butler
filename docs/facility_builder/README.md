@@ -83,7 +83,7 @@ scroller:
 
 | Picker | Where | How |
 |---|---|---|
-| Add annex | above the scroller | Link (`Annex`, filtered to the Amenity's own, minus what is fitted) |
+| Add annex | above the scroller | Link (`Annex`, every enabled annex minus what is fitted). One outside the Amenity's own list is an [extra annex](../quotation_pricing/annexes.md#extra-annexes), marked in gold with a superscript **+** here and on the plan |
 | Annex UOM | **inside** the scroller | a plain `<select>` — the browser draws its popup outside the document, so a scroller cannot clip it |
 | Light System | below the scroller | Link (`Light System`, the whole master — an amenity that configures none still gets one), seeded with the default and never blank, its list flipped to open **upward** since it sits on the sidebar's bottom edge |
 | Light System Device | under the Light System, only when it is **not** the default system | Link (`Light System Device`, filtered to the room's system's own devices), seeded with that system's default device. See [light_system_devices.md](../light_system_devices.md) |

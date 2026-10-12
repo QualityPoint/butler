@@ -10,6 +10,8 @@
 				<v-circle :config="a.chip_config" />
 				<v-text :config="a.initial_config" />
 			</template>
+			<!-- an extra annex (outside the Amenity's own list): gold, with a "+" on top -->
+			<v-text v-if="a.extra_config" :config="a.extra_config" />
 		</template>
 	</v-group>
 </template>
@@ -18,7 +20,7 @@
 import { computed, inject, ref, watch } from "vue";
 import { room_bbox } from "../utils";
 import { load_icon_image } from "../icons";
-import { darken, resolveColor } from "../colors";
+import { darken, EXTRA_ANNEX_COLOR, resolveColor } from "../colors";
 
 const props = defineProps({ room: { type: Object, required: true } });
 const store = inject("$store");
@@ -35,17 +37,22 @@ const ink = computed(() =>
 
 // What this placement actually holds — its own list once edited, the Amenity's
 // standard composition until then. The icon and display name still come from the
-// master, since a room only stores which annex and how many.
-const annexes = computed(() => {
-	const master = {};
-	for (const a of store.annexes_for(props.room.amenity)) master[a.annex] = a;
-	return store.effective_annexes(props.room).map((a) => ({
-		annex: a.annex,
-		qty: a.qty,
-		annex_name: master[a.annex]?.annex_name || a.annex,
-		icon: master[a.annex]?.icon,
-	}));
-});
+// master (or an extra annex's details), since a room only stores which annex and how
+// many. An extra annex is inked in gold instead of the room's colour.
+const annexes = computed(() =>
+	store.effective_annexes(props.room).map((a) => {
+		const source = store.annex_details(props.room, a.annex);
+		const extra = store.is_extra_annex(props.room, a.annex);
+		return {
+			annex: a.annex,
+			qty: a.qty,
+			annex_name: source.annex_name || a.annex,
+			icon: source.icon,
+			extra,
+			color: extra ? EXTRA_ANNEX_COLOR : ink.value,
+		};
+	})
+);
 
 // `icon|colour` -> HTMLImageElement, or null while one is in flight.
 //
@@ -62,14 +69,14 @@ const images = ref({});
 const image_key = (annex, color) => `${annex.icon}|${color}`;
 
 watch(
-	[annexes, ink],
-	([list, color]) => {
+	annexes,
+	(list) => {
 		for (const annex of list) {
 			if (!annex.icon) continue; // nothing to ask for yet
-			const key = image_key(annex, color);
+			const key = image_key(annex, annex.color);
 			if (key in images.value) continue; // asked already
 			images.value[key] = null; // claim the slot so we ask once
-			load_icon_image(annex.icon, { color, outline: true }).then((image) => {
+			load_icon_image(annex.icon, { color: annex.color, outline: true }).then((image) => {
 				if (image) images.value[key] = image;
 			});
 		}
@@ -96,14 +103,14 @@ const placed = computed(() => {
 		const y = top + Math.floor(index / columns) * (SIZE + GAP);
 		return {
 			key: annex.annex,
-			image_config: { image: images.value[image_key(annex, ink.value)], x, y, width: SIZE, height: SIZE },
+			image_config: { image: images.value[image_key(annex, annex.color)], x, y, width: SIZE, height: SIZE },
 			chip_config: {
 				x: x + SIZE / 2,
 				y: y + SIZE / 2,
 				radius: SIZE / 2,
 				fill: "#ffffff",
-				stroke: ink.value,
-				strokeWidth: 1,
+				stroke: annex.color,
+				strokeWidth: annex.extra ? 1.5 : 1,
 				opacity: 0.9,
 			},
 			initial_config: {
@@ -114,8 +121,23 @@ const placed = computed(() => {
 				align: "center",
 				fontSize: 10,
 				fontStyle: "bold",
-				fill: ink.value,
+				fill: annex.color,
 			},
+			// a superscript "+" on the icon's top-right corner, haloed in white so it reads
+			// over the room's fill and whatever the icon draws beneath it
+			extra_config: annex.extra
+				? {
+						x: x + SIZE - 3,
+						y: y - 6,
+						text: "+",
+						fontSize: 12,
+						fontStyle: "bold",
+						fill: EXTRA_ANNEX_COLOR,
+						stroke: "#ffffff",
+						strokeWidth: 2,
+						fillAfterStrokeEnabled: true,
+					}
+				: null,
 		};
 	});
 });

@@ -74,6 +74,7 @@ export function getStore(mode, target_name) {
 	let dirty = ref(false);
 	let active_layer = ref("drawing"); // "drawing" | "blueprint" | "features" (Photoshop-style)
 	let annexes_by_amenity = ref({}); // amenity name -> its annexes, for the Features layer
+	let extra_annex_details = ref({}); // annex name -> name/icon/uoms, for annexes outside an amenity
 	let amenity_options = ref({}); // amenity name -> what it offers (light systems, sound)
 	let show_annex_icons = ref(true); // draw the annex icons on the Features layer
 	let calibrating = ref(false); // measurement calibration in progress
@@ -1247,7 +1248,7 @@ export function getStore(mode, target_name) {
 		const options = [...placed].filter((a) => !(a in amenity_options.value));
 
 		return Promise.all([
-			annexes.length
+			(annexes.length
 				? frappe
 						.xcall("butler.butler.doctype.amenity.amenity.get_amenity_annexes", {
 							amenities: annexes,
@@ -1255,7 +1256,8 @@ export function getStore(mode, target_name) {
 						.then((r) => {
 							annexes_by_amenity.value = { ...annexes_by_amenity.value, ...(r || {}) };
 						})
-				: Promise.resolve(),
+				: Promise.resolve()
+			).then(() => load_extra_annex_details()),
 			options.length
 				? frappe
 						.xcall(
@@ -1275,8 +1277,48 @@ export function getStore(mode, target_name) {
 		return annexes_by_amenity.value[amenity] || [];
 	}
 
+	// The extra annexes already fitted on the plan, once their amenities' own lists are in
+	// (until then every annex would look extra). Only the ones not fetched yet are asked for.
+	function load_extra_annex_details(names) {
+		if (!names) {
+			names = [];
+			for (const floor of design.value?.floors || []) {
+				for (const room of floor.rooms || []) {
+					for (const a of room.annexes || []) {
+						if (is_extra_annex(room, a.annex)) names.push(a.annex);
+					}
+				}
+			}
+		}
+		const missing = [...new Set(names)].filter((a) => !(a in extra_annex_details.value));
+		if (!missing.length) return Promise.resolve();
+		return frappe
+			.xcall("butler.butler.doctype.amenity.amenity.get_annex_details", { annexes: missing })
+			.then((r) => {
+				extra_annex_details.value = { ...extra_annex_details.value, ...(r || {}) };
+			});
+	}
+
 	function options_for(amenity) {
 		return amenity_options.value[amenity] || {};
+	}
+
+	// An annex fitted from outside its Amenity's own list. It has no Annex Price, so the
+	// quotation prices it at 0 until its Quotation Price is set there (`is_extra_annex`).
+	// False while the amenity's list is still loading, so nothing flashes as extra.
+	function is_extra_annex(room, annex) {
+		if (!(room?.amenity in annexes_by_amenity.value)) return false;
+		return !annexes_for(room.amenity).some((a) => a.annex === annex);
+	}
+
+	// Name, icon and UOMs of an annex as fitted on this room: the Amenity's own entry, else
+	// the extra annex's details.
+	function annex_details(room, annex) {
+		return (
+			annexes_for(room?.amenity).find((a) => a.annex === annex) ||
+			extra_annex_details.value[annex] ||
+			{}
+		);
 	}
 
 	// What this placement actually has. A room carries `annexes` only once edited;
@@ -1335,14 +1377,20 @@ export function getStore(mode, target_name) {
 		update_room(id, { annexes: list });
 	}
 
+	// Any annex, not only the Amenity's own. One of its own starts at the Amenity's qty and
+	// uom; an extra one at 1 in its default uom, once its details are in.
 	function add_room_annex(id, annex) {
 		const room = active_floor.value?.rooms.find((r) => r.id === id);
-		if (!room || !annex) return;
-		const list = effective_annexes(room).slice();
-		if (list.some((a) => a.annex === annex)) return; // one line per annex
-		const source = annexes_for(room.amenity).find((a) => a.annex === annex) || {};
-		list.push({ annex, qty: flt(source.qty) || 1, uom: source.uom });
-		set_room_annexes(id, list);
+		if (!room || !annex) return Promise.resolve();
+		if (effective_annexes(room).some((a) => a.annex === annex)) return Promise.resolve(); // one line per annex
+		const fetched = is_extra_annex(room, annex) ? load_extra_annex_details([annex]) : Promise.resolve();
+		return fetched.then(() => {
+			const list = effective_annexes(room).slice();
+			if (list.some((a) => a.annex === annex)) return;
+			const source = annex_details(room, annex);
+			list.push({ annex, qty: flt(source.qty) || 1, uom: source.uom });
+			set_room_annexes(id, list);
+		});
 	}
 
 	// An amenity is what it is composed of — the Amenity master makes `annexes` mandatory,
@@ -1535,6 +1583,8 @@ export function getStore(mode, target_name) {
 		options_for,
 		show_annex_icons,
 		effective_annexes,
+		is_extra_annex,
+		annex_details,
 		has_custom_features,
 		calibrating,
 		blueprint_fit_nonce,

@@ -360,6 +360,43 @@ def get_amenity_annexes(amenities):
     }
 
 
+@frappe.whitelist()
+def get_annex_details(annexes):
+    """`annex -> {annex_name, icon, uoms, uom}` for annexes fitted from outside an
+    amenity's own composition (extra annexes).
+
+    `get_amenity_annexes` only knows an amenity's own annexes, so the Facility Builder asks
+    here for the name, icon and UOMs of the rest. `uom` is the annex's default unit — with
+    no Annex Price behind an extra annex, that is its Item's.
+    """
+    if isinstance(annexes, str):
+        annexes = frappe.parse_json(annexes)
+
+    names = list({a for a in (annexes or []) if a})
+    if not names:
+        return {}
+
+    masters = {
+        row.name: row
+        for row in frappe.get_all(
+            "Annex",
+            filters={"name": ("in", names)},
+            fields=["name", "annex_name", "icon", "annex_item"],
+        )
+    }
+    uoms = _annex_uoms(masters)
+
+    return {
+        name: {
+            "annex_name": row.annex_name or name,
+            "icon": row.icon,
+            "uoms": uoms.get(name) or [],
+            "uom": get_annex_default_uom(name),
+        }
+        for name, row in masters.items()
+    }
+
+
 def _annex_uoms(masters):
     """`annex -> [uom]`, the UOMs each annex's Item is convertible in.
 

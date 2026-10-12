@@ -109,8 +109,9 @@ Removing an annex from an Amenity also deletes its Annex Prices
 with "Could not find … Annex Price List".
 
 A **customised** amenity keeps its own list. If it still holds an annex its Amenity no longer
-has, the save stops with *"… is not an annex of …"*; *Reset Amenity → Annexes* puts it back on
-the Amenity's list.
+has, that annex becomes an [extra annex](#extra-annexes): its Annex Price is gone, so the price
+it had is kept as a changed Quotation Price. *Reset Amenity → Annexes* puts the placement back
+on the Amenity's list.
 
 **Once, on deploy:** the `sync_quotations_with_amenities` patch (after
 `convert_legacy_quotations`) saves every draft that is behind its Amenities, or links a
@@ -168,6 +169,33 @@ annex_amount = annex_price × annex_quantity
 **per annex** rather than per amenity, and the mere existence of a facility-type row is
 what makes a price changeable — there is no `has_changeable_price` gate any more. The
 facility type comes from the quotation's `facility_type` (fetched from its Facility).
+
+### Extra annexes
+
+A placement can be fitted with **any** enabled annex, not only its Amenity's own: the
+Features layer's *Add annex* picker offers the whole catalogue. An annex outside the
+Amenity's `annexes` table is an **extra annex**.
+
+It has no standard price. Annex Prices are kept **per amenity**, so the same annex can
+carry a different price on every amenity that configures it, and none of them is *the*
+price on another. Rather than guess, an extra annex is priced at **0**, and the user sets
+its price on the quotation:
+
+| | Extra annex |
+|---|---|
+| Flag | `is_extra_annex` on the annex row — read-only, set by `calculate_totals` on every recalculation (the annex is not in `Amenity.annexes`), never trusted from the client |
+| Standard | `0` — `price_annex_row` skips the Annex Price lookup, so `annex_price_list` stays empty |
+| Quotation Price | `qtn_annex_price` starts at `0`. Once set it is a changed Quotation Price like any other: kept across recalculations, currency changes and Facility Builder saves (`carry_forward_overrides`), and it marks the placement `quotation_price_changed` |
+| Governance | **not checked** — `enforce_annex_price` leaves it out, since its `0` is a placeholder rather than a published standard |
+| Default qty / uom | `1`, in the annex's default uom (its Item's sales or stock uom, `get_annex_default_uom`) |
+| Where it shows | gold with a superscript **+**: in the Features panel, on the plan (the icon in gold, a **+** on its corner), and in the quotation line editor's annex table |
+
+Adding one makes the placement customised (`annexes_customised`), the same as any other
+annex edit, so `expand_amenity_rows` never re-seeds it away. **Reset** (Features panel) and
+*Reset Amenity → Annexes* drop it along with every other customisation.
+
+The builder reads an extra annex's name, icon and UOMs from `get_annex_details`, since
+`get_amenity_annexes` only knows each amenity's own list.
 
 ### UOM
 
@@ -307,11 +335,9 @@ as `reqd` would block every amenity row):
 | Amenity | `amenity`, `floor_type`, a `placement_id` (backfilled if absent) | annex fields (cleared automatically) |
 | Annex | `annex_quantity > 0`, `annex_uom`, a resolvable amenity row | the add-on fields (cleared automatically) |
 
-An annex must also be one of its amenity's own configured annexes — which is why the
-Features layer's "add annex" picker only offers what the Amenity configures; anything else
-would have no Annex Price and would be refused here. An annex row that matches no amenity
-row is rejected as unattached, though `ensure_placement_ids` re-homes the recoverable
-cases first.
+An annex does **not** have to be one of its amenity's own: one from outside is an
+[extra annex](#extra-annexes). An annex row that matches no amenity row is rejected as
+unattached, though `ensure_placement_ids` re-homes the recoverable cases first.
 
 Price deviations are governed separately — see
 [validations.md](./validations.md#annex-price--maintain_annex_price_action).

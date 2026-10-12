@@ -39,11 +39,8 @@
 					</button>
 				</div>
 
-				<div v-if="addable.length" class="fb-add-annex">
+				<div class="fb-add-annex">
 					<div ref="addControl"></div>
-				</div>
-				<div v-else-if="annexes.length" class="fb-features-none">
-					{{ __("Every annex this Amenity offers is already fitted.") }}
 				</div>
 
 				<!-- Two lines, so the name gets the full width and the controls get theirs.
@@ -51,10 +48,22 @@
 				     240px, and widening the sidebar for this layer alone would shift the
 				     canvas every time you switch to it. -->
 				<div class="fb-annex-list">
-					<div v-for="a in annexes" :key="a.annex" class="fb-annex">
+					<div
+						v-for="a in annexes"
+						:key="a.annex"
+						class="fb-annex"
+						:class="{ 'fb-annex-extra': a.extra }"
+						:style="a.extra ? { '--fb-extra': EXTRA_ANNEX_COLOR } : null"
+					>
 						<div class="fb-annex-top">
 							<span class="fb-annex-icon" v-html="iconFor(a)"></span>
 							<span class="fb-annex-name" :title="a.annex_name">{{ __(a.annex_name) }}</span>
+							<!-- outside the name, so a truncated name never takes the mark with it -->
+							<sup
+								v-if="a.extra"
+								class="fb-extra-mark"
+								:title="__('Extra annex — not part of this Amenity. Priced at 0 until its Quotation Price is set on the quotation.')"
+							>+</sup>
 						</div>
 						<div class="fb-annex-controls">
 							<!-- text, not number: Frappe's own Float and Int controls are text
@@ -146,42 +155,32 @@
 
 <script setup>
 import { computed, inject, nextTick, onBeforeUnmount, ref, watch } from "vue";
-import { resolveColor } from "../colors";
+import { EXTRA_ANNEX_COLOR, resolveColor } from "../colors";
 import { keep_last_value } from "../utils";
 
 const store = inject("$store");
 
 const room = computed(() => (store.active_layer.value === "features" ? store.selected_room.value : null));
 const options = computed(() => (room.value ? store.options_for(room.value.amenity) : {}));
-const master = computed(() => (room.value ? store.annexes_for(room.value.amenity) : []));
 const customised = computed(() => (room.value ? store.has_custom_features(room.value) : false));
 
 // A room stores only which annex and how much of it; the display name, icon and the UOMs
-// it can be measured in all come from the master list. A uom the master no longer offers
-// is kept in the options anyway, so an older room never has its unit silently changed by
-// merely being looked at.
+// it can be measured in come from the Amenity's list, or the extra annex's details. A uom
+// that list no longer offers is kept in the options anyway, so an older room never has
+// its unit silently changed by merely being looked at.
 const annexes = computed(() => {
 	if (!room.value) return [];
-	const named = {};
-	for (const a of master.value) named[a.annex] = a;
 	return store.effective_annexes(room.value).map((a) => {
-		const source = named[a.annex] || {};
+		const source = store.annex_details(room.value, a.annex);
 		const uoms = source.uoms || [];
 		return {
 			...a,
 			annex_name: source.annex_name || a.annex,
 			icon: source.icon,
 			uoms: a.uom && !uoms.includes(a.uom) ? [a.uom, ...uoms] : uoms,
+			extra: store.is_extra_annex(room.value, a.annex),
 		};
 	});
-});
-
-// Only what this Amenity offers, minus what is already fitted. The server refuses an
-// annex outside `Amenity.annexes` (validate_row_types) and it would have no Annex Price
-// anyway, so offering the whole catalogue would only invite a save-time throw.
-const addable = computed(() => {
-	const fitted = new Set(annexes.value.map((a) => a.annex));
-	return master.value.filter((a) => !fitted.has(a.annex));
 });
 
 const lightSystems = computed(() => options.value.light_systems || []);
@@ -306,9 +305,18 @@ function ensureAddControl() {
 			fieldname: "add_annex",
 			options: "Annex",
 			placeholder: __("Add annex…"),
-			get_query: () => ({
-				filters: { name: ["in", addable.value.map((a) => a.annex)] },
-			}),
+			// Every enabled annex, minus what is already fitted. One outside this Amenity's
+			// own list is an extra annex: the quotation prices it at 0 until its Quotation
+			// Price is set there, and it is marked in gold here and on the plan.
+			get_query: () => {
+				const fitted = annexes.value.map((a) => a.annex);
+				return {
+					filters: {
+						disabled: 0,
+						...(fitted.length ? { name: ["not in", fitted] } : {}),
+					},
+				};
+			},
 			onchange: () => {
 				const annex = addCtrl.get_value();
 				if (!annex) return;
@@ -418,21 +426,6 @@ watch(
 	{ immediate: true }
 );
 
-// The annex adder sits behind a v-if, so its host div can come and go while the panel
-// stays mounted — every annex fitted hides it. Drop the control when its div goes, or the
-// rebuilt div would stay empty behind `if (ctrl) return`. (The light field used to work
-// this way too; it is permanent now.)
-watch(
-	() => addable.value.length > 0,
-	(showing) => {
-		if (!showing) {
-			addCtrl?.$wrapper?.remove();
-			addCtrl = null;
-			return;
-		}
-		nextTick(ensureAddControl);
-	}
-);
 // The light field's host div is now permanent — it used to be dropped for an amenity with
 // no configured systems, which is why this once had to destroy the control alongside it.
 // Kept as a mount, so the control still exists on first render and after a panel rebuild.
@@ -660,6 +653,31 @@ onBeforeUnmount(destroyControls);
 	text-overflow: ellipsis;
 	white-space: nowrap;
 	font-size: var(--text-sm);
+}
+/* An extra annex — fitted from outside the Amenity's own list — in gold, the colour it
+   has on the plan (EXTRA_ANNEX_COLOR, passed in as --fb-extra): a gold edge, name and
+   icon, and a superscript "+" right after the name rather than pushed to the far end. */
+.fb-annex-extra {
+	border-left: 3px solid var(--fb-extra);
+	padding-left: 6px;
+}
+.fb-annex-extra .fb-annex-icon,
+.fb-annex-extra .fb-annex-name {
+	color: var(--fb-extra);
+}
+.fb-annex-extra .fb-annex-name {
+	flex: 0 1 auto;
+	font-weight: 600;
+}
+.fb-annex-extra .fb-annex-initial {
+	border-color: var(--fb-extra);
+}
+.fb-extra-mark {
+	margin-right: auto;
+	color: var(--fb-extra);
+	font-size: var(--text-sm);
+	font-weight: 700;
+	cursor: help;
 }
 /* the same 26px box as the qty and uom controls beside it, so the three sit on one line */
 .fb-annex-remove {

@@ -1037,6 +1037,14 @@ butler.ui.AmenityCard = class AmenityCard {
             `).appendTo($tbody);
 
             $tr.find(".c-annex").text(annex.annex_name || annex.annex || "");
+            // An extra annex (not one of its Amenity's own) has no Annex Price, so it is
+            // priced at 0 until its Quotation Price is set here. Marked the way the Facility
+            // Builder marks it: a gold superscript "+".
+            if (annex.is_extra_annex) {
+                $(`<sup style="color:#b8860b;font-weight:700;margin-left:2px;cursor:help">+</sup>`)
+                    .attr("title", __("Extra annex — not part of this Amenity. Set its price here."))
+                    .appendTo($tr.find(".c-annex"));
+            }
 
             const $amount = $tr.find(".c-amount");
             this.body_syncers.push(() =>

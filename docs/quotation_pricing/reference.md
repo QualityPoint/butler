@@ -83,6 +83,7 @@ One table, **two row types** — an amenity row (`annex` empty) and its annex ro
 | Field | Type | Notes |
 |---|---|---|
 | `annex` | Link → Annex | present ⇒ this is an annex row |
+| `is_extra_annex` | Check (ro) | the annex is not one of its Amenity's own; priced at 0 until its Quotation Price is set, and not governed. See [annexes.md](./annexes.md#extra-annexes) |
 | `annex_quantity` | Float | user-set; how many of this annex the placement has |
 | `annex_uom` | Link → UOM | user-set; defaults from Annex Price, else the Item |
 | `annex_stock_uom` / `conversion_factor` | (ro) | via the Annex's Item; **stock qty only, never the money** |
@@ -128,8 +129,8 @@ An amenity has **no flat price** — it is composed from its annexes.
 | `floor_extra_price` | Currency | multiplied by the floor count and **added** to the price |
 | `lines` | Int | how many lines the amenity has. Each light system's `used_lines` must fit within it **on its own** — they are alternatives, never in use at once, so there is no shared budget to add up |
 | `amenity_category` | Link → Amenity Category | |
-
 | `facility_types` | Table MultiSelect → Amenity Facility Type | the Facility Types the amenity is offered for; each **once** (`validate_facility_types`, and the form's dropdown hides the ones already added). **Not a pricing input**: it only feeds the Facility Builder's Facility Type filter. Pricing reads the quotation's own `facility_type` (from its Facility) through Annex Price |
+
 ## Annex Price (per-facility-type pricing)
 
 Replaces the old `Amenity.facility_type_prices`. Keyed **(annex, amenity, facility_type)**;

@@ -14,6 +14,11 @@ const PALETTE = [
 	"#bcf7e0",
 ];
 
+// An extra annex (fitted from outside its Amenity's own list) is drawn in gold, on the
+// plan and in the Features panel, so it stands out wherever it is. Dark enough to read
+// as a stroke on a pastel room and on the panel in either theme.
+export const EXTRA_ANNEX_COLOR = "#b8860b";
+
 export function colorFor(name) {
 	let hash = 0;
 	for (let i = 0; i < (name || "").length; i++) {

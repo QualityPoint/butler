@@ -27,7 +27,7 @@ from frappe.utils import (
 
 # Fields that only make sense on an ANNEX row — cleared on an amenity row.
 ANNEX_ROW_FIELDS = (
-    "annex_quantity", "annex_uom", "annex_stock_uom", "conversion_factor",
+    "annex_quantity", "annex_uom", "annex_stock_uom", "conversion_factor", "is_extra_annex",
     "annex_price_list", "annex_price", "annex_amount",
     "qtn_annex_price", "qtn_annex_net_price", "qtn_annex_amount", "qtn_annex_net_amount",
     "base_annex_price", "base_annex_net_price", "base_annex_amount", "base_annex_net_amount",
@@ -588,8 +588,9 @@ class ButlerQuotation(Document):
             # The annex rows first, then the price they roll up into. A negative quantity
             # makes the amenity price negative too, and reporting the roll-up first would
             # blame the light system for something an annex did.
-            allowed = {r.annex for r in frappe.get_cached_doc(
-                "Amenity", amenity_row.amenity).annexes}
+            #
+            # Any annex may be fitted, not only the Amenity's own: one from outside it is an
+            # extra annex (`is_extra_annex`), priced at 0 until its Quotation Price is set.
             for annex_row in annex_rows:
                 if flt(annex_row.annex_quantity) <= 0:
                     frappe.throw(
@@ -603,13 +604,6 @@ class ButlerQuotation(Document):
                     frappe.throw(
                         _("Row #{0}: Annex UOM is required.").format(annex_row.idx),
                         title=_("Missing UOM"),
-                    )
-                if annex_row.annex not in allowed:
-                    frappe.throw(
-                        _("Row #{0}: {1} is not an annex of {2}.").format(
-                            annex_row.idx, frappe.bold(annex_row.annex),
-                            frappe.bold(amenity_row.amenity)),
-                        title=_("Annex not configured"),
                     )
 
             # A Subtract light system is a legitimate credit, so a line is allowed to carry
@@ -1200,7 +1194,9 @@ class ButlerQuotation(Document):
             # ones before overwriting them
             annex_total = 0.0
             deviations_before = len(deviations)
+            offered = {r.annex for r in amenity.annexes} if amenity else set()
             for annex_row in annex_rows:
+                annex_row.is_extra_annex = 0 if annex_row.annex in offered else 1
                 annex_total += self.price_annex_row(
                     annex_row, facility_type, deviations,
                     flt(amenity_row.base_exchange_rate), flt(amenity_row.qtn_exchange_rate),
@@ -1293,10 +1289,15 @@ class ButlerQuotation(Document):
         untouched row as changed the moment the quotation currency changed, and comparing
         against the stored price would lose a real change on the next save,
         since that price was itself derived from it.
+
+        An extra annex (`is_extra_annex`, not one of the Amenity's own) has no Annex Price —
+        those are kept per amenity — so its standard is 0 and it costs nothing until its
+        Quotation Price is set here. The same rule then keeps that price as changed.
         """
         from butler.butler.doctype.annex_price.annex_price import get_annex_price
 
-        standard = get_annex_price(row.annex, row.amenity, facility_type) or {}
+        standard = {} if row.is_extra_annex else (
+            get_annex_price(row.annex, row.amenity, facility_type) or {})
         row.annex_price_list = standard.get("name")
         row.annex_uom = row.annex_uom or standard.get("uom") or get_annex_default_uom(row.annex)
         row.annex_quantity = flt(row.annex_quantity)
@@ -1921,12 +1922,16 @@ class ButlerQuotation(Document):
         The annex Quotation Price is the only one that carries a published standard, so
         it is the only one governed. `bundle_price_breach` rides along when
         a Bundle's flat price is discounted past its max_discount.
+
+        An extra annex is left out: its standard is a 0 placeholder, not a published price,
+        and setting its Quotation Price is exactly what it is waiting for.
         """
         lines = [
             "<li>{0} &mdash; {1} (standard {2})</li>".format(
                 frappe.bold(row.annex), fmt_money(row.qtn_annex_price), fmt_money(standard)
             )
             for row, standard in deviations
+            if not row.is_extra_annex
         ]
         if bundle_price_breach:
             lines.append(bundle_price_breach)
