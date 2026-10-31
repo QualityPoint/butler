@@ -15,9 +15,6 @@ frappe.ui.form.on("Facility", {
         if (!frm.doc.__islocal) {
             frappe.contacts.render_address_and_contact(frm);
             frm.add_custom_button(__("Open Facility Builder"), () => {
-                // pin the desk sidebar — the builder's <mode>/<name> sub-route can't be
-                // resolved to a Workspace Sidebar by Frappe's route→sidebar matcher
-                frappe.route_options = { sidebar: "Smart Homes" };
                 frappe.set_route("facility-builder", "facility", frm.doc.name);
             });
         } else {

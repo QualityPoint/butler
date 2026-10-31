@@ -56,7 +56,7 @@ class FacilityBuilder {
 		this.$component = this.app.mount(this.$wrapper.get(0));
 
 		// --- Vue → Frappe: reactive state drives the page chrome ---
-		watch(
+		this.stop_chrome_watch = watch(
 			() => [this.$component.$store.dirty.value, this.$component.$store.read_only.value],
 			([dirty, read_only]) => {
 				// submitted/cancelled quotations are view-only: hide Save + Reset
@@ -80,6 +80,7 @@ class FacilityBuilder {
 	}
 
 	destroy() {
+		this.stop_chrome_watch?.(); // watch() outside a component is never stopped by unmount
 		this.app?.unmount();
 		this.app = null;
 	}

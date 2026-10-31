@@ -137,9 +137,6 @@ frappe.ui.form.on("Butler Quotation", {
 
         if (frm.is_new()) return; // need a saved quotation to attach geometry to
         frm.add_custom_button(__("Open Facility Builder"), () => {
-            // pin the desk sidebar — the builder's <mode>/<name> sub-route can't be
-            // resolved to a Workspace Sidebar by Frappe's route→sidebar matcher
-            frappe.route_options = { sidebar: "Smart Homes" };
             frappe.set_route("facility-builder", "quotation", frm.doc.name);
         });
 

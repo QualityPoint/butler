@@ -5,6 +5,14 @@ frappe.pages["facility-builder"].on_page_load = function (wrapper) {
 		single_column: true,
 	});
 
+	// Frappe has no on_page_hide hook: the desk triggers jQuery "hide" on the wrapper when
+	// leaving. Child elements' "hide" events bubble up here too, hence the target check.
+	$(wrapper).on("hide", (e) => {
+		if (e.target !== wrapper) return;
+		frappe.facility_builder?.destroy?.();
+		frappe.facility_builder = null;
+	});
+
 	// hot reload in development
 	if (frappe.boot.developer_mode) {
 		frappe.hot_update = frappe.hot_update || [];
@@ -13,28 +21,12 @@ frappe.pages["facility-builder"].on_page_load = function (wrapper) {
 };
 
 frappe.pages["facility-builder"].on_page_show = function (wrapper) {
-	// Re-register the breadcrumb for the CURRENT route on every show. The page's
-	// own breadcrumb is keyed by the full route string and only set once at page
-	// creation, so a dynamic sub-route (facility-builder/<name>) would otherwise
-	// have no breadcrumb. Mirrors print.js's set_breadcrumbs() pattern.
-	frappe.breadcrumbs.add({
-		type: "Custom",
-		label: __("Facility Builder"),
-		route: "facility-builder",
-	});
 	load_facility_builder(wrapper);
 };
 
-// The sidebar needs no help here. The v16 desk reads a page route's first segment as the page
-// (`entity_from_route`), so facility-builder/<mode>/<name> stays on the Smart Homes sidebar,
-// which lists this page. The old workaround that re-pinned it called sidebar methods v16
-// removed (`set_active_workspace_item`), threw before the builder loaded, and left the page
-// blank.
-
-frappe.pages["facility-builder"].on_page_hide = function () {
-	frappe.facility_builder?.destroy?.();
-	frappe.facility_builder = null;
-};
+// The sidebar and breadcrumb need no help here. The v16 desk reads a page route's first segment
+// as the page (`entity_from_route`), so facility-builder/<mode>/<name> stays on the Smart Homes
+// sidebar, which lists this page, and the page keeps its title crumb across sub-routes.
 
 function load_facility_builder(wrapper) {
 	// route: ["facility-builder", "<mode>", "<name>"]  (mode = "facility" | "quotation")
