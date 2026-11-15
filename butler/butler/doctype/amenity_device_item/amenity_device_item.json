@@ -7,16 +7,16 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "annex",
-  "annex_name",
+  "device",
+  "device_name",
   "qty",
   "uom",
   "column_break_vegf",
   "rate",
   "amount",
   "description_section",
-  "annex_category",
-  "annex_type",
+  "device_category",
+  "device_type",
   "column_break_ynrp",
   "description",
   "manufacture_section",
@@ -30,10 +30,10 @@
  ],
  "fields": [
   {
-   "fetch_from": "annex.annex_name",
-   "fieldname": "annex_name",
+   "fetch_from": "device.device_name",
+   "fieldname": "device_name",
    "fieldtype": "Data",
-   "label": "Annex Name",
+   "label": "Device Name",
    "read_only": 1
   },
   {
@@ -79,11 +79,11 @@
    "reqd": 1
   },
   {
-   "fieldname": "annex",
+   "fieldname": "device",
    "fieldtype": "Link",
    "in_list_view": 1,
-   "label": "Annex",
-   "options": "Annex",
+   "label": "Device",
+   "options": "Device",
    "reqd": 1
   },
   {
@@ -107,7 +107,7 @@
    "label": "Description"
   },
   {
-   "fetch_from": "annex.description",
+   "fetch_from": "device.description",
    "fetch_if_empty": 1,
    "fieldname": "description",
    "fieldtype": "Small Text",
@@ -118,14 +118,14 @@
    "fieldtype": "Column Break"
   },
   {
-   "fetch_from": "annex.manufacturer",
+   "fetch_from": "device.manufacturer",
    "fieldname": "manufacturer",
    "fieldtype": "Data",
    "label": "Manufacturer",
    "read_only": 1
   },
   {
-   "fetch_from": "annex.warranty",
+   "fetch_from": "device.warranty",
    "fieldname": "warranty",
    "fieldtype": "Float",
    "label": "Warranty",
@@ -133,7 +133,7 @@
    "read_only": 1
   },
   {
-   "fetch_from": "annex.warranty_uom",
+   "fetch_from": "device.warranty_uom",
    "fieldname": "warranty_uom",
    "fieldtype": "Select",
    "label": "Warranty UOM",
@@ -141,19 +141,19 @@
    "read_only": 1
   },
   {
-   "fetch_from": "annex.annex_category",
-   "fieldname": "annex_category",
+   "fetch_from": "device.device_category",
+   "fieldname": "device_category",
    "fieldtype": "Link",
-   "label": "Annex Category",
-   "options": "Annex Category",
+   "label": "Device Category",
+   "options": "Device Category",
    "read_only": 1
   },
   {
-   "fetch_from": "annex.annex_type",
-   "fieldname": "annex_type",
+   "fetch_from": "device.device_type",
+   "fieldname": "device_type",
    "fieldtype": "Link",
-   "label": "Annex Type",
-   "options": "Annex Type",
+   "label": "Device Type",
+   "options": "Device Type",
    "read_only": 1
   },
   {
@@ -170,10 +170,10 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-11-15 11:48:16.801975",
+ "modified": "2026-11-15 13:11:11.000000",
  "modified_by": "Administrator",
  "module": "Butler",
- "name": "Amenity Annex Item",
+ "name": "Amenity Device Item",
  "owner": "Administrator",
  "permissions": [],
  "row_format": "Dynamic",

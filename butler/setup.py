@@ -25,9 +25,7 @@ def setup_butler_settings():
     never clobbers a configured site (safe to also call from after_migrate / a patch).
     """
     defaults = {
-        # note: maintain_ANNEX_price_action. It was seeded under a name no field has ever
-        # had, so this default has never actually applied on any install.
-        "maintain_annex_price_action": "Stop",
+        "maintain_device_price_action": "Stop",
         "action_if_dependencies_missing": "Stop",
         "system_core_action": "Stop",
     }

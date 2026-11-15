@@ -6,25 +6,25 @@ frappe.provide("butler");
 butler.reset_amenity_options = () => [
     {
         fieldname: "details", fieldtype: "Check", label: __("Details"), default: 1,
-        description: __("Butler Manager, image, category and annex details from the Amenity and Annex records. No price changes."),
+        description: __("Butler Manager, image, category and device details from the Amenity and Device records. No price changes."),
     },
     {
         fieldname: "prices", fieldtype: "Check", label: __("Prices"),
-        description: __("Every Quotation Price (annex, light system, sound system, floor) back to its standard."),
+        description: __("Every Quotation Price (device, light system, sound system, floor) back to its standard."),
     },
     {
-        fieldname: "annexes", fieldtype: "Check", label: __("Annexes"),
-        description: __("Each amenity's annexes back to the Amenity's own list, undoing Facility Builder edits."),
+        fieldname: "devices", fieldtype: "Check", label: __("Devices"),
+        description: __("Each amenity's devices back to the Amenity's own list, undoing Facility Builder edits."),
     },
     {
         fieldname: "light_sound", fieldtype: "Check", label: __("Light & sound"),
-        description: __("Default light system, sound off, no device picked."),
+        description: __("Default light system, sound off, no light system device picked."),
     },
     {
         fieldtype: "HTML", fieldname: "reset_note",
-        options: `<div class="text-muted small">${__("Prices, Annexes and Light & sound recalculate the totals and keep a record in the timeline. Light system devices are always recounted.")}</div>`,
+        options: `<div class="text-muted small">${__("Prices, Devices and Light & sound recalculate the totals and keep a record in the timeline. Light system devices are always recounted.")}</div>`,
     },
 ];
 
 butler.picked_reset_options = (values) =>
-    ["details", "prices", "annexes", "light_sound"].filter((key) => cint(values[key]));
+    ["details", "prices", "devices", "light_sound"].filter((key) => cint(values[key]));

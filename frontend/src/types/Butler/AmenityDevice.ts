@@ -1,5 +1,5 @@
 
-export interface AmenityAnnex{
+export interface AmenityDevice{
 	name: string
 	creation: string
 	modified: string
@@ -10,10 +10,10 @@ export interface AmenityAnnex{
 	parentfield?: string
 	parenttype?: string
 	idx?: number
-	/**	Annex Item : Link - Item - The item must be of a non-stock type	*/
-	annex_item: string
-	/**	Annex Name : Data	*/
-	annex_name: string
+	/**	Device Item : Link - Item - The item must be of a non-stock type	*/
+	device_item: string
+	/**	Device Name : Data	*/
+	device_name: string
 	/**	Image : Attach Image	*/
 	image?: string
 	/**	Description : Small Text	*/

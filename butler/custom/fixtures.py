@@ -6,25 +6,25 @@ from frappe.desk.page.setup_wizard.setup_wizard import make_records
 def make_fixtures():
     """Create default fixture data for the app"""
     records = [
-        # Annex Category
+        # Device Category
         {
-            "doctype": "Annex Category",
+            "doctype": "Device Category",
             "category_name": _("Room Control & User Interface"),
         },
         {
-            "doctype": "Annex Category",
+            "doctype": "Device Category",
             "category_name": _("Curtain Control"),
         },
         {
-            "doctype": "Annex Category",
+            "doctype": "Device Category",
             "category_name": _("Sensing & Climate"),
         },
         {
-            "doctype": "Annex Category",
+            "doctype": "Device Category",
             "category_name": _("System Core"),
         },
         {
-            "doctype": "Annex Category",
+            "doctype": "Device Category",
             "category_name": _("Connected Home - IT Networking Upgrade"),
         },
         # Facility Type
@@ -84,21 +84,21 @@ def make_fixtures():
         # light system device (before the light systems that list them)
         {
             "doctype": "Light System Device",
-            "device_name": "Relay Actuator 12CH",
+            "light_system_device_name": "Relay Actuator 12CH",
             "description": "12-channel switching actuator for on/off lighting circuits.",
             "warranty": 2,
             "warranty_uom": "Years",
         },
         {
             "doctype": "Light System Device",
-            "device_name": "DALI Gateway 64",
+            "light_system_device_name": "DALI Gateway 64",
             "description": "DALI gateway driving one DALI line of up to 64 addressable ballasts.",
             "warranty": 2,
             "warranty_uom": "Years",
         },
         {
             "doctype": "Light System Device",
-            "device_name": "Universal Dimmer 4CH",
+            "light_system_device_name": "Universal Dimmer 4CH",
             "description": "4-channel universal dimming actuator for leading/trailing edge loads.",
             "warranty": 2,
             "warranty_uom": "Years",
@@ -106,26 +106,26 @@ def make_fixtures():
         # light system — only when missing. make_records inserts with ignore_if_duplicate,
         # which skips an existing parent but still inserts its child rows (Document.insert),
         # and this runs on every migrate (after_migrate): without the condition each migrate
-        # added another copy of every system's Devices rows.
+        # added another copy of every system's Light System Devices rows.
         {
             "doctype": "Light System",
             "system_name": _("Relay"),
             "is_default": 1,
-            "devices": [{"device": "Relay Actuator 12CH", "channels_count": 12, "is_default": 1}],
+            "light_system_devices": [{"light_system_device": "Relay Actuator 12CH", "channels_count": 12, "is_default": 1}],
             "__condition": lambda: not frappe.db.exists("Light System", _("Relay")),
         },
         {
             "doctype": "Light System",
             "system_name": _("DALI"),
             "is_default": 0,
-            "devices": [{"device": "DALI Gateway 64", "channels_count": 64, "is_default": 1}],
+            "light_system_devices": [{"light_system_device": "DALI Gateway 64", "channels_count": 64, "is_default": 1}],
             "__condition": lambda: not frappe.db.exists("Light System", _("DALI")),
         },
         {
             "doctype": "Light System",
             "system_name": _("Dimmer"),
             "is_default": 0,
-            "devices": [{"device": "Universal Dimmer 4CH", "channels_count": 4, "is_default": 1}],
+            "light_system_devices": [{"light_system_device": "Universal Dimmer 4CH", "channels_count": 4, "is_default": 1}],
             "__condition": lambda: not frappe.db.exists("Light System", _("Dimmer")),
         }
     ]

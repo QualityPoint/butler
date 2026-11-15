@@ -5,5 +5,5 @@
 from frappe.model.document import Document
 
 
-class AnnexCategory(Document):
+class DeviceCategory(Document):
 	pass

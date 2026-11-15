@@ -155,7 +155,7 @@
 			8% { transform: scaleX(0); }
 			30% { transform: scaleX(1); }
 		}
-		/* Annex: the plus turns a quarter. */
+		/* Device: the plus turns a quarter. */
 		.butler-plus {
 			transform-box: view-box;
 			transform-origin: 12px 12px;
@@ -286,8 +286,8 @@
 		</g>
 	</symbol>
 
-	<!-- Annex: a box with a plus. -->
-	<symbol viewBox="0 0 24 24" id="icon-butler-annex-duotone" stroke="none" style="overflow: visible">
+	<!-- Device: a box with a plus. -->
+	<symbol viewBox="0 0 24 24" id="icon-butler-device-duotone" stroke="none" style="overflow: visible">
 		<rect x="3" y="3" width="18" height="18" rx="3.5" style="fill: var(--duotone-light, var(--butler-tan))" />
 		<path class="butler-plus" d="M12 7.5v9M7.5 12h9" style="fill: none; stroke: var(--duotone-dark, var(--butler-ink)); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round" />
 	</symbol>

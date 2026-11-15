@@ -52,11 +52,11 @@
 				<v-transformer ref="transformerRef" :config="transformerConfig" />
 			</v-layer>
 
-			<!-- Features layer: the annexes each placed amenity is composed of, drawn
+			<!-- Features layer: the devices each placed amenity is composed of, drawn
 			     over it. Display-only for now, and the rooms layer stops listening the
 			     moment this layer is active, so nothing here can be moved or selected. -->
-			<v-layer v-if="isFeatureLayer && store.show_annex_icons.value" :config="{ listening: false }">
-				<RoomAnnexes v-for="room in rooms" :key="room.id" :room="room" />
+			<v-layer v-if="isFeatureLayer && store.show_device_icons.value" :config="{ listening: false }">
+				<RoomDevices v-for="room in rooms" :key="room.id" :room="room" />
 			</v-layer>
 
 			<!-- Top overlays, in the order they used to be stacked: marquee, blueprint
@@ -83,7 +83,7 @@
 <script setup>
 import { inject, computed, ref, reactive, watch, nextTick, onMounted, onBeforeUnmount } from "vue";
 import RoomShape from "./RoomShape.vue";
-import RoomAnnexes from "./RoomAnnexes.vue";
+import RoomDevices from "./RoomDevices.vue";
 import { load_blueprint } from "../blueprint";
 
 const store = inject("$store");

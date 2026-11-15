@@ -39,16 +39,16 @@ export function getStore(mode, target_name) {
 	let bundle_limits = ref({}); // { category -> amenity_count } for the active bundle
 	let dependency_graph = ref({}); // { dependant amenity -> [primary amenity, ...] }
 	let default_light_system = ref(null); // Light System.is_default — fitted unless overridden
-	// { system -> [{ device, channels_count, is_default }] } — the controllers each system
-	// can be built with. Devices are a whole-facility concern, not pricing: see
+	// { system -> [{ light_system_device, channels_count, is_default }] } — the controllers each system
+	// can be built with. Light system devices are a whole-facility concern, not pricing: see
 	// docs/light_system_devices.md.
 	let light_system_devices = ref({});
-	// The device serving every line of the default system, across the whole facility: the
+	// The light system device serving every line of the default system, across the whole facility: the
 	// one picked in the toolbar (stored in the drawing as `default_light_system_device`),
 	// else the default system's own default. Only a pick is stored, so changing a Light
 	// System's default reaches every quotation nobody picked for (docs/light_system_devices.md).
 	let default_light_system_device = computed(
-		() => design.value?.default_light_system_device || default_device_for(default_light_system.value)
+		() => design.value?.default_light_system_device || default_light_system_device_for(default_light_system.value)
 	);
 
 	// order config (mirrors the quotation's own fields — read on open, written on save)
@@ -73,10 +73,10 @@ export function getStore(mode, target_name) {
 	let selected_ids = ref([]); // selected room ids (multi-select)
 	let dirty = ref(false);
 	let active_layer = ref("drawing"); // "drawing" | "blueprint" | "features" (Photoshop-style)
-	let annexes_by_amenity = ref({}); // amenity name -> its annexes, for the Features layer
-	let extra_annex_details = ref({}); // annex name -> name/icon/uoms, for annexes outside an amenity
+	let devices_by_amenity = ref({}); // amenity name -> its devices, for the Features layer
+	let extra_device_details = ref({}); // device name -> name/icon/uoms, for devices outside an amenity
 	let amenity_options = ref({}); // amenity name -> what it offers (light systems, sound)
-	let show_annex_icons = ref(true); // draw the annex icons on the Features layer
+	let show_device_icons = ref(true); // draw the device icons on the Features layer
 	let calibrating = ref(false); // measurement calibration in progress
 	let blueprint_fit_nonce = ref(0); // bump to ask the canvas to re-fit the blueprint
 	let blueprint_page_count = ref(1); // pages in the active blueprint (PDF)
@@ -309,14 +309,14 @@ export function getStore(mode, target_name) {
 			.then((r) => (light_system_devices.value = r || {}));
 	}
 
-	// The device a system is fitted with unless someone picks another: its `is_default`
+	// The light system device a system is fitted with unless someone picks another: its `is_default`
 	// row, else its first — the same rule the server resolves with.
-	function default_device_for(system) {
-		const list = devices_for(system);
-		return (list.find((d) => d.is_default) || list[0])?.device || null;
+	function default_light_system_device_for(system) {
+		const list = light_system_devices_for(system);
+		return (list.find((d) => d.is_default) || list[0])?.light_system_device || null;
 	}
 
-	function devices_for(system) {
+	function light_system_devices_for(system) {
 		return light_system_devices.value[system] || [];
 	}
 
@@ -341,8 +341,8 @@ export function getStore(mode, target_name) {
 					room.light_system = default_light_system.value;
 					touched = true;
 				}
-				// No device is seeded: a room without a pick follows its system's default
-				// (effective_device_for), so the drawing holds only what someone chose.
+				// No light system device is seeded: a room without a pick follows its system's default
+				// (effective_light_system_device_for), so the drawing holds only what someone chose.
 			}
 		}
 		if (touched) suppress_dirty_once();
@@ -367,7 +367,7 @@ export function getStore(mode, target_name) {
 	function adopt_row_aliases(rows) {
 		const by_placement = {};
 		for (const row of rows || []) {
-			if (row.annex || !row.placement_id) continue;
+			if (row.device || !row.placement_id) continue;
 			by_placement[row.placement_id] = row.alias || "";
 		}
 		for (const floor of design.value?.floors || []) {
@@ -580,8 +580,8 @@ export function getStore(mode, target_name) {
 	// tell which shape each row came from, and whatever features have been configured on
 	// it. Pricing stays server-side — the builder says what is fitted, never what it costs.
 	//
-	// A room only carries `annexes` once someone has edited them; until then it sends no
-	// annex rows and no `annexes_customised`, and the server seeds from the Amenity master
+	// A room only carries `devices` once someone has edited them; until then it sends no
+	// device rows and no `devices_customised`, and the server seeds from the Amenity master
 	// exactly as it does for a form or import row. That way an unvisited Features layer
 	// can never empty a quotation, and `[]` still means "deliberately none".
 	function build_amenity_rows() {
@@ -589,7 +589,7 @@ export function getStore(mode, target_name) {
 		for (const floor of design.value.floors) {
 			for (const r of floor.rooms) {
 				if (!r.amenity) continue;
-				const customised = Array.isArray(r.annexes);
+				const customised = Array.isArray(r.devices);
 				rows.push({
 					doctype: "Butler Quotation Item",
 					placement_id: r.id,
@@ -603,22 +603,22 @@ export function getStore(mode, target_name) {
 					light_system: r.light_system || null,
 					light_system_device: r.light_system_device || null,
 					has_sound_system: r.has_sound_system ? 1 : 0,
-					annexes_customised: customised ? 1 : 0,
+					devices_customised: customised ? 1 : 0,
 				});
 				if (!customised) continue;
-				for (const a of r.annexes) {
+				for (const a of r.devices) {
 					rows.push({
 						doctype: "Butler Quotation Item",
 						placement_id: r.id,
 						amenity: r.amenity,
 						floor_type: floor.floor_type,
-						annex: a.annex,
+						device: a.device,
 						// the panel refuses a non-positive quantity, so this only catches
 						// hand-edited or otherwise corrupt geometry. 1 is the recoverable
 						// choice: the row shows up and can be fixed, where sending 0 would
 						// fail the save with a row number nobody can trace to a room.
-						annex_quantity: flt(a.qty) || 1,
-						annex_uom: a.uom,
+						device_quantity: flt(a.qty) || 1,
+						device_uom: a.uom,
 					});
 				}
 			}
@@ -915,7 +915,7 @@ export function getStore(mode, target_name) {
 	// back to the amenity's name rather than being labelled with nothing.
 	//
 	// Not carried by `apply_features_to_similar`, and dropped on paste: a name belongs to
-	// one room, unlike the annexes and light and sound it sits next to.
+	// one room, unlike the devices and light and sound it sits next to.
 	function set_room_alias(id, value) {
 		const alias = value || "";
 		update_room(id, { alias: alias.trim() ? alias : "" });
@@ -1232,9 +1232,9 @@ export function getStore(mode, target_name) {
 		if (layer === "features") load_amenity_catalogue();
 	}
 
-	// What each placed amenity OFFERS: its annexes (with icons) and its light/sound
+	// What each placed amenity OFFERS: its devices (with icons) and its light/sound
 	// configuration. Two endpoints because they already exist and are used elsewhere —
-	// get_amenity_annexes carries the icons the canvas draws, get_amenity_options the
+	// get_amenity_devices carries the icons the canvas draws, get_amenity_options the
 	// light systems and sound price the panel edits. Both cached per amenity, so this
 	// costs one pair of round trips per session however often the layer is opened.
 	function load_amenity_catalogue() {
@@ -1244,20 +1244,20 @@ export function getStore(mode, target_name) {
 				if (room.amenity) placed.add(room.amenity);
 			}
 		}
-		const annexes = [...placed].filter((a) => !(a in annexes_by_amenity.value));
+		const devices = [...placed].filter((a) => !(a in devices_by_amenity.value));
 		const options = [...placed].filter((a) => !(a in amenity_options.value));
 
 		return Promise.all([
-			(annexes.length
+			(devices.length
 				? frappe
-						.xcall("butler.butler.doctype.amenity.amenity.get_amenity_annexes", {
-							amenities: annexes,
+						.xcall("butler.butler.doctype.amenity.amenity.get_amenity_devices", {
+							amenities: devices,
 						})
 						.then((r) => {
-							annexes_by_amenity.value = { ...annexes_by_amenity.value, ...(r || {}) };
+							devices_by_amenity.value = { ...devices_by_amenity.value, ...(r || {}) };
 						})
 				: Promise.resolve()
-			).then(() => load_extra_annex_details()),
+			).then(() => load_extra_device_details()),
 			options.length
 				? frappe
 						.xcall(
@@ -1273,29 +1273,29 @@ export function getStore(mode, target_name) {
 
 	// [] rather than undefined for an amenity we haven't loaded yet, so callers can render
 	// without guarding — the icons appear when the fetch lands.
-	function annexes_for(amenity) {
-		return annexes_by_amenity.value[amenity] || [];
+	function devices_for(amenity) {
+		return devices_by_amenity.value[amenity] || [];
 	}
 
-	// The extra annexes already fitted on the plan, once their amenities' own lists are in
-	// (until then every annex would look extra). Only the ones not fetched yet are asked for.
-	function load_extra_annex_details(names) {
+	// The extra devices already fitted on the plan, once their amenities' own lists are in
+	// (until then every device would look extra). Only the ones not fetched yet are asked for.
+	function load_extra_device_details(names) {
 		if (!names) {
 			names = [];
 			for (const floor of design.value?.floors || []) {
 				for (const room of floor.rooms || []) {
-					for (const a of room.annexes || []) {
-						if (is_extra_annex(room, a.annex)) names.push(a.annex);
+					for (const a of room.devices || []) {
+						if (is_extra_device(room, a.device)) names.push(a.device);
 					}
 				}
 			}
 		}
-		const missing = [...new Set(names)].filter((a) => !(a in extra_annex_details.value));
+		const missing = [...new Set(names)].filter((a) => !(a in extra_device_details.value));
 		if (!missing.length) return Promise.resolve();
 		return frappe
-			.xcall("butler.butler.doctype.amenity.amenity.get_annex_details", { annexes: missing })
+			.xcall("butler.butler.doctype.amenity.amenity.get_device_details", { devices: missing })
 			.then((r) => {
-				extra_annex_details.value = { ...extra_annex_details.value, ...(r || {}) };
+				extra_device_details.value = { ...extra_device_details.value, ...(r || {}) };
 			});
 	}
 
@@ -1303,31 +1303,31 @@ export function getStore(mode, target_name) {
 		return amenity_options.value[amenity] || {};
 	}
 
-	// An annex fitted from outside its Amenity's own list. It has no Annex Price, so the
-	// quotation prices it at 0 until its Quotation Price is set there (`is_extra_annex`).
+	// A device fitted from outside its Amenity's own list. It has no Device Price, so the
+	// quotation prices it at 0 until its Quotation Price is set there (`is_extra_device`).
 	// False while the amenity's list is still loading, so nothing flashes as extra.
-	function is_extra_annex(room, annex) {
-		if (!(room?.amenity in annexes_by_amenity.value)) return false;
-		return !annexes_for(room.amenity).some((a) => a.annex === annex);
+	function is_extra_device(room, device) {
+		if (!(room?.amenity in devices_by_amenity.value)) return false;
+		return !devices_for(room.amenity).some((a) => a.device === device);
 	}
 
-	// Name, icon and UOMs of an annex as fitted on this room: the Amenity's own entry, else
-	// the extra annex's details.
-	function annex_details(room, annex) {
+	// Name, icon and UOMs of a device as fitted on this room: the Amenity's own entry, else
+	// the extra device's details.
+	function device_details(room, device) {
 		return (
-			annexes_for(room?.amenity).find((a) => a.annex === annex) ||
-			extra_annex_details.value[annex] ||
+			devices_for(room?.amenity).find((a) => a.device === device) ||
+			extra_device_details.value[device] ||
 			{}
 		);
 	}
 
-	// What this placement actually has. A room carries `annexes` only once edited;
+	// What this placement actually has. A room carries `devices` only once edited;
 	// until then it inherits the Amenity's own composition — which is also what the
-	// server would seed. `[]` is a real answer (every annex removed), `undefined` is not.
-	function effective_annexes(room) {
-		if (Array.isArray(room?.annexes)) return room.annexes;
-		return annexes_for(room?.amenity).map((a) => ({
-			annex: a.annex,
+	// server would seed. `[]` is a real answer (every device removed), `undefined` is not.
+	function effective_devices(room) {
+		if (Array.isArray(room?.devices)) return room.devices;
+		return devices_for(room?.amenity).map((a) => ({
+			device: a.device,
 			qty: flt(a.qty) || 1,
 			uom: a.uom,
 		}));
@@ -1337,80 +1337,83 @@ export function getStore(mode, target_name) {
 	// Thin named wrappers over update_room, the way set_point_style is, so the rule that
 	// editing materialises the inherited list lives here rather than in the component.
 	function set_room_features(id, patch) {
-		update_room(id, patch); // { annexes?, light_system?, light_system_device?, has_sound_system? }
+		update_room(id, patch); // { devices?, light_system?, light_system_device?, has_sound_system? }
 	}
 
-	// Picking a system drops any device picked for the old one: the room then follows the
+	// Picking a system drops any light system device picked for the old one: the room then follows the
 	// new system's default until someone picks again.
 	function set_room_light_system(id, system) {
 		set_room_features(id, { light_system: system, light_system_device: null });
 	}
 
-	// The device a room is served by: its pick, else its system's current default. None for
-	// a room on the default system — the facility-wide default device serves those.
-	function effective_device_for(room) {
+	// The light system device a room is served by: its pick, else its system's current default. None for
+	// a room on the default system — the facility-wide default light system device serves those.
+	function effective_light_system_device_for(room) {
 		if (!room?.light_system || room.light_system === default_light_system.value) return null;
-		return room.light_system_device || default_device_for(room.light_system);
+		return room.light_system_device || default_light_system_device_for(room.light_system);
 	}
 
-	// A room's device pick. Choosing the system's own default (or clearing) stores no pick,
+	// A room's light system device pick. Choosing the system's own default (or clearing) stores no pick,
 	// so the room keeps following the default if it changes later.
-	function set_room_device(id, device) {
+	function set_room_light_system_device(id, light_system_device) {
 		const room = active_floor.value?.rooms.find((r) => r.id === id);
 		if (!room) return;
-		const pick = device && device !== default_device_for(room.light_system) ? device : null;
+		const pick =
+			light_system_device && light_system_device !== default_light_system_device_for(room.light_system)
+				? light_system_device
+				: null;
 		set_room_features(id, { light_system_device: pick });
 	}
 
 	// The facility-wide pick, kept in the drawing so a builder save carries it and the dirty
 	// watcher sees it. Choosing the default system's own default (or clearing) stores none.
-	function set_default_light_system_device(device) {
+	function set_default_light_system_device(light_system_device) {
 		if (read_only.value || !design.value) return;
-		if (device && device !== default_device_for(default_light_system.value)) {
-			design.value.default_light_system_device = device;
+		if (light_system_device && light_system_device !== default_light_system_device_for(default_light_system.value)) {
+			design.value.default_light_system_device = light_system_device;
 		} else {
 			delete design.value.default_light_system_device;
 		}
 	}
 
-	function set_room_annexes(id, list) {
-		update_room(id, { annexes: list });
+	function set_room_devices(id, list) {
+		update_room(id, { devices: list });
 	}
 
-	// Any annex, not only the Amenity's own. One of its own starts at the Amenity's qty and
+	// Any device, not only the Amenity's own. One of its own starts at the Amenity's qty and
 	// uom; an extra one at 1 in its default uom, once its details are in.
-	function add_room_annex(id, annex) {
+	function add_room_device(id, device) {
 		const room = active_floor.value?.rooms.find((r) => r.id === id);
-		if (!room || !annex) return Promise.resolve();
-		if (effective_annexes(room).some((a) => a.annex === annex)) return Promise.resolve(); // one line per annex
-		const fetched = is_extra_annex(room, annex) ? load_extra_annex_details([annex]) : Promise.resolve();
+		if (!room || !device) return Promise.resolve();
+		if (effective_devices(room).some((a) => a.device === device)) return Promise.resolve(); // one line per device
+		const fetched = is_extra_device(room, device) ? load_extra_device_details([device]) : Promise.resolve();
 		return fetched.then(() => {
-			const list = effective_annexes(room).slice();
-			if (list.some((a) => a.annex === annex)) return;
-			const source = annex_details(room, annex);
-			list.push({ annex, qty: flt(source.qty) || 1, uom: source.uom });
-			set_room_annexes(id, list);
+			const list = effective_devices(room).slice();
+			if (list.some((a) => a.device === device)) return;
+			const source = device_details(room, device);
+			list.push({ device, qty: flt(source.qty) || 1, uom: source.uom });
+			set_room_devices(id, list);
 		});
 	}
 
-	// An amenity is what it is composed of — the Amenity master makes `annexes` mandatory,
+	// An amenity is what it is composed of — the Amenity master makes `devices` mandatory,
 	// and the server refuses a placement with none. Refuse the last one here too, so the
 	// rule is felt where the action is rather than as a throw on save.
-	function remove_room_annex(id, annex) {
+	function remove_room_device(id, device) {
 		const room = active_floor.value?.rooms.find((r) => r.id === id);
 		if (!room) return false;
-		const rest = effective_annexes(room).filter((a) => a.annex !== annex);
+		const rest = effective_devices(room).filter((a) => a.device !== device);
 		if (!rest.length) return false;
-		set_room_annexes(id, rest);
+		set_room_devices(id, rest);
 		return true;
 	}
 
-	function set_room_annex(id, annex, patch) {
+	function set_room_device(id, device, patch) {
 		const room = active_floor.value?.rooms.find((r) => r.id === id);
 		if (!room) return;
-		set_room_annexes(
+		set_room_devices(
 			id,
-			effective_annexes(room).map((a) => (a.annex === annex ? { ...a, ...patch } : a))
+			effective_devices(room).map((a) => (a.device === device ? { ...a, ...patch } : a))
 		);
 	}
 
@@ -1420,7 +1423,7 @@ export function getStore(mode, target_name) {
 		// back to the default system rather than to nothing: "no light system" is not a
 		// state any more, so clearing to null would only be re-seeded a moment later
 		update_room(id, {
-			annexes: undefined,
+			devices: undefined,
 			light_system: default_light_system.value || null,
 			light_system_device: null,
 			has_sound_system: 0,
@@ -1429,7 +1432,7 @@ export function getStore(mode, target_name) {
 
 	function has_custom_features(room) {
 		return Boolean(
-			Array.isArray(room?.annexes) ||
+			Array.isArray(room?.devices) ||
 			// every placement carries a light system now, so only one that differs from
 			// the default counts as a choice somebody made
 			(room?.light_system && room.light_system !== default_light_system.value) ||
@@ -1443,8 +1446,8 @@ export function getStore(mode, target_name) {
 		const source = active_floor.value?.rooms.find((r) => r.id === id);
 		if (!source || read_only.value) return 0;
 		const features = {
-			annexes: Array.isArray(source.annexes)
-				? source.annexes.map((a) => ({ ...a }))
+			devices: Array.isArray(source.devices)
+				? source.devices.map((a) => ({ ...a }))
 				: undefined,
 			light_system: source.light_system || null,
 			light_system_device: source.light_system_device || null,
@@ -1456,7 +1459,7 @@ export function getStore(mode, target_name) {
 				if (room.id === id || room.amenity !== source.amenity) continue;
 				Object.assign(room, {
 					...features,
-					annexes: features.annexes ? features.annexes.map((a) => ({ ...a })) : undefined,
+					devices: features.devices ? features.devices.map((a) => ({ ...a })) : undefined,
 				});
 				touched++;
 			}
@@ -1559,10 +1562,10 @@ export function getStore(mode, target_name) {
 		default_light_system,
 		light_system_devices,
 		default_light_system_device,
-		default_device_for,
-		devices_for,
-		effective_device_for,
-		set_room_device,
+		default_light_system_device_for,
+		light_system_devices_for,
+		effective_light_system_device_for,
+		set_room_light_system_device,
 		set_default_light_system_device,
 		set_room_alias,
 		room_label,
@@ -1577,14 +1580,14 @@ export function getStore(mode, target_name) {
 		active_blueprint_page,
 		active_blueprint,
 		active_layer,
-		annexes_by_amenity,
-		annexes_for,
+		devices_by_amenity,
+		devices_for,
 		amenity_options,
 		options_for,
-		show_annex_icons,
-		effective_annexes,
-		is_extra_annex,
-		annex_details,
+		show_device_icons,
+		effective_devices,
+		is_extra_device,
+		device_details,
 		has_custom_features,
 		calibrating,
 		blueprint_fit_nonce,
@@ -1632,10 +1635,10 @@ export function getStore(mode, target_name) {
 		load_amenity_catalogue,
 		set_room_features,
 		set_room_light_system,
-		set_room_annexes,
-		add_room_annex,
-		remove_room_annex,
-		set_room_annex,
+		set_room_devices,
+		add_room_device,
+		remove_room_device,
+		set_room_device,
 		reset_room_features,
 		apply_features_to_similar,
 		set_blueprint_file,

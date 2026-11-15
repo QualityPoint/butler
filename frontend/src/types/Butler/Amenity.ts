@@ -1,6 +1,6 @@
 import { AmenityDependsOn } from './AmenityDependsOn'
 import { FacilityPrices } from './FacilityPrices'
-import { Annexes } from './Annexes'
+import { Devices } from './Devices'
 
 export interface Amenity{
 	name: string
@@ -37,6 +37,6 @@ export interface Amenity{
 	has_varied_price?: 0 | 1
 	/**	Facility Prices : Table - Facility Prices	*/
 	facility_prices?: FacilityPrices[]
-	/**	Annexes : Table - Annexes	*/
-	annexes?: Annexes[]
+	/**	Devices : Table - Devices	*/
+	devices?: Devices[]
 }

@@ -8,8 +8,8 @@ from frappe import _
 from frappe.model import display_fieldtypes, table_fields
 from frappe.model.document import Document
 from frappe.utils import cint, flt
-from butler.butler.doctype.annex.annex import get_annex_default_uom
-from butler.butler.doctype.annex_price.annex_price import upsert_annex_price
+from butler.butler.doctype.device.device import get_device_default_uom
+from butler.butler.doctype.device_price.device_price import upsert_device_price
 
 # A `depends_on` of the plain "only shown while this checkbox is on" shape — the one form
 # that can be resolved server-side without evaluating arbitrary JavaScript.
@@ -214,7 +214,7 @@ class Amenity(Document):
         total_qty = 0.0
         total = 0.0
 
-        for row in self.annexes:
+        for row in self.devices:
             row.amount = flt(flt(row.qty) * flt(row.rate), row.precision("amount"))
             total_qty += flt(row.qty)
             total += flt(row.amount)
@@ -251,22 +251,22 @@ class Amenity(Document):
             )
 
     def on_update(self):
-        """Sync the annex rows out to their standard Annex Price records.
+        """Sync the device rows out to their standard Device Price records.
 
-        Runs on_update rather than before_save because an Annex Price links back to this
+        Runs on_update rather than before_save because a Device Price links back to this
         Amenity: on a first insert the row doesn't exist in the database until after
         before_save, so creating the price there fails link validation.
         """
-        self.remove_stale_annex_prices()
+        self.remove_stale_device_prices()
 
-        # Keep each annex row's standard Annex Price in sync: create it the first
+        # Keep each device row's standard Device Price in sync: create it the first
         # time, update it if uom/rate/currency changed, or skip it untouched.
-        for row in self.annexes:
-            if not (row.annex and row.uom and row.rate):
+        for row in self.devices:
+            if not (row.device and row.uom and row.rate):
                 continue
 
-            upsert_annex_price(
-                annex=row.annex,
+            upsert_device_price(
+                device=row.device,
                 amenity=self.name,
                 uom=row.uom,
                 rate=row.rate,
@@ -298,28 +298,28 @@ class Amenity(Document):
 
             self.set(df.fieldname, [] if df.fieldtype in table_fields else None)
 
-    def remove_stale_annex_prices(self):
-        # Any annex dropped from this row since the last save no longer has
-        # meaningful pricing here — remove its Annex Price(s), standard and any
+    def remove_stale_device_prices(self):
+        # Any device dropped from this row since the last save no longer has
+        # meaningful pricing here — remove its Device Price(s), standard and any
         # Facility Type overrides alike, so they don't linger as orphaned data.
         previous = self.get_latest()
         if not previous:
             return
 
-        current_annexes = {row.annex for row in self.annexes if row.annex}
-        removed_annexes = {row.annex for row in previous.annexes if row.annex} - current_annexes
+        current_devices = {row.device for row in self.devices if row.device}
+        removed_devices = {row.device for row in previous.devices if row.device} - current_devices
 
-        for annex in removed_annexes:
-            frappe.db.delete("Annex Price", {"annex": annex, "amenity": self.name})
+        for device in removed_devices:
+            frappe.db.delete("Device Price", {"device": device, "amenity": self.name})
 
 
 @frappe.whitelist()
-def get_amenity_annexes(amenities):
-    """What each amenity is composed of, with the icon to draw each annex by.
+def get_amenity_devices(amenities):
+    """What each amenity is composed of, with the icon to draw each device by.
 
-    The Facility Builder's Annexes layer shows an amenity's composition on the canvas, so
+    The Facility Builder's Devices layer shows an amenity's composition on the canvas, so
     it needs the same list `expand_amenity_rows` seeds a quotation from — plus each
-    Annex's `icon`, which lives on the Annex master rather than on the composition row.
+    Device's `icon`, which lives on the Device master rather than on the composition row.
 
     Batched: the builder asks once for every amenity on the floor plan, and the icons for
     all of them are fetched in a single query rather than one per amenity.
@@ -328,85 +328,85 @@ def get_amenity_annexes(amenities):
         amenities = frappe.parse_json(amenities)
 
     compositions = {
-        name: frappe.get_cached_doc("Amenity", name).annexes
+        name: frappe.get_cached_doc("Amenity", name).devices
         for name in {a for a in (amenities or []) if a}
     }
 
-    annexes = {row.annex for rows in compositions.values() for row in rows if row.annex}
+    devices = {row.device for rows in compositions.values() for row in rows if row.device}
     masters = {
         row.name: row
         for row in frappe.get_all(
-            "Annex",
-            filters={"name": ("in", list(annexes))},
-            fields=["name", "annex_name", "icon", "annex_item"],
+            "Device",
+            filters={"name": ("in", list(devices))},
+            fields=["name", "device_name", "icon", "device_item"],
         )
-    } if annexes else {}
-    uoms = _annex_uoms(masters)
+    } if devices else {}
+    uoms = _device_uoms(masters)
 
     return {
         name: [
             {
-                "annex": row.annex,
-                "annex_name": masters.get(row.annex, {}).get("annex_name") or row.annex,
-                "icon": masters.get(row.annex, {}).get("icon"),
+                "device": row.device,
+                "device_name": masters.get(row.device, {}).get("device_name") or row.device,
+                "icon": masters.get(row.device, {}).get("icon"),
                 "qty": flt(row.qty),
                 "uom": row.uom,
-                "uoms": uoms.get(row.annex) or [],
+                "uoms": uoms.get(row.device) or [],
             }
             for row in rows
-            if row.annex
+            if row.device
         ]
         for name, rows in compositions.items()
     }
 
 
 @frappe.whitelist()
-def get_annex_details(annexes):
-    """`annex -> {annex_name, icon, uoms, uom}` for annexes fitted from outside an
-    amenity's own composition (extra annexes).
+def get_device_details(devices):
+    """`device -> {device_name, icon, uoms, uom}` for devices fitted from outside an
+    amenity's own composition (extra devices).
 
-    `get_amenity_annexes` only knows an amenity's own annexes, so the Facility Builder asks
-    here for the name, icon and UOMs of the rest. `uom` is the annex's default unit — with
-    no Annex Price behind an extra annex, that is its Item's.
+    `get_amenity_devices` only knows an amenity's own devices, so the Facility Builder asks
+    here for the name, icon and UOMs of the rest. `uom` is the device's default unit — with
+    no Device Price behind an extra device, that is its Item's.
     """
-    if isinstance(annexes, str):
-        annexes = frappe.parse_json(annexes)
+    if isinstance(devices, str):
+        devices = frappe.parse_json(devices)
 
-    names = list({a for a in (annexes or []) if a})
+    names = list({a for a in (devices or []) if a})
     if not names:
         return {}
 
     masters = {
         row.name: row
         for row in frappe.get_all(
-            "Annex",
+            "Device",
             filters={"name": ("in", names)},
-            fields=["name", "annex_name", "icon", "annex_item"],
+            fields=["name", "device_name", "icon", "device_item"],
         )
     }
-    uoms = _annex_uoms(masters)
+    uoms = _device_uoms(masters)
 
     return {
         name: {
-            "annex_name": row.annex_name or name,
+            "device_name": row.device_name or name,
             "icon": row.icon,
             "uoms": uoms.get(name) or [],
-            "uom": get_annex_default_uom(name),
+            "uom": get_device_default_uom(name),
         }
         for name, row in masters.items()
     }
 
 
-def _annex_uoms(masters):
-    """`annex -> [uom]`, the UOMs each annex's Item is convertible in.
+def _device_uoms(masters):
+    """`device -> [uom]`, the UOMs each device's Item is convertible in.
 
     The Features panel picks a UOM from a plain `<select>` rather than a Link, so the whole
     list has to travel with the composition. Same rule as
-    `butler.utils.queries.get_annex_uom_query` — the Item's UOM Conversion Detail rows, in
-    their configured order — resolved for every annex in one query instead of one lookup
+    `butler.utils.queries.get_device_uom_query` — the Item's UOM Conversion Detail rows, in
+    their configured order — resolved for every device in one query instead of one lookup
     per open dropdown.
     """
-    items = {row.annex_item for row in masters.values() if row.annex_item}
+    items = {row.device_item for row in masters.values() if row.device_item}
     if not items:
         return {}
 
@@ -423,9 +423,9 @@ def _annex_uoms(masters):
         by_item.setdefault(parent, []).append(uom)
 
     return {
-        annex: by_item.get(row.annex_item, [])
-        for annex, row in masters.items()
-        if row.annex_item
+        device: by_item.get(row.device_item, [])
+        for device, row in masters.items()
+        if row.device_item
     }
 
 

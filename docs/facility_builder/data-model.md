@@ -18,7 +18,7 @@ A hidden, read-only `JSON` field on the **Butler Quotation** doctype. Holds the 
   "scale": { "pixels_per_meter": 50 },   // canvas px → real-world metres for area math
   "canvas": { "width": 1200, "height": 800, "grid": 20 },
   "default_light_system_device": "Relay 24CH", // optional: the toolbar's facility-wide pick;
-                                         // absent = the default Light System's default device
+                                         // absent = the default Light System's default light system device
   "floors": [
     {
       "floor_type": "Ground Floor",      // Link → Floor Type (record name)
@@ -40,12 +40,12 @@ A hidden, read-only `JSON` field on the **Butler Quotation** doctype. Holds the 
           "remarks": "",
 
           // --- Features layer, all OPTIONAL; absent means "inherit the Amenity" ---
-          "annexes": [                   // present only once edited; must keep >= 1 entry
-            { "annex": "AC", "qty": 2, "uom": "Nos" }
+          "devices": [                   // present only once edited; must keep >= 1 entry
+            { "device": "AC", "qty": 2, "uom": "Nos" }
           ],
           "light_system": "DALI",        // any Light System; seeded with the default
           "light_system_device": "DALI Gateway 128", // only a deliberate pick, off the default
-                                         // system; absent = follow the system's default device
+                                         // system; absent = follow the system's default light system device
           "has_sound_system": 1
         }
       ]
@@ -96,17 +96,17 @@ On every save the builder writes the `amenities` table as **one row per placemen
 carrying that placement's **`placement_id`** (the room's own `id`) plus whatever the
 Features layer configured. It does **not** price on the client; the **server** does:
 
-- **Composition** — a row whose `annexes_customised` is unset gets its annex rows seeded
-  from `Amenity.annexes` (`expand_amenity_rows`). A room only sends annex rows once
+- **Composition** — a row whose `devices_customised` is unset gets its device rows seeded
+  from `Amenity.devices` (`expand_amenity_rows`). A room only sends device rows once
   someone has edited them, so an unvisited Features layer can never empty a quotation.
-  A placement may drop *some* of its annexes but not all — an amenity is what it is
+  A placement may drop *some* of its devices but not all — an amenity is what it is
   composed of, and the master makes that table mandatory.
 - **Preservation** — `carry_forward_overrides` copies the quotation's own figures back
   onto the rebuilt rows, matched on `placement_id`: the Quotation Prices (`qtn_*`), their
   standard mirrors, `qtn_exchange_rate`, and the `additional_amenity` tick. Without it a
   builder save would wipe every Quotation Price anyone had changed. The builder never
   sets a Quotation Price itself; they are changed on the quotation only.
-- **Pricing** — `calculate_totals()` (in `validate`) resolves each annex against **Annex
+- **Pricing** — `calculate_totals()` (in `validate`) resolves each device against **Device
   Price**, applies the light/sound/floor add-ons, and fills the three currency tiers and
   the base mirrors.
 
@@ -119,9 +119,9 @@ The `amenities` table is **regenerated** from geometry each save. Composition is
 read-only on the quotation form — the builder owns *what is sold*, the quotation owns
 *what it costs*.
 
-**Light system devices.** Device picks live in the drawing: `room.light_system_device` per
+**Light system devices.** Light system device picks live in the drawing: `room.light_system_device` per
 room, and `default_light_system_device` on the envelope for the toolbar's facility-wide
-*Default Light System Device*. Only a device other than the Light System's default is stored,
+*Default Light System Device*. Only a light system device other than the Light System's default is stored,
 so anything not picked follows the default when it changes. The server resolves and counts the
 controllers from there; see [light_system_devices.md](../light_system_devices.md).
 

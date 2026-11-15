@@ -14,7 +14,7 @@ The interactive surface. Konva is chosen because it is purpose-built for draggab
       <RoomShape v-for room ... />
   <v-layer name="ui">             ← Transformer (resize/rotate) for the selected room
   <v-layer name="bp-ui">          ← Transformer for the blueprint (align mode only)
-  <v-layer name="features">       ← annex icons per room (Features layer only)
+  <v-layer name="features">       ← device icons per room (Features layer only)
 ```
 
 One floor is rendered at a time. Switching `FloorTabs` swaps which floor's `rooms` array feeds the rooms layer. Other floors stay in the store, just not drawn.

@@ -93,9 +93,9 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Annex",
+   "label": "Device",
    "link_count": 0,
-   "link_to": "Annex",
+   "link_to": "Device",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
@@ -140,7 +140,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-10-08 15:47:24.566443",
+ "modified": "2026-11-15 13:11:11.000000",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Smart Homes",

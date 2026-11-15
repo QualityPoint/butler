@@ -1,6 +1,6 @@
-# Annexes — the row model
+# Devices — the row model
 
-An amenity has no price of its own. It is **composed from its annexes** (the physical
+An amenity has no price of its own. It is **composed from its devices** (the physical
 parts fitted for it), plus three per-amenity add-ons: a light system, a sound system, and
 a floor extra. The quotation mirrors that composition, so a line is not one row but a
 **group** of rows.
@@ -9,19 +9,19 @@ a floor extra. The quotation mirrors that composition, so a line is not one row 
 
 ## Two row types, one table
 
-`Butler Quotation.amenities` holds both. A row is an **annex row** when `annex` is set,
+`Butler Quotation.amenities` holds both. A row is an **device row** when `device` is set,
 and an **amenity row** when it isn't.
 
-| | Amenity row | Annex row |
+| | Amenity row | Device row |
 |---|---|---|
-| Identifies | `placement_id` (+ `amenity`, `floor_type`) | the same, plus `annex` |
-| Owns | light system, sound system, floor extra, `annexes_customised` | `annex_quantity`, `annex_uom`, `qtn_annex_price` |
-| Price | **derived** — the sum of its group | resolved from **Annex Price** |
+| Identifies | `placement_id` (+ `amenity`, `floor_type`) | the same, plus `device` |
+| Owns | light system, sound system, floor extra, `devices_customised` | `device_quantity`, `device_uom`, `qtn_device_price` |
+| Price | **derived** — the sum of its group | resolved from **Device Price** |
 
 The amenity row's price ladder is read-only precisely because it is a roll-up: editing it
-would contradict the annexes it is made of. What the user edits is one level down.
+would contradict the devices it is made of. What the user edits is one level down.
 
-### How an annex row finds its amenity row
+### How a device row finds its amenity row
 
 By its **`placement_id`** — the id of the drawn amenity it belongs to. Every row carries
 one, and the pairing is explicit, so nothing depends on where a row sits in the table.
@@ -30,18 +30,18 @@ one, and the pairing is explicit, so nothing depends on where a row sits in the 
 `geometry`, which is what lets a quotation row be traced back to the shape that produced
 it. Rows arriving any other way — the form, a data import, `frappe.client.insert` — never
 carry one, so **`ensure_placement_ids` backfills them on every save**: an amenity row
-without an id is given one, and an annex row whose id is missing (or names no amenity row
+without an id is given one, and a device row whose id is missing (or names no amenity row
 on the document) is adopted by the *nearest preceding* amenity row. That is also why no
 migration was needed when the field was introduced — the migration is each document's
 next save.
 
-> Annex rows seeded by `expand_amenity_rows` get their fetched details (name, category,
+> Device rows seeded by `expand_amenity_rows` get their fetched details (name, category,
 > manufacturer, icon) straight away (`fill_fetched_fields`). Frappe's own `fetch_from` runs
 > before `before_validate`, so they used to stay blank until the next save. Quotations made
 > before the current row model are converted once by a patch; see
 > [legacy_quotations.md](../legacy_quotations.md).
 
-`order_amenity_rows()` still lays the table out as `amenity row → its annex rows`, but
+`order_amenity_rows()` still lays the table out as `amenity row → its device rows`, but
 now only so it reads well in a grid. Re-sorting the table can no longer reassign anything.
 
 It also **keeps every placement of one amenity together**. One row per placement means a
@@ -58,8 +58,8 @@ slot in between two of the first's.
 | Step (`before_validate`) | Does |
 |---|---|
 | `clear_row_type_fields` | blanks the fields belonging to the *other* row type — stale data, not a user error, so it is cleared rather than rejected |
-| `ensure_placement_ids` | gives every row an id and re-homes any annex row pointing at a placement that isn't there |
-| `expand_amenity_rows` | keeps an amenity that isn't flagged `annexes_customised` in line with `Amenity.annexes`: when its annex rows differ from the Amenity's list (an annex added to or removed from the Amenity since), they are re-seeded; a matching group is left alone. A customised amenity is never touched |
+| `ensure_placement_ids` | gives every row an id and re-homes any device row pointing at a placement that isn't there |
+| `expand_amenity_rows` | keeps an amenity that isn't flagged `devices_customised` in line with `Amenity.devices`: when its device rows differ from the Amenity's list (a device added to or removed from the Amenity since), they are re-seeded; a matching group is left alone. A customised amenity is never touched |
 | `carry_forward_overrides` | restores what the quotation owns (its Quotation Prices and Bundle designations) onto rows a Facility Builder save has just rebuilt |
 | `order_amenity_rows` | lays the table out group by group and renumbers `idx` |
 
@@ -70,12 +70,12 @@ priced line back.
 ### One row per placement
 
 **Every drawn amenity is its own quotation row.** Two kitchens on the ground floor are two
-rows, each with its own annexes, its own light system and its own sound setting — which is
+rows, each with its own devices, its own light system and its own sound setting — which is
 the whole point: they can differ. `amenity_qty` is therefore always `1`, pinned in
 `calculate_totals`, and a row's price is simply what that one placement contains:
 
 ```
-amenity_price = Σ annex_amount  +  light + sound + floor
+amenity_price = Σ device_amount  +  light + sound + floor
 ```
 
 > Butler used to merge placements of one amenity on one floor into a single row, summing
@@ -83,61 +83,61 @@ amenity_price = Σ annex_amount  +  light + sound + floor
 > Both are gone. Consolidation and per-placement configuration are mutually exclusive, and
 > the [Features layer](../facility_builder/README.md) needs the latter.
 
-### A placement must keep at least one annex
+### A placement must keep at least one device
 
-`Amenity.annexes` is a **mandatory** table on the master: an amenity is defined as what it
+`Amenity.devices` is a **mandatory** table on the master: an amenity is defined as what it
 is composed of. So `validate_row_types` refuses a placement with none — it would be a line
-worth nothing, contradicting the very thing it is a placement of. `annexes_customised`
-lets a placement drop *some* of its annexes, never all of them; the Features panel greys
+worth nothing, contradicting the very thing it is a placement of. `devices_customised`
+lets a placement drop *some* of its devices, never all of them; the Features panel greys
 out the last remove button and says so.
 
-> This is not the same as "priced at zero": a placement stripped of annexes but fitted
+> This is not the same as "priced at zero": a placement stripped of devices but fitted
 > with a sound system still prices at the sound price. The rule is about composition, not
 > about the total.
 
-### An Amenity's annex list changes later
+### An Amenity's device list changes later
 
-A non-customised amenity **follows its Amenity**, on every save: an annex added to the Amenity
+A non-customised amenity **follows its Amenity**, on every save: a device added to the Amenity
 appears (at its standard price), and one removed from it drops out. A changed Quotation Price
-on an annex that stays is kept (`carry_forward_overrides`). This is what a Facility Builder
+on a device that stays is kept (`carry_forward_overrides`). This is what a Facility Builder
 save always did; a form save, Reset Amenity and the API now do it too.
 
-Removing an annex from an Amenity also deletes its Annex Prices
-(`Amenity.remove_stale_annex_prices`). A quotation row may still point at one of them
-(`annex_price_list`). That link is cleared before Frappe's link check
+Removing a device from an Amenity also deletes its Device Prices
+(`Amenity.remove_stale_device_prices`). A quotation row may still point at one of them
+(`device_price_list`). That link is cleared before Frappe's link check
 (`ButlerQuotation._validate_links`), and pricing re-resolves it, so the save does not fail
-with "Could not find … Annex Price List".
+with "Could not find … Device Price List".
 
-A **customised** amenity keeps its own list. If it still holds an annex its Amenity no longer
-has, that annex becomes an [extra annex](#extra-annexes): its Annex Price is gone, so the price
-it had is kept as a changed Quotation Price. *Reset Amenity → Annexes* puts the placement back
+A **customised** amenity keeps its own list. If it still holds a device its Amenity no longer
+has, that device becomes an [extra device](#extra-devices): its Device Price is gone, so the price
+it had is kept as a changed Quotation Price. *Reset Amenity → Devices* puts the placement back
 on the Amenity's list.
 
 **Once, on deploy:** the `sync_quotations_with_amenities` patch (after
 `convert_legacy_quotations`) saves every draft that is behind its Amenities, or links a
-deleted Annex Price, and adds a timeline note "Synced with the Amenities' current annex lists"
+deleted Device Price, and adds a timeline note "Synced with the Amenities' current device lists"
 with the old → new total. So no total jumps unexplained the next time someone saves. The
-annex-price check is skipped for that system save (`flags.ignore_price_governance`), so a price
+device-price check is skipped for that system save (`flags.ignore_price_governance`), so a price
 someone deliberately changed earlier does not stop it. A draft that fails is rolled back alone
 and logged.
 
 > On butler.local, `BTLR-QTN-2026-00030` (last saved 2026-09-16) was the case that showed
 > this. AC had since been removed from Garage and Motion Sensor from Balcony, and light lines
-> and other annexes had been added to most Amenities. It was synced with Reset Amenity →
-> Annexes: 225,240.15 → 298,619.35, recorded in its timeline.
+> and other devices had been added to most Amenities. It was synced with Reset Amenity →
+> Devices: 225,240.15 → 298,619.35, recorded in its timeline.
 
 ### What survives a Facility Builder save
 
 The builder replaces the whole `amenities` table on every save — it is a projection of
 `geometry`, rebuilt each time. `carry_forward_overrides` is what stops that being
-destructive: matching on `placement_id` (and, for annex rows, `(placement_id, annex,
-annex_uom)` paired in order, so a placement holding the same annex twice is not
+destructive: matching on `placement_id` (and, for device rows, `(placement_id, device,
+device_uom)` paired in order, so a placement holding the same device twice is not
 collapsed), it copies back onto each incoming row:
 
 | Row | Carried |
 |---|---|
 | Amenity | `qtn_light_system_price`, `qtn_sound_system_price`, `qtn_floor_price` — **and** their standard mirrors `light_system_price`, `sound_system_price`, `floor_price` |
-| Annex | `qtn_annex_price` |
+| Device | `qtn_device_price` |
 | Both | `qtn_exchange_rate` |
 | Amenity | `additional_amenity`, on Bundle orders only |
 
@@ -155,56 +155,56 @@ not decide anything itself; it just supplies the value the existing rule compare
 
 ---
 
-## Pricing an annex row
+## Pricing a device row
 
 ```
-annex_price_list = get_annex_price(annex, amenity, facility_type)
-    → the Annex Price for this facility type, else the standard one (facility_type = "")
+device_price_list = get_device_price(device, amenity, facility_type)
+    → the Device Price for this facility type, else the standard one (facility_type = "")
 
-annex_price  = Annex Price.rate          # amenity currency, per annex_uom
-annex_amount = annex_price × annex_quantity
+device_price  = Device Price.rate          # amenity currency, per device_uom
+device_amount = device_price × device_quantity
 ```
 
-`Annex Price` replaced the old `Amenity.facility_type_prices`. The override now lives
-**per annex** rather than per amenity, and the mere existence of a facility-type row is
+`Device Price` replaced the old `Amenity.facility_type_prices`. The override now lives
+**per device** rather than per amenity, and the mere existence of a facility-type row is
 what makes a price changeable — there is no `has_changeable_price` gate any more. The
 facility type comes from the quotation's `facility_type` (fetched from its Facility).
 
-### Extra annexes
+### Extra devices
 
-A placement can be fitted with **any** enabled annex, not only its Amenity's own: the
-Features layer's *Add annex* picker offers the whole catalogue. An annex outside the
-Amenity's `annexes` table is an **extra annex**.
+A placement can be fitted with **any** enabled device, not only its Amenity's own: the
+Features layer's *Add device* picker offers the whole catalogue. A device outside the
+Amenity's `devices` table is an **extra device**.
 
-It has no standard price. Annex Prices are kept **per amenity**, so the same annex can
+It has no standard price. Device Prices are kept **per amenity**, so the same device can
 carry a different price on every amenity that configures it, and none of them is *the*
-price on another. Rather than guess, an extra annex is priced at **0**, and the user sets
+price on another. Rather than guess, an extra device is priced at **0**, and the user sets
 its price on the quotation:
 
-| | Extra annex |
+| | Extra device |
 |---|---|
-| Flag | `is_extra_annex` on the annex row — read-only, set by `calculate_totals` on every recalculation (the annex is not in `Amenity.annexes`), never trusted from the client |
-| Standard | `0` — `price_annex_row` skips the Annex Price lookup, so `annex_price_list` stays empty |
-| Quotation Price | `qtn_annex_price` starts at `0`. Once set it is a changed Quotation Price like any other: kept across recalculations, currency changes and Facility Builder saves (`carry_forward_overrides`), and it marks the placement `quotation_price_changed` |
-| Governance | **not checked** — `enforce_annex_price` leaves it out, since its `0` is a placeholder rather than a published standard |
-| Default qty / uom | `1`, in the annex's default uom (its Item's sales or stock uom, `get_annex_default_uom`) |
-| Where it shows | gold with a superscript **+**: in the Features panel, on the plan (the icon in gold, a **+** on its corner), and in the quotation line editor's annex table |
+| Flag | `is_extra_device` on the device row — read-only, set by `calculate_totals` on every recalculation (the device is not in `Amenity.devices`), never trusted from the client |
+| Standard | `0` — `price_device_row` skips the Device Price lookup, so `device_price_list` stays empty |
+| Quotation Price | `qtn_device_price` starts at `0`. Once set it is a changed Quotation Price like any other: kept across recalculations, currency changes and Facility Builder saves (`carry_forward_overrides`), and it marks the placement `quotation_price_changed` |
+| Governance | **not checked** — `enforce_device_price` leaves it out, since its `0` is a placeholder rather than a published standard |
+| Default qty / uom | `1`, in the device's default uom (its Item's sales or stock uom, `get_device_default_uom`) |
+| Where it shows | gold with a superscript **+**: in the Features panel, on the plan (the icon in gold, a **+** on its corner), and in the quotation line editor's device table |
 
-Adding one makes the placement customised (`annexes_customised`), the same as any other
-annex edit, so `expand_amenity_rows` never re-seeds it away. **Reset** (Features panel) and
-*Reset Amenity → Annexes* drop it along with every other customisation.
+Adding one makes the placement customised (`devices_customised`), the same as any other
+device edit, so `expand_amenity_rows` never re-seeds it away. **Reset** (Features panel) and
+*Reset Amenity → Devices* drop it along with every other customisation.
 
-The builder reads an extra annex's name, icon and UOMs from `get_annex_details`, since
-`get_amenity_annexes` only knows each amenity's own list.
+The builder reads an extra device's name, icon and UOMs from `get_device_details`, since
+`get_amenity_devices` only knows each amenity's own list.
 
 ### UOM
 
-`annex_uom` defaults to the Annex Price's uom, else the annex's Item `sales_uom` /
-`stock_uom` (`get_annex_default_uom`). `annex_stock_uom` and `conversion_factor` are
-resolved through the Annex's Item with ERPNext's own `get_conversion_factor`, so Butler
+`device_uom` defaults to the Device Price's uom, else the device's Item `sales_uom` /
+`stock_uom` (`get_device_default_uom`). `device_stock_uom` and `conversion_factor` are
+resolved through the Device's Item with ERPNext's own `get_conversion_factor`, so Butler
 follows the same UOM Conversion Detail rules as a Sales Order line.
 
-> **`conversion_factor` never touches the money.** The rate is quoted *per `annex_uom`*;
+> **`conversion_factor` never touches the money.** The rate is quoted *per `device_uom`*;
 > the factor exists only to derive a stock quantity downstream. Applying it to the amount
 > as well would double-count it.
 
@@ -212,7 +212,7 @@ follows the same UOM Conversion Detail rules as a Sales Order line.
 
 ## The per-amenity add-ons
 
-These are priced on the **amenity row**, not per annex — they are fitted for the amenity
+These are priced on the **amenity row**, not per device — they are fitted for the amenity
 as a whole.
 
 | Add-on | Source | Amount |
@@ -278,7 +278,7 @@ system if it configures one, otherwise that system's master price. Only its
 > `default_system_pricing_mode`, `default_system_amount` and their `qtn_`/`base_` mirrors)
 > so an old quotation can still be explained after the default changes.
 
-> **The line split also feeds the device count — but that is not pricing.** How many
+> **The line split also feeds the light system device count — but that is not pricing.** How many
 > lighting controllers the facility needs is counted from these same `used_lines` /
 > `default_system_lines`, after pricing and without moving any money. See
 > [light_system_devices.md](../light_system_devices.md).
@@ -312,7 +312,7 @@ change to the default flows through to rooms whose Quotation Price is unchanged.
 ## Rolling up
 
 ```
-amenity_price      = Σ annex_amount + light_system_amount
+amenity_price      = Σ device_amount + light_system_amount
                        + sound_system_amount + floor_amount      # amenity currency
 qtn_amenity_price  = amenity_price × qtn_exchange_rate           # quotation currency
 qtn_amenity_amount = qtn_amenity_price × amenity_qty             # amenity_qty is 1
@@ -327,17 +327,17 @@ Header totals then follow [amenities.md](./amenities.md#step-3--header-totals).
 
 ## Validation
 
-`validate_row_types()` replaces the mandatory flags the fields can't carry (`annex_uom`
+`validate_row_types()` replaces the mandatory flags the fields can't carry (`device_uom`
 as `reqd` would block every amenity row):
 
 | Row type | Must have | Must not have |
 |---|---|---|
-| Amenity | `amenity`, `floor_type`, a `placement_id` (backfilled if absent) | annex fields (cleared automatically) |
-| Annex | `annex_quantity > 0`, `annex_uom`, a resolvable amenity row | the add-on fields (cleared automatically) |
+| Amenity | `amenity`, `floor_type`, a `placement_id` (backfilled if absent) | device fields (cleared automatically) |
+| Device | `device_quantity > 0`, `device_uom`, a resolvable amenity row | the add-on fields (cleared automatically) |
 
-An annex does **not** have to be one of its amenity's own: one from outside is an
-[extra annex](#extra-annexes). An annex row that matches no amenity row is rejected as
+A device does **not** have to be one of its amenity's own: one from outside is an
+[extra device](#extra-devices). A device row that matches no amenity row is rejected as
 unattached, though `ensure_placement_ids` re-homes the recoverable cases first.
 
 Price deviations are governed separately — see
-[validations.md](./validations.md#annex-price--maintain_annex_price_action).
+[validations.md](./validations.md#device-price--maintain_device_price_action).

@@ -33,8 +33,8 @@ Quick lookup for the fields and functions the pricing engine touches. `*` = _Pla
 
 ## Butler Quotation Item (line)
 
-One table, **two row types** — an amenity row (`annex` empty) and its annex rows. See
-[annexes.md](./annexes.md). Every price exists in three tiers, by naming convention:
+One table, **two row types** — an amenity row (`device` empty) and its device rows. See
+[devices.md](./devices.md). Every price exists in three tiers, by naming convention:
 
 | Prefix | Currency | `options` |
 |---|---|---|
@@ -60,9 +60,9 @@ One table, **two row types** — an amenity row (`annex` empty) and its annex ro
 | Field | Type | Notes |
 |---|---|---|
 | `placement_id` | Data (ro) | the drawn amenity this row belongs to — the Facility Builder's `room.id`, backfilled for rows from anywhere else |
-| `annexes_customised` | Check (ro) | this placement's annexes are its own; stops `expand_amenity_rows` re-seeding them |
+| `devices_customised` | Check (ro) | this placement's devices are its own; stops `expand_amenity_rows` re-seeding them |
 | `amenity_qty` | Float (ro) | always `1` — one row is one placement |
-| `amenity_price` | Currency (ro) | Σ annexes + light + sound + floor, for this placement |
+| `amenity_price` | Currency (ro) | Σ devices + light + sound + floor, for this placement |
 | `qtn_amenity_price` / `qtn_amenity_amount` | Currency (ro) | `× qtn_exchange_rate` |
 | `qtn_amenity_net_price` / `qtn_amenity_net_amount` | Currency (ro) | pro-rata share of the header discount |
 | `light_system` | Link → Light System | user-set, any system in the master; blank adopts the default and is written back |
@@ -78,21 +78,21 @@ One table, **two row types** — an amenity row (`annex` empty) and its annex ro
 | `floor_amount` | Currency (ro) | `floor_price × floor_qty` |
 | `base_*` twins | Currency (ro) | company-currency mirrors |
 
-**Annex row only**
+**Device row only**
 
 | Field | Type | Notes |
 |---|---|---|
-| `annex` | Link → Annex | present ⇒ this is an annex row |
-| `is_extra_annex` | Check (ro) | the annex is not one of its Amenity's own; priced at 0 until its Quotation Price is set, and not governed. See [annexes.md](./annexes.md#extra-annexes) |
-| `annex_quantity` | Float | user-set; how many of this annex the placement has |
-| `annex_uom` | Link → UOM | user-set; defaults from Annex Price, else the Item |
-| `annex_stock_uom` / `conversion_factor` | (ro) | via the Annex's Item; **stock qty only, never the money** |
-| `annex_price_list` | Link → Annex Price | which record supplied the standard |
-| `annex_price` | Currency (ro) | the standard, amenity currency, per `annex_uom` |
-| `qtn_annex_price` | Currency | **Quotation Price**; the only one checked against a standard |
-| `qtn_annex_amount` | Currency (ro) | `qtn_annex_price × annex_quantity` |
-| `qtn_annex_net_price` / `qtn_annex_net_amount` | Currency (ro) | pro-rata discount share (guidance only) |
-| `annex_name` / `annex_category` / `annex_type` / `manufacturer` / `warranty` / `warranty_uom` | (ro) | `fetch_from` annex |
+| `device` | Link → Device | present ⇒ this is a device row |
+| `is_extra_device` | Check (ro) | the device is not one of its Amenity's own; priced at 0 until its Quotation Price is set, and not governed. See [devices.md](./devices.md#extra-devices) |
+| `device_quantity` | Float | user-set; how many of this device the placement has |
+| `device_uom` | Link → UOM | user-set; defaults from Device Price, else the Item |
+| `device_stock_uom` / `conversion_factor` | (ro) | via the Device's Item; **stock qty only, never the money** |
+| `device_price_list` | Link → Device Price | which record supplied the standard |
+| `device_price` | Currency (ro) | the standard, amenity currency, per `device_uom` |
+| `qtn_device_price` | Currency | **Quotation Price**; the only one checked against a standard |
+| `qtn_device_amount` | Currency (ro) | `qtn_device_price × device_quantity` |
+| `qtn_device_net_price` / `qtn_device_net_amount` | Currency (ro) | pro-rata discount share (guidance only) |
+| `device_name` / `device_category` / `device_type` / `manufacturer` / `warranty` / `warranty_uom` | (ro) | `fetch_from` device |
 | `base_*` twins | Currency (ro) | company-currency mirrors |
 
 ## Composition tables
@@ -115,31 +115,31 @@ One table, **two row types** — an amenity row (`annex` empty) and its annex ro
 
 ## Amenity (pricing fields)
 
-An amenity has **no flat price** — it is composed from its annexes.
+An amenity has **no flat price** — it is composed from its devices.
 
 | Field | Type | Notes |
 |---|---|---|
 | `amenity` | Link → Item | the Item it is sold as (was `amenity_item`); used for Sales Order mapping |
 | `currency` | Link → Currency | the currency everything on the amenity is priced in |
-| `annexes` | Table → Amenity Annex Item | `annex`, `qty`, `uom`, `rate` — the composition |
-| `total` | Currency (ro) | `Σ qty × rate` over `annexes` — **annexes only**, no add-ons |
+| `devices` | Table → Amenity Device Item | `device`, `qty`, `uom`, `rate` — the composition |
+| `total` | Currency (ro) | `Σ qty × rate` over `devices` — **devices only**, no add-ons |
 | `light_systems` | Table → Amenity Light System | `system_name`, `used_lines`, `price`, `pricing_mode` — **alternative** ways to wire the amenity; a quotation line picks one, and the default system fills the lines it leaves |
 | `sound_system_price` | Currency | a single flat price; no mode, nothing to choose. `0` falls back to Butler Settings' `sound_system_default_price` |
 | `depends_on_floor_count` | Check | enables `floor_extra_price` |
 | `floor_extra_price` | Currency | multiplied by the floor count and **added** to the price |
 | `lines` | Int | how many lines the amenity has. Each light system's `used_lines` must fit within it **on its own** — they are alternatives, never in use at once, so there is no shared budget to add up |
 | `amenity_category` | Link → Amenity Category | |
-| `facility_types` | Table MultiSelect → Amenity Facility Type | the Facility Types the amenity is offered for; each **once** (`validate_facility_types`, and the form's dropdown hides the ones already added). **Not a pricing input**: it only feeds the Facility Builder's Facility Type filter. Pricing reads the quotation's own `facility_type` (from its Facility) through Annex Price |
+| `facility_types` | Table MultiSelect → Amenity Facility Type | the Facility Types the amenity is offered for; each **once** (`validate_facility_types`, and the form's dropdown hides the ones already added). **Not a pricing input**: it only feeds the Facility Builder's Facility Type filter. Pricing reads the quotation's own `facility_type` (from its Facility) through Device Price |
 
-## Annex Price (per-facility-type pricing)
+## Device Price (per-facility-type pricing)
 
-Replaces the old `Amenity.facility_type_prices`. Keyed **(annex, amenity, facility_type)**;
+Replaces the old `Amenity.facility_type_prices`. Keyed **(device, amenity, facility_type)**;
 `facility_type = ""` is the standard price. Written by `Amenity.on_update`
-(`upsert_annex_price`), read by `get_annex_price`.
+(`upsert_device_price`), read by `get_device_price`.
 
 | Field | Type | Notes |
 |---|---|---|
-| `annex` / `amenity` | Link | reqd — the pair being priced |
+| `device` / `amenity` | Link | reqd — the pair being priced |
 | `facility_type` | Link → Facility Type | blank = the standard price |
 | `rate` | Currency | in the amenity's currency, per `uom` |
 | `uom` | Link → UOM | the unit the rate is quoted in |
@@ -148,8 +148,8 @@ Replaces the old `Amenity.facility_type_prices`. Keyed **(annex, amenity, facili
 
 | Field | Type | Options / Notes |
 |---|---|---|
-| `maintain_annex_price_action` | Select | `Stop` / `Warn` |
-| `role_to_override_annex_price_stop_action` | Link → Role | shown when action = `Stop` |
+| `maintain_device_price_action` | Select | `Stop` / `Warn` |
+| `role_to_override_device_price_stop_action` | Link → Role | shown when action = `Stop` |
 | `action_if_bundle_items_unfulfilled` | Select | `Stop` / `Warn` |
 | `role_to_override_unfulfilled_stop_action` | Link → Role | shown when action = `Stop` |
 | `default_valid_till` | Int | default validity days |
@@ -176,11 +176,11 @@ default_bundle[doc] = bundle_price × bundle_conversion_rate / conversion_rate
 
 | Tier | Prefix · currency | Fields | Who sets it |
 |---|---|---|---|
-| **Standard** | none · the amenity's | `annex_price`, `light_system_price`, `sound_system_price`, `floor_price`, `default_bundle_price` | the masters: Annex Price, Amenity, Light System, Butler Settings, Butler Bundle. Read-only |
-| **Quotation Price** | `qtn_` · the quotation's | `qtn_annex_price`, `qtn_light_system_price`, `qtn_sound_system_price`, `qtn_floor_price`, and the header's `bundle_price` | the user, **on the quotation only**. The Facility Builder never sets one |
+| **Standard** | none · the amenity's | `device_price`, `light_system_price`, `sound_system_price`, `floor_price`, `default_bundle_price` | the masters: Device Price, Amenity, Light System, Butler Settings, Butler Bundle. Read-only |
+| **Quotation Price** | `qtn_` · the quotation's | `qtn_device_price`, `qtn_light_system_price`, `qtn_sound_system_price`, `qtn_floor_price`, and the header's `bundle_price` | the user, **on the quotation only**. The Facility Builder never sets one |
 | **Company** | `base_` · the company's | every `base_*` | derived. Read-only |
 
-Every other quotation-currency field (`qtn_annex_amount`, `qtn_amenity_price`, the net
+Every other quotation-currency field (`qtn_device_amount`, `qtn_amenity_price`, the net
 prices, the default-system fill, the totals) is **calculated** and read-only. Those five
 are the only prices a user can change.
 
@@ -188,21 +188,21 @@ are the only prices a user can change.
 the standard at the rate that produced it, each recalculation re-derives it, so a currency
 change, a new exchange rate or a different light system moves it. Once the user types a
 different figure it is a **changed Quotation Price** and is kept: across recalculations,
-currency changes, and Facility Builder saves (`carry_forward_overrides`). `price_annex_row`
+currency changes, and Facility Builder saves (`carry_forward_overrides`). `price_device_row`
 and `track_add_on_price` make that decision. Each amenity row records whether any of its
 Quotation Prices has changed in the read-only `quotation_price_changed`, which the line
 editor filters on.
 
-Two things set the annex Quotation Price apart from the other three:
+Two things set the device Quotation Price apart from the other three:
 
-- **It is the only one checked.** It has a published standard per facility type (Annex
-  Price), so a change is governed by `maintain_annex_price_action`. See
-  [validations.md](./validations.md#annex-price--maintain_annex_price_action). The light
+- **It is the only one checked.** It has a published standard per facility type (Device
+  Price), so a change is governed by `maintain_device_price_action`. See
+  [validations.md](./validations.md#device-price--maintain_device_price_action). The light
   system, sound system and floor prices can be changed freely.
-- **It is converted back.** A changed annex Quotation Price is divided back into
-  `annex_price`, so the amenity-currency roll-up uses it. The add-ons keep their standard
+- **It is converted back.** A changed device Quotation Price is divided back into
+  `device_price`, so the amenity-currency roll-up uses it. The add-ons keep their standard
   in the amenity-currency field and are charged from the Quotation Price directly.
-  Everything above the annex derives upward in amenity currency and is projected out to
+  Everything above the device derives upward in amenity currency and is projected out to
   `qtn_` and `base_`. A calculated `qtn_` value is never converted back down.
 
 **The `exchange_rates` table is the single editable source of rates.** `sync_exchange_rates`

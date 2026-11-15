@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\": \"6d09648e33\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Butler Manager\", \"col\": 4}}, {\"id\": \"8ec3c83067\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Butler Bundle\", \"col\": 4}}, {\"id\": \"9aa8bbd71b\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Amenity Quotation\", \"col\": 4}}, {\"id\": \"6357330ce1\", \"type\": \"card\", \"data\": {\"card_name\": \"Facility Setup\", \"col\": 4}}, {\"id\": \"86dc8db4be\", \"type\": \"card\", \"data\": {\"card_name\": \"Amenity Setup\", \"col\": 4}}, {\"id\": \"d3b61ec36b\", \"type\": \"card\", \"data\": {\"card_name\": \"Annex Setup\", \"col\": 4}}, {\"id\": \"bc775c4a81\", \"type\": \"card\", \"data\": {\"card_name\": \"Light System Setup\", \"col\": 4}}, {\"id\": \"8cfa8bd08c\", \"type\": \"card\", \"data\": {\"card_name\": \"Settings\", \"col\": 4}}]",
+ "content": "[{\"id\": \"6d09648e33\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Butler Manager\", \"col\": 4}}, {\"id\": \"8ec3c83067\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Butler Bundle\", \"col\": 4}}, {\"id\": \"9aa8bbd71b\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Amenity Quotation\", \"col\": 4}}, {\"id\": \"6357330ce1\", \"type\": \"card\", \"data\": {\"card_name\": \"Facility Setup\", \"col\": 4}}, {\"id\": \"86dc8db4be\", \"type\": \"card\", \"data\": {\"card_name\": \"Amenity Setup\", \"col\": 4}}, {\"id\": \"d3b61ec36b\", \"type\": \"card\", \"data\": {\"card_name\": \"Device Setup\", \"col\": 4}}, {\"id\": \"bc775c4a81\", \"type\": \"card\", \"data\": {\"card_name\": \"Light System Setup\", \"col\": 4}}, {\"id\": \"8cfa8bd08c\", \"type\": \"card\", \"data\": {\"card_name\": \"Settings\", \"col\": 4}}]",
  "creation": "2026-09-01 10:24:37.931141",
  "custom_blocks": [],
  "docstatus": 0,
@@ -72,7 +72,7 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Annex Setup",
+   "label": "Device Setup",
    "link_count": 4,
    "onboard": 0,
    "type": "Card Break"
@@ -80,9 +80,9 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Annex",
+   "label": "Device",
    "link_count": 0,
-   "link_to": "Annex",
+   "link_to": "Device",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
@@ -90,9 +90,9 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Annex Category",
+   "label": "Device Category",
    "link_count": 0,
-   "link_to": "Annex Category",
+   "link_to": "Device Category",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
@@ -100,9 +100,9 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Annex Type",
+   "label": "Device Type",
    "link_count": 0,
-   "link_to": "Annex Type",
+   "link_to": "Device Type",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
@@ -110,9 +110,9 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Annex Price",
+   "label": "Device Price",
    "link_count": 0,
-   "link_to": "Annex Price",
+   "link_to": "Device Price",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
@@ -174,7 +174,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-11-15 13:00:00.000000",
+ "modified": "2026-11-15 13:11:11.000000",
  "modified_by": "Administrator",
  "module": "Butler Setup",
  "name": "Butler Setup",

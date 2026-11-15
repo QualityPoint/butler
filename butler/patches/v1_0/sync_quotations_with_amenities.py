@@ -4,15 +4,15 @@ from butler.butler.doctype.butler_quotation.butler_quotation import sync_with_am
 
 
 def execute():
-	"""Bring draft quotations in line with their Amenities' current annex lists, once.
+	"""Bring draft quotations in line with their Amenities' current device lists, once.
 
 	A non-customised amenity follows its Amenity on every save. A draft not saved since its
-	Amenities changed (annexes added, e.g. the light lines, or removed, which also deletes
-	their Annex Prices) would otherwise jump — or, with a deleted price, fail — the next
+	Amenities changed (devices added, e.g. the light lines, or removed, which also deletes
+	their Device Prices) would otherwise jump — or, with a deleted price, fail — the next
 	time anyone saves it. This saves each one now, with a timeline note of the old and new
 	total. Runs after convert_legacy_quotations, whose drafts already match. A draft that
-	fails (a customised amenity still holding a removed annex) is rolled back alone and
-	logged. See docs/quotation_pricing/annexes.md.
+	fails (a customised amenity still holding a removed device) is rolled back alone and
+	logged. See docs/quotation_pricing/devices.md.
 	"""
 	drafts = frappe.get_all("Butler Quotation", filters={"docstatus": 0}, pluck="name", order_by="creation asc")
 	frappe.flags.mute_messages = True

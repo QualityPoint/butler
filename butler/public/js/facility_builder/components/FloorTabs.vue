@@ -9,7 +9,7 @@
 		>
 			{{ __(floor.floor_type) }}
 			<span class="fb-tab-count">{{ floor.rooms.length }}</span>
-			<!-- the same icon and the same red wash as the annex remove button, so removing
+			<!-- the same icon and the same red wash as the device remove button, so removing
 			     means the same thing wherever it appears -->
 			<span
 				v-if="!store.read_only.value"

@@ -6,14 +6,14 @@ frappe.ui.form.on("Amenity", {
     setup(frm) {
         butler.filters.filter_amenity(frm, "amenity");
 
-        // Scoped to the row's Annex — the query resolves its `annex_item`, which is
+        // Scoped to the row's Device — the query resolves its `device_item`, which is
         // what actually owns the UOMs.
-        frm.set_query("uom", "annexes", (doc, cdt, cdn) => {
+        frm.set_query("uom", "devices", (doc, cdt, cdn) => {
             const row = locals[cdt][cdn];
             return {
-                query: "butler.utils.queries.get_annex_uom_query",
+                query: "butler.utils.queries.get_device_uom_query",
                 filters: {
-                    annex: row.annex,
+                    device: row.device,
                 },
             };
         });
@@ -49,9 +49,9 @@ frappe.ui.form.on("Amenity", {
         }
 
         frm.add_custom_button(
-            __("Annex Prices"),
+            __("Device Prices"),
             () => {
-                frappe.set_route("List", "Annex Price", { amenity: frm.doc.name });
+                frappe.set_route("List", "Device Price", { amenity: frm.doc.name });
             },
             __("View")
         );
@@ -61,26 +61,26 @@ frappe.ui.form.on("Amenity", {
         set_currency_labels(frm);
     },
 
-    annexes_add(frm) {
+    devices_add(frm) {
         calculate_totals(frm);
     },
 
-    annexes_remove(frm) {
+    devices_remove(frm) {
         calculate_totals(frm);
     },
 });
 
-frappe.ui.form.on("Amenity Annex Item", {
-    annex(frm, cdt, cdn) {
+frappe.ui.form.on("Amenity Device Item", {
+    device(frm, cdt, cdn) {
         const row = locals[cdt][cdn];
-        if (!row.annex) {
+        if (!row.device) {
             return;
         }
 
         // Same resolver the server-side default uses, so both agree on the UOM.
         frappe.call({
-            method: "butler.butler.doctype.annex.annex.get_annex_default_uom",
-            args: { annex: row.annex },
+            method: "butler.butler.doctype.device.device.get_device_default_uom",
+            args: { device: row.device },
             callback: ({ message }) => {
                 frappe.model.set_value(cdt, cdn, "uom", message);
             },
@@ -101,8 +101,8 @@ frappe.ui.form.on("Amenity Annex Item", {
         if (frm.is_new()) {
             frappe.throw(__("Save the Amenity before setting a Facility Type price."));
         }
-        if (!row.annex || !row.uom) {
-            frappe.throw(__("Set the Annex and UOM for this row first."));
+        if (!row.device || !row.uom) {
+            frappe.throw(__("Set the Device and UOM for this row first."));
         }
 
         const dialog = new frappe.ui.Dialog({
@@ -126,10 +126,10 @@ frappe.ui.form.on("Amenity Annex Item", {
             primary_action_label: __("Confirm"),
             primary_action(values) {
                 frappe.call({
-                    method: "butler.butler.doctype.annex_price.annex_price.create_facility_type_annex_price",
+                    method: "butler.butler.doctype.device_price.device_price.create_facility_type_device_price",
                     args: {
                         amenity: frm.doc.name,
-                        annex: row.annex,
+                        device: row.device,
                         uom: row.uom,
                         currency: frm.doc.currency,
                         facility_type: values.facility_type,
@@ -150,12 +150,12 @@ frappe.ui.form.on("Amenity Annex Item", {
 
 
 // Amenity is single-currency — no company-currency mirrors — so every Currency field
-// resolves to the document currency, across the header and the annexes / light_systems
+// resolves to the document currency, across the header and the devices / light_systems
 // grids.
 function set_currency_labels(frm) {
     butler.utils.set_currency_labels(frm, { currency: frm.doc.currency }, [
         null,
-        "annexes",
+        "devices",
         "light_systems",
     ]);
     frm.refresh_fields();
@@ -165,7 +165,7 @@ function calculate_totals(frm) {
     let total_qty = 0;
     let total = 0;
 
-    (frm.doc.annexes || []).forEach((row) => {
+    (frm.doc.devices || []).forEach((row) => {
         total_qty += flt(row.qty);
         total += flt(row.amount);
     });

@@ -13,9 +13,9 @@ Scope: the two pricing **order types**, `Amenities` and `Bundle`. The third type
 
 | `order_type` | Priced as | Charged on |
 |---|---|---|
-| **Amenities** | Sum of the amenity rows | Each placement's `Σ annexes + add-ons` |
+| **Amenities** | Sum of the amenity rows | Each placement's `Σ devices + add-ons` |
 | **Bundle** | A flat bundle price, **plus** any extra amenities | `bundle_price` + `additional_total` |
-| **Quotation** | **Same as Amenities** (sum of the rows) | Each placement's `Σ annexes + add-ons` |
+| **Quotation** | **Same as Amenities** (sum of the rows) | Each placement's `Σ devices + add-ons` |
 
 `Quotation` and `Amenities` are priced by the **same** code path — they differ only in
 the post-submit **Create** target (see below).
@@ -40,7 +40,7 @@ Amenities engine.
 `qtn_amenity_price` is **already converted to the document currency** at the quotation
 stage, so the SO only needs one rate. Only **amenity rows** are mapped — one Sales Order
 Item each, via `Amenity.amenity`, one SO line per placement at `rate = qtn_amenity_price`;
-annex rows are quotation-only detail, already priced into their amenity. `_make_sales_order` therefore carries: `currency` = the
+device rows are quotation-only detail, already priced into their amenity. `_make_sales_order` therefore carries: `currency` = the
 quotation's; `conversion_rate` = the quotation's **document→company** rate (its
 `exchange_rates` row for the document currency, else 1) — set *after* `set_missing_values`
 so the SO doesn't re-fetch a possibly-different live rate, making base amounts reconcile
@@ -59,7 +59,7 @@ before_validate ──────────► validate ───────
   │ • default company        │ • set_bundle_breakdown   │ • validate_dependencies
   │ • default valid          │ • calculate_totals       │ • validate_bundle_amenities
   │ • clear add. flag        │ • set_light_system_dev.* │   (unfulfilled / undesignated)
-  │ • clear_row_type_fields  │ • annex-price WARN/STOP  │
+  │ • clear_row_type_fields  │ • device-price WARN/STOP  │
   │ • ensure_placement_ids   │ • validate_row_types     │
   │ • expand_amenity_rows    │ • validate_dependencies  │
   │ • carry_forward_overrid. │   (WARN)                 │
@@ -71,10 +71,10 @@ whole facility needs from the line split `calculate_totals` just settled, and mo
 money. See [light_system_devices.md](../light_system_devices.md).
 
 `before_validate` is where the two row types are shaped: wrong-type fields are cleared,
-every row is given the `placement_id` of the drawn amenity it belongs to, missing annex
+every row is given the `placement_id` of the drawn amenity it belongs to, missing device
 rows are seeded from the Amenity, whatever the quotation owns is carried back onto rows a
-builder save has just rebuilt, and the table is re-laid-out as `amenity row → its annex
-rows`. See [annexes.md](./annexes.md).
+builder save has just rebuilt, and the table is re-laid-out as `amenity row → its device
+rows`. See [devices.md](./devices.md).
 
 Rule of thumb: **`validate` calculates and warns; `before_submit` blocks.**
 Amounts are recomputed on every save so the form always shows correct numbers;
@@ -83,12 +83,12 @@ the governance throws are deferred to where the spec requires them.
 **Live recompute (no save):** Butler has no client-side calc mirror — the server is the
 single source of truth. So the form calls the whitelisted `recalculate` method (which
 runs `calculate_totals` **without** the governance throws) on any pricing input change —
-an annex price, annex quantity or uom, the light/sound/floor prices, the
+a device price, device quantity or uom, the light/sound/floor prices, the
 amenity or floor type, a tax row, discount, bundle price, currency rate, or the
 `disable_rounded_total` toggle (stricter than ERPNext's own Quotation, which has no
 field trigger for that checkbox either). The recomputed doc is synced back and the
 fields refresh immediately. `calculate_totals` is therefore
-kept **throw-free**; the annex-price / bundle governance lives in `validate`.
+kept **throw-free**; the device-price / bundle governance lives in `validate`.
 
 ---
 
@@ -96,16 +96,16 @@ kept **throw-free**; the annex-price / bundle governance lives in `validate`.
 
 These are used by both order types — see [amenities.md](./amenities.md) for detail.
 
-- **`get_annex_price(annex, amenity, facility_type)`** — the standard for one annex: the
-  **Annex Price** scoped to the facility type, else the facility-type-agnostic row. The
+- **`get_device_price(device, amenity, facility_type)`** — the standard for one device: the
+  **Device Price** scoped to the facility type, else the facility-type-agnostic row. The
   existence of a scoped row is what makes a price changeable.
 - **`get_amenity_pricing(amenity, facility_type)`** — an amenity's standard price,
-  composed by summing its annexes at their `get_annex_price` rates. Used by the server
+  composed by summing its devices at their `get_device_price` rates. Used by the server
   **and** the client form.
 - **`floor_count`** — number of *distinct* `floor_type`s across the amenity rows.
-- **Group amount** — `Σ annex_amount + light + sound + floor`, where the
+- **Group amount** — `Σ device_amount + light + sound + floor`, where the
   floor extra is `floor_extra_price × floor_count` only when the amenity
-  `depends_on_floor_count` (else `0`). See [annexes.md](./annexes.md).
+  `depends_on_floor_count` (else `0`). See [devices.md](./devices.md).
 
 ---
 
@@ -113,7 +113,7 @@ These are used by both order types — see [amenities.md](./amenities.md) for de
 
 | File | Covers |
 |---|---|
-| [annexes.md](./annexes.md) | **The row model** — amenity rows, annex rows, and how an amenity's price is composed |
+| [devices.md](./devices.md) | **The row model** — amenity rows, device rows, and how an amenity's price is composed |
 | [amenities.md](./amenities.md) | The `Amenities` order type, line pricing, totals |
 | [bundle.md](./bundle.md) | The `Bundle` order type, flat price, max-discount, breakdown |
 | [additional-amenities.md](./additional-amenities.md) | Charging amenities beyond the bundle composition |
@@ -129,13 +129,13 @@ These are used by both order types — see [amenities.md](./amenities.md) for de
 | Concept | Status |
 |---|---|
 | Amenities line pricing + totals | **Implemented** |
-| Annex-composed amenity pricing (amenity + annex row types, server-side row shaping) | **Implemented** |
-| Per-facility-type annex pricing via **Annex Price** (`get_annex_price`) | **Implemented** |
+| Device-composed amenity pricing (amenity + device row types, server-side row shaping) | **Implemented** |
+| Per-facility-type device pricing via **Device Price** (`get_device_price`) | **Implemented** |
 | Per-amenity add-ons: light system (per-line, Add/Subtract, default-system fill), flat sound system, additive floor extra | **Implemented** |
 | Three price tiers on the line: standard / **Quotation Price** (`qtn_`) / company (`base_`); five Quotation Prices, changed on the quotation only ([reference.md](./reference.md#the-three-price-tiers-and-the-quotation-price)) | **Implemented** |
 | `amenities_html` line editor: master–detail, with search and filters (the child table itself is hidden + read-only). See [quotation_line_editor.md](../quotation_line_editor.md) | **Implemented** |
 | Bundle flat price + breakdown population | **Implemented** |
-| Annex-price governance (`maintain_annex_price_action` + override role) | **Implemented** |
+| Device-price governance (`maintain_device_price_action` + override role) | **Implemented** |
 | Bundle composition validation (currently exact-match) | **Implemented** |
 | `default_bundle_price` / editable `bundle_price` / `max_discount` line-discount check | **Implemented** |
 | Additional amenities (`additional_total`, user-set checkbox) | **Implemented** |

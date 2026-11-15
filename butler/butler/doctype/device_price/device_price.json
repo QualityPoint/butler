@@ -8,10 +8,10 @@
  "document_type": "Setup",
  "engine": "InnoDB",
  "field_order": [
-  "annex",
+  "device",
   "uom",
   "column_break_qcpf",
-  "annex_name",
+  "device_name",
   "section_break_dogd",
   "column_break_idtd",
   "amenity",
@@ -26,18 +26,18 @@
    "fieldtype": "Column Break"
   },
   {
-   "fetch_from": "annex.annex_name",
-   "fieldname": "annex_name",
+   "fetch_from": "device.device_name",
+   "fieldname": "device_name",
    "fieldtype": "Data",
-   "label": "Annex Name",
+   "label": "Device Name",
    "read_only": 1
   },
   {
-   "fieldname": "annex",
+   "fieldname": "device",
    "fieldtype": "Link",
    "in_list_view": 1,
-   "label": "Annex",
-   "options": "Annex",
+   "label": "Device",
+   "options": "Device",
    "reqd": 1
   },
   {
@@ -100,10 +100,10 @@
  "grid_page_length": 50,
  "in_create": 1,
  "links": [],
- "modified": "2026-09-05 16:20:31.831121",
+ "modified": "2026-11-15 13:11:11.000000",
  "modified_by": "Administrator",
  "module": "Butler",
- "name": "Annex Price",
+ "name": "Device Price",
  "naming_rule": "Random",
  "owner": "Administrator",
  "permissions": [
@@ -145,5 +145,5 @@
  "sort_field": "creation",
  "sort_order": "DESC",
  "states": [],
- "title_field": "annex_name"
+ "title_field": "device_name"
 }

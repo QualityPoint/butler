@@ -5,24 +5,24 @@ import frappe
 from frappe.model.document import Document
 
 
-class Annex(Document):
+class Device(Document):
 	pass
 
 
 @frappe.whitelist()
-def get_annex_default_uom(annex):
-	"""The UOM an annex is transacted in: its Item's `sales_uom`, falling back to the
+def get_device_default_uom(device):
+	"""The UOM a device is transacted in: its Item's `sales_uom`, falling back to the
 	`stock_uom`.
 
-	The Annex holds the catalogue attributes (category, warranty, manufacturer) while its
-	Item (`annex_item`) remains the source of truth for anything transactional — UOM
+	The Device holds the catalogue attributes (category, warranty, manufacturer) while its
+	Item (`device_item`) remains the source of truth for anything transactional — UOM
 	included. Single place that hop is made, so the form and the server-side default in
 	Amenity.set_missing_uom can't drift apart.
 	"""
-	if not annex:
+	if not device:
 		return None
 
-	item = frappe.db.get_value("Annex", annex, "annex_item")
+	item = frappe.db.get_value("Device", device, "device_item")
 	if not item:
 		return None
 

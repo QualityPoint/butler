@@ -108,7 +108,7 @@ export function getStore(mode, target_name) {       // mode: "facility" | "quota
 | `load_catalogs`, on open | `frappe.db.get_list("Amenity" / "Amenity Category")` | the palette |
 | `load_catalogs`, on open | `butler_bundle.get_bundle_breakdown` | `bundle_limits` |
 | `load_catalogs`, on open | `amenity.get_dependency_graph` | `dependency_graph` |
-| `set_active_layer("features")`, lazily | `amenity.get_amenity_annexes` + `butler_quotation.get_amenity_options` | the Features panel |
+| `set_active_layer("features")`, lazily | `amenity.get_amenity_devices` + `butler_quotation.get_amenity_options` | the Features panel |
 
 The dependency graph is loaded **eagerly with the catalogues**, not lazily like the
 Features payload: the warning has to work on every layer, and it needs the primaries'

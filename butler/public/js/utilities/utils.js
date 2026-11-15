@@ -24,4 +24,9 @@ butler.utils = {
             }
         }
     },
+
+    // "1 device" / "{0} devices": one string per form, so each language words both.
+    device_count: function (count) {
+        return count === 1 ? __("1 device") : __("{0} devices", [count]);
+    },
 }

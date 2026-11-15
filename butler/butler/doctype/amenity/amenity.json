@@ -23,7 +23,7 @@
   "facility_types",
   "amenity_bundle_section",
   "currency",
-  "annexes",
+  "devices",
   "section_break_stbe",
   "column_break_zkrz",
   "total_qty",
@@ -108,10 +108,10 @@
    "label": "Amenity Bundle"
   },
   {
-   "fieldname": "annexes",
+   "fieldname": "devices",
    "fieldtype": "Table",
-   "label": "Annexes",
-   "options": "Amenity Annex Item",
+   "label": "Devices",
+   "options": "Amenity Device Item",
    "reqd": 1
   },
   {
@@ -279,7 +279,7 @@
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-12 02:43:23.543215",
+ "modified": "2026-11-15 13:11:11.000000",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Amenity",

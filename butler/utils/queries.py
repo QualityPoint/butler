@@ -34,18 +34,18 @@ def get_bundle_item(doctype, txt, searchfield, start, page_len, filters):
 
 @frappe.whitelist()
 @frappe.validate_and_sanitize_search_inputs
-def get_annex_uom_query(doctype, txt, searchfield, start, page_len, filters):
-    """Search query for a UOM field scoped to an Annex, e.g. Amenity Annex Item's `uom`
-    (scoped to its `annex`). The Annex carries the catalogue attributes; its Item
-    (`annex_item`) owns the UOMs, so this resolves through to that Item.
+def get_device_uom_query(doctype, txt, searchfield, start, page_len, filters):
+    """Search query for a UOM field scoped to a Device, e.g. Amenity Device Item's `uom`
+    (scoped to its `device`). The Device carries the catalogue attributes; its Item
+    (`device_item`) owns the UOMs, so this resolves through to that Item.
 
     Unlike ERPNext's own `get_item_uom_query`, this isn't gated behind Stock
     Settings' "Allow UOM with conversion rate defined in Item" toggle (off by
     default) — it always restricts to the Item's configured UOM Conversion Detail
     rows, since that's the only behavior Butler wants here.
     """
-    annex = (filters or {}).get("annex")
-    item_code = frappe.db.get_value("Annex", annex, "annex_item") if annex else None
+    device = (filters or {}).get("device")
+    item_code = frappe.db.get_value("Device", device, "device_item") if device else None
     if not item_code:
         return []
 

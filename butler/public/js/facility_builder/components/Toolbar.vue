@@ -81,13 +81,13 @@
 		<!-- Layer-wide controls only; what a single amenity contains is edited in the
 		     sidebar panel, which has the room for it. -->
 		<template v-else-if="store.active_layer.value === 'features'">
-			<div class="d-flex align-items-center" :title="__('Draw each amenity\'s annexes on the plan')">
+			<div class="d-flex align-items-center" :title="__('Draw each amenity\'s devices on the plan')">
 				<span style="color: var(--text-light); margin: 0px 6px;">{{ __("Icons") }}</span>
 				<label class="switch">
 					<input
 						type="checkbox"
-						:checked="store.show_annex_icons.value"
-						@change="store.show_annex_icons.value = $event.target.checked"
+						:checked="store.show_device_icons.value"
+						@change="store.show_device_icons.value = $event.target.checked"
 					/>
 					<span class="slider round"></span>
 				</label>
@@ -105,15 +105,15 @@
 				/>
 			</div>
 
-			<!-- Whole-facility, so it lives here rather than in a room's panel: the one device
+			<!-- Whole-facility, so it lives here rather than in a room's panel: the one light system device
 			     serving every line of the default light system, on every room. -->
 			<div
 				v-if="store.default_light_system.value"
 				class="fb-toolbar-group"
-				:title="__('The device serving every {0} line in the facility', [__(store.default_light_system.value)])"
+				:title="__('The light system device serving every {0} line in the facility', [__(store.default_light_system.value)])"
 			>
 				<label>{{ __("Default Light System Device") }}</label>
-				<div class="fb-default-device" ref="defaultDeviceControl"></div>
+				<div class="fb-default-light-system-device" ref="defaultLightSystemDeviceControl"></div>
 			</div>
 
 			<div class="fb-spacer" />
@@ -122,13 +122,13 @@
 				<div class="fb-room-ident">
 					<RoomAliasInput :room="room" />
 					<span class="fb-room-meta">
-						&middot; {{ __("{0} annexes", [store.effective_annexes(room).length]) }}
+						&middot; {{ deviceCount }}
 					</span>
 				</div>
 				<button
 					class="btn btn-xs btn-default"
 					:disabled="store.read_only.value || !similarCount"
-					:title="__('Copy this amenity\'s annexes, light and sound onto every other placement of it')"
+					:title="__('Copy this amenity\'s devices, light and sound onto every other placement of it')"
 					@click="applyToSimilar"
 				>
 					{{ __("Apply to all like this") }}
@@ -234,58 +234,62 @@ function stepLayer(delta) {
 // --- facility-wide default light system device (Features layer) -----------------------
 // ToolDock's lifecycle: the host div sits behind the layer's v-if, so build the control
 // when it appears, sync it behind a guard, and drop it when it goes.
-const defaultDeviceControl = ref(null);
-let defaultDeviceCtrl = null;
+const defaultLightSystemDeviceControl = ref(null);
+let defaultLightSystemDeviceCtrl = null;
 
-function ensureDefaultDeviceControl() {
-	if (defaultDeviceCtrl || !defaultDeviceControl.value) return;
-	defaultDeviceCtrl = frappe.ui.form.make_control({
-		parent: defaultDeviceControl.value,
+function ensureDefaultLightSystemDeviceControl() {
+	if (defaultLightSystemDeviceCtrl || !defaultLightSystemDeviceControl.value) return;
+	defaultLightSystemDeviceCtrl = frappe.ui.form.make_control({
+		parent: defaultLightSystemDeviceControl.value,
 		df: {
 			fieldtype: "Link",
 			fieldname: "default_light_system_device",
 			options: "Light System Device",
-			placeholder: __("Device"),
+			placeholder: __("Light System Device"),
 			// only what the default system is configured with
 			get_query: () => {
 				const names = store
-					.devices_for(store.default_light_system.value)
-					.map((d) => d.device);
+					.light_system_devices_for(store.default_light_system.value)
+					.map((d) => d.light_system_device);
 				return { filters: { name: ["in", names.length ? names : [""]] } };
 			},
 			onchange: () => {
-				keep_last_value(defaultDeviceCtrl); // so clearing it registers (utils.js)
-				const picked = defaultDeviceCtrl.get_value() || null;
+				keep_last_value(defaultLightSystemDeviceCtrl); // so clearing it registers (utils.js)
+				const picked = defaultLightSystemDeviceCtrl.get_value() || null;
 				if (picked === (store.default_light_system_device.value || null)) return; // programmatic sync
-				// only a device other than the system's default is stored (in the drawing);
+				// only a light system device other than the system's default is stored (in the drawing);
 				// clearing, or choosing the default, goes back to following it
 				store.set_default_light_system_device(picked);
-				nextTick(syncDefaultDevice);
+				nextTick(syncDefaultLightSystemDevice);
 			},
 		},
 		render_input: true,
 		only_input: true,
 	});
-	defaultDeviceCtrl.$input?.attr("disabled", store.read_only.value);
+	defaultLightSystemDeviceCtrl.$input?.attr("disabled", store.read_only.value);
 }
-function destroyDefaultDeviceControl() {
-	defaultDeviceCtrl?.$wrapper?.remove();
-	defaultDeviceCtrl = null;
+function destroyDefaultLightSystemDeviceControl() {
+	defaultLightSystemDeviceCtrl?.$wrapper?.remove();
+	defaultLightSystemDeviceCtrl = null;
 }
-function syncDefaultDevice() {
-	defaultDeviceCtrl?.set_value(store.default_light_system_device.value || "");
+function syncDefaultLightSystemDevice() {
+	defaultLightSystemDeviceCtrl?.set_value(store.default_light_system_device.value || "");
 }
 
 watch(
 	() => store.active_layer.value === "features" && Boolean(store.default_light_system.value),
 	(show) => {
-		if (show) nextTick(() => { ensureDefaultDeviceControl(); syncDefaultDevice(); });
-		else destroyDefaultDeviceControl();
+		if (show) nextTick(() => { ensureDefaultLightSystemDeviceControl(); syncDefaultLightSystemDevice(); });
+		else destroyDefaultLightSystemDeviceControl();
 	},
 	{ immediate: true }
 );
-watch(() => store.default_light_system_device.value, () => nextTick(syncDefaultDevice));
-onBeforeUnmount(destroyDefaultDeviceControl);
+watch(() => store.default_light_system_device.value, () => nextTick(syncDefaultLightSystemDevice));
+onBeforeUnmount(destroyDefaultLightSystemDeviceControl);
+
+const deviceCount = computed(() =>
+	room.value ? butler.utils.device_count(store.effective_devices(room.value).length) : ""
+);
 
 // how many OTHER placements of the selected amenity would a bulk apply touch
 const similarCount = computed(() => {
@@ -301,11 +305,11 @@ const similarCount = computed(() => {
 
 function applyToSimilar() {
 	// deliberately the amenity's name, not the room's alias: this acts on every placement
-	// of the amenity, so "Copy the annexes of this Sara's Room onto the other 11" would
+	// of the amenity, so "Copy the devices of this Sara's Room onto the other 11" would
 	// describe the wrong thing
 	const amenity = __(room.value.amenity);
 	frappe.confirm(
-		__("Copy the annexes, light system and sound setting of this {0} onto the other {1}?",
+		__("Copy the devices, light system and sound setting of this {0} onto the other {1}?",
 			[amenity, __("{0} placements", [similarCount.value])]),
 		() => {
 			const touched = store.apply_features_to_similar(room.value.id);
@@ -485,13 +489,13 @@ function toggleCalibrate() {
 	margin: 0;
 	color: var(--text-light);
 }
-.fb-default-device {
+.fb-default-light-system-device {
 	width: 11rem;
 }
-.fb-default-device :deep(.frappe-control) {
+.fb-default-light-system-device :deep(.frappe-control) {
 	margin-bottom: 0;
 }
-.fb-default-device :deep(.form-control) {
+.fb-default-light-system-device :deep(.form-control) {
 	height: 26px;
 	font-size: var(--text-sm);
 }

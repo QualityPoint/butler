@@ -14,10 +14,10 @@ const PALETTE = [
 	"#bcf7e0",
 ];
 
-// An extra annex (fitted from outside its Amenity's own list) is drawn in gold, on the
+// An extra device (fitted from outside its Amenity's own list) is drawn in gold, on the
 // plan and in the Features panel, so it stands out wherever it is. Dark enough to read
 // as a stroke on a pastel room and on the panel in either theme.
-export const EXTRA_ANNEX_COLOR = "#b8860b";
+export const EXTRA_DEVICE_COLOR = "#b8860b";
 
 export function colorFor(name) {
 	let hash = 0;
@@ -33,7 +33,7 @@ export function resolveColor(key, colorMap) {
 	return (colorMap && colorMap[key]) || colorFor(key);
 }
 
-// A darker version of a color, for drawing on top of it — the annex icons inside a room
+// A darker version of a color, for drawing on top of it — the device icons inside a room
 // are stroked in the room's own color darkened, so they read as part of that amenity
 // instead of as generic black marks on it.
 export function darken(hex, amount = 0.55) {

@@ -22,8 +22,8 @@ def custom_fields():
                 "insert_after": "butler_settings",
             },
             {
-                "fieldname": "is_annex",
-                "label": _("Is Annex"),
+                "fieldname": "is_device",
+                "label": _("Is Device"),
                 "fieldtype": "Check",
                 "no_copy": 1,
                 "insert_after": "is_amenity",

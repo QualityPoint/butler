@@ -22,7 +22,7 @@ governed action has a `Stop`-gated override role.
 
 | Setting | Override role |
 |---|---|
-| `maintain_annex_price_action` | `role_to_override_annex_price_stop_action` |
+| `maintain_device_price_action` | `role_to_override_device_price_stop_action` |
 | `action_if_bundle_items_unfulfilled` | `role_to_override_unfulfilled_stop_action` |
 | `action_if_dependencies_missing` | `role_to_override_dependency_stop_action` |
 | `system_core_action` | `role_to_override_system_core_stop_action` |
@@ -32,33 +32,33 @@ governed action has a `Stop`-gated override role.
 ## Row types
 
 The `amenities` table holds **two row types** in one doctype (see
-[annexes.md](./annexes.md)), so the mandatory flags that would normally express this
-can't live on the fields — `annex_uom` as `reqd` would block every amenity row. They are
+[devices.md](./devices.md)), so the mandatory flags that would normally express this
+can't live on the fields — `device_uom` as `reqd` would block every amenity row. They are
 enforced in `validate_row_types()` instead:
 
 | Row type | Must have | Must not have |
 |---|---|---|
-| Amenity (`annex` empty) | `amenity`, `floor_type`, a `placement_id` (backfilled) | annex fields |
-| Annex (`annex` set) | `annex_quantity > 0`, `annex_uom`, a resolvable amenity row | the per-amenity add-on fields |
+| Amenity (`device` empty) | `amenity`, `floor_type`, a `placement_id` (backfilled) | device fields |
+| Device (`device` set) | `device_quantity > 0`, `device_uom`, a resolvable amenity row | the per-amenity add-on fields |
 
 Fields belonging to the *other* row type are **cleared**, not rejected
 (`clear_row_type_fields` in `before_validate`) — they are stale data, not a user error.
-What does throw is an annex row matching no amenity row (unattached). An annex that isn't one
+What does throw is a device row matching no amenity row (unattached). A device that isn't one
 of its amenity's own is **not** an error: it is an
-[extra annex](./annexes.md#extra-annexes), priced at 0 until its Quotation Price is set, and
-left out of the annex-price check below.
+[extra device](./devices.md#extra-devices), priced at 0 until its Quotation Price is set, and
+left out of the device-price check below.
 
 ---
 
-## Annex price — `maintain_annex_price_action`
+## Device price — `maintain_device_price_action`
 
-The annex Quotation Price (`qtn_annex_price`) is the only Quotation Price with a published
-standard, so it is the only one governed. The standard is the **Annex Price** for `(annex, amenity, facility_type)`,
+The device Quotation Price (`qtn_device_price`) is the only Quotation Price with a published
+standard, so it is the only one governed. The standard is the **Device Price** for `(device, amenity, facility_type)`,
 falling back to the facility-type-agnostic row.
 
 | `order_type` | Checks (runs in `validate`) |
 |---|---|
-| **Amenities** / Quotation | **every** annex row whose `qtn_annex_price` deviates from its Annex Price standard by more than `0.005` |
+| **Amenities** / Quotation | **every** device row whose `qtn_device_price` deviates from its Device Price standard by more than `0.005` |
 | **Bundle** | the same, **plus** `bundle_price` discounted past `max_discount` vs `default_bundle_price` |
 
 The light system, sound system and floor Quotation Prices can also be changed, but they
@@ -134,8 +134,8 @@ Applies to **every order type** — there is no `order_type` gate.
 **Counting is raw placements, on both sides.** Unlike `validate_bundle_amenities` next to
 it, rows ticked `additional_amenity` are *not* subtracted: a bundle-overflow Intercom is
 still a physical intercom that needs an entrance, and an overflow Entrance still supplies
-one. Annex rows are skipped (`if row.annex`) — without that guard a dependant with four
-annexes would count as five placements.
+one. Device rows are skipped (`if row.device`) — without that guard a dependant with four
+devices would count as five placements.
 
 The dependant flag is re-resolved from the **Amenity master**, never read off
 `row.is_dependant_amenity` — see [Why the checks read the master](#why-the-checks-read-the-master).
@@ -243,7 +243,7 @@ the submitted quotation still shows the flag as it stood. Two different question
 |---|---|---|
 | `calculate_totals` (prices) | ✅ | — |
 | Row types (`validate_row_types`) | ✅ throws | — |
-| Annex price / `bundle_price` discount | ✅ warn/throw per setting | — |
+| Device price / `bundle_price` discount | ✅ warn/throw per setting | — |
 | Unfulfilled composition | ✅ **warn only** | ✅ governed (warn/throw) |
 | Undesignated overflow | ✅ warn (names categories) | ✅ governed (warn/throw) |
 | Dependencies (`count(D) <= count(P)`) | ✅ **warn only** | ✅ governed (warn/throw) |

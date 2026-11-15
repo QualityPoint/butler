@@ -140,7 +140,7 @@ frappe.ui.form.on("Butler Quotation", {
             frappe.set_route("facility-builder", "quotation", frm.doc.name);
         });
 
-        // Put chosen amenities back to their masters: details, prices, annexes, light &
+        // Put chosen amenities back to their masters: details, prices, devices, light &
         // sound. docs/legacy_quotations.md
         if (frm.doc.docstatus === 0) {
             frm.add_custom_button(__("Reset Amenity"), () => reset_amenity_dialog(frm));
@@ -562,10 +562,10 @@ const BASE_CURRENCY_GRID_FIELDS = {
         "base_amenity_net_price",
         "base_amenity_amount",
         "base_amenity_net_amount",
-        "base_annex_price",
-        "base_annex_net_price",
-        "base_annex_amount",
-        "base_annex_net_amount",
+        "base_device_price",
+        "base_device_net_price",
+        "base_device_amount",
+        "base_device_net_amount",
         "base_light_system_price",
         "base_light_system_amount",
         "base_sound_system_price",
@@ -669,7 +669,7 @@ function reset_amenity_dialog(frm) {
         frappe.msgprint(__("Save the quotation before resetting amenities."));
         return;
     }
-    const rooms = (frm.doc.amenities || []).filter((r) => !r.annex);
+    const rooms = (frm.doc.amenities || []).filter((r) => !r.device);
     const counts = {};
     for (const r of rooms) counts[r.amenity] = (counts[r.amenity] || 0) + 1;
 
@@ -749,8 +749,8 @@ function reset_amenity_dialog(frm) {
 
 // Mount the line editor into the `amenities_html` field. The `amenities` table itself is
 // hidden and read-only — it holds two different row types that a flat grid can't present
-// (see docs/quotation_pricing/annexes.md), so this renders it grouped floor → amenity →
-// annexes instead. Mirrors how user.js mounts frappe.RoleEditor into roles_html.
+// (see docs/quotation_pricing/devices.md), so this renders it grouped floor → amenity →
+// devices instead. Mirrors how user.js mounts frappe.RoleEditor into roles_html.
 function render_amenities_editor(frm) {
     const wrapper = frm.fields_dict.amenities_html && frm.fields_dict.amenities_html.wrapper;
     if (!wrapper) return;
@@ -774,13 +774,13 @@ frappe.ui.form.on("Butler Quotation Item", {
     },
     // the four Quotation Prices on a line, one per priced component (see
     // docs/quotation_pricing/reference.md: the three price tiers)
-    qtn_annex_price: (frm) => recalculate_quotation(frm),
+    qtn_device_price: (frm) => recalculate_quotation(frm),
     qtn_light_system_price: (frm) => recalculate_quotation(frm),
     qtn_sound_system_price: (frm) => recalculate_quotation(frm),
     qtn_floor_price: (frm) => recalculate_quotation(frm),
-    annex: (frm) => recalculate_quotation(frm),
-    annex_quantity: (frm) => recalculate_quotation(frm),
-    annex_uom: (frm) => recalculate_quotation(frm),
+    device: (frm) => recalculate_quotation(frm),
+    device_quantity: (frm) => recalculate_quotation(frm),
+    device_uom: (frm) => recalculate_quotation(frm),
     light_system: (frm) => recalculate_quotation(frm),
     has_sound_system: (frm) => recalculate_quotation(frm),
     floor_type: (frm) => recalculate_quotation(frm),

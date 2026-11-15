@@ -53,7 +53,7 @@ save_quotation():
     quotation.value.geometry    = JSON.stringify(design.value)  // layout store
     quotation.value.order_type  = order_type.value              // write filters back
     quotation.value.bundle_type = order_type === "Bundle" ? bundle_type.value : null
-    quotation.value.amenities   = build_amenity_rows()          // one row per placement + its annex rows
+    quotation.value.amenities   = build_amenity_rows()          // one row per placement + its device rows
 
     frappe.client.save({ doc: quotation.value }).then(() => fetch())
 ```

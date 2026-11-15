@@ -1,7 +1,7 @@
 # Amenities Order Type
 
-`order_type == "Amenities"`. The quotation is priced **bottom-up**: every annex is priced
-from its standard, each amenity is the sum of its annexes plus its add-ons, and the header
+`order_type == "Amenities"`. The quotation is priced **bottom-up**: every device is priced
+from its standard, each amenity is the sum of its devices plus its add-ons, and the header
 totals are the sum of the amenity rows.
 
 All logic is in `ButlerQuotation.calculate_totals()`, run during `validate`.
@@ -11,8 +11,8 @@ All logic is in `ButlerQuotation.calculate_totals()`, run during `validate`.
 > **Quotation** (it cannot become a Sales Order). See
 > [README.md](./README.md#downstream--the-post-submit-create-action).
 
-> A line is a **group** of rows — one amenity row and its annex rows — not a single row.
-> Read [annexes.md](./annexes.md) first; this page covers what happens above that.
+> A line is a **group** of rows — one amenity row and its device rows — not a single row.
+> Read [devices.md](./devices.md) first; this page covers what happens above that.
 
 ---
 
@@ -27,22 +27,22 @@ per amenity group:
 ```
 
 Both are read-only mirrors of the **`exchange_rates` table**, the single editable rate
-source, so one currency can never carry two different rates across rows. The annex rows
+source, so one currency can never carry two different rates across rows. The device rows
 inherit their group's rates.
 
 ---
 
 ## Step 2 — Per-group amount
 
-For each amenity group (see [annexes.md](./annexes.md) for each component's formula):
+For each amenity group (see [devices.md](./devices.md) for each component's formula):
 
 | Field | Set to |
 |---|---|
-| `annex_amount` | `annex_price × annex_quantity` — per annex row |
+| `device_amount` | `device_price × device_quantity` — per device row |
 | `light_system_amount` | `±price × used_lines` per the mode; the remaining lines are charged separately as `default_system_amount` |
 | `sound_system_amount` | `sound_system_price` when `has_sound_system`, else `0` — the Amenity's own price, or Butler Settings' default when that is `0` |
 | `floor_amount` | `floor_price × floor_qty` |
-| `amenity_price` | `Σ annex_amount + light + sound + floor` — **per unit**, amenity currency |
+| `amenity_price` | `Σ device_amount + light + sound + floor` — **per unit**, amenity currency |
 | `qtn_amenity_price` | `amenity_price × qtn_exchange_rate` |
 | `qtn_amenity_amount` | `qtn_amenity_price × amenity_qty` (always 1 — one row is one placement) |
 
@@ -54,15 +54,15 @@ floor_qty   = floor_count   if amenity.depends_on_floor_count
               0             otherwise
 ```
 
-A **price deviation** is recorded when the annex Quotation Price (`qtn_annex_price`)
-differs from its Annex Price standard by more than `0.005`. It is the only Quotation Price
+A **price deviation** is recorded when the device Quotation Price (`qtn_device_price`)
+differs from its Device Price standard by more than `0.005`. It is the only Quotation Price
 that is checked, because it is the only one with a published standard. A changed light,
 sound or floor Quotation Price is kept without a check. See
 [reference.md](./reference.md#the-three-price-tiers-and-the-quotation-price) and
-[validations.md](./validations.md#annex-price--maintain_annex_price_action).
+[validations.md](./validations.md#device-price--maintain_device_price_action).
 
 > Floors are **additive** here, not a multiplier on the line. See
-> [annexes.md](./annexes.md#the-per-amenity-add-ons).
+> [devices.md](./devices.md#the-per-amenity-add-ons).
 
 ---
 
@@ -78,7 +78,7 @@ Then taxes, grand/rounded totals and the `base_*` mirrors, unchanged — see
 [discount.md](./discount.md) and [taxes_and_charges.md](./taxes_and_charges.md).
 
 The header discount is shared back down for display: each amenity row's
-`qtn_amenity_net_amount`, and each annex row's `qtn_annex_net_amount`, are its
+`qtn_amenity_net_amount`, and each device row's `qtn_device_net_amount`, are its
 pro-rata share. Those `net_` figures are **guidance only** — nothing is charged from
 them, which is why the split can stay proportional.
 
@@ -86,8 +86,8 @@ them, which is why the split can stay proportional.
 
 ## Standard-price governance
 
-Every deviating **annex** price is checked, governed by `maintain_annex_price_action`.
-See [validations.md](./validations.md#annex-price--maintain_annex_price_action).
+Every deviating **device** price is checked, governed by `maintain_device_price_action`.
+See [validations.md](./validations.md#device-price--maintain_device_price_action).
 
 ---
 
@@ -120,8 +120,8 @@ are still there, on their way out.
 
 Facility is a Villa on 1 floor, with **two** Lounges drawn on it. Amenity **Lounge**
 (`depends_on_floor_count = 1`, `floor_extra_price = 50`, `sound_system_price = 200`, a
-`Dimmer` light system priced 80 in `Add` mode), composed of 2 annexes. A Villa-scoped
-**Annex Price** overrides the AC. Both placements are configured alike, so each row prices
+`Dimmer` light system priced 80 in `Add` mode), composed of 2 devices. A Villa-scoped
+**Device Price** overrides the AC. Both placements are configured alike, so each row prices
 the same:
 
 | Component | Detail | Amount |

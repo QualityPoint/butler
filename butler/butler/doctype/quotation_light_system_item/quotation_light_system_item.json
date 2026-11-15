@@ -8,10 +8,10 @@
  "engine": "InnoDB",
  "field_order": [
   "light_system",
-  "device",
+  "light_system_device",
   "used_lines",
   "channels_count",
-  "device_count",
+  "light_system_device_count",
   "is_default",
   "column_break_slnh",
   "manufacturer",
@@ -30,10 +30,10 @@
   },
   {
    "columns": 2,
-   "fieldname": "device",
+   "fieldname": "light_system_device",
    "fieldtype": "Link",
    "in_list_view": 1,
-   "label": "Device",
+   "label": "Light System Device",
    "options": "Light System Device",
    "read_only": 1
   },
@@ -58,10 +58,10 @@
   },
   {
    "columns": 2,
-   "fieldname": "device_count",
+   "fieldname": "light_system_device_count",
    "fieldtype": "Int",
    "in_list_view": 1,
-   "label": "Device Count",
+   "label": "Light System Device Count",
    "non_negative": 1,
    "read_only": 1
   },
@@ -79,14 +79,14 @@
    "read_only": 1
   },
   {
-   "fetch_from": "device.manufacturer",
+   "fetch_from": "light_system_device.manufacturer",
    "fieldname": "manufacturer",
    "fieldtype": "Data",
    "label": "Manufacturer",
    "read_only": 1
   },
   {
-   "fetch_from": "device.warranty",
+   "fetch_from": "light_system_device.warranty",
    "fieldname": "warranty",
    "fieldtype": "Float",
    "label": "Warranty",
@@ -94,7 +94,7 @@
    "read_only": 1
   },
   {
-   "fetch_from": "device.warranty_uom",
+   "fetch_from": "light_system_device.warranty_uom",
    "fieldname": "warranty_uom",
    "fieldtype": "Select",
    "label": "Warranty UOM",
@@ -106,7 +106,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-10-03 16:04:30.000000",
+ "modified": "2026-11-15 13:11:11.000000",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Quotation Light System Item",

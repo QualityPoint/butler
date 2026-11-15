@@ -15,8 +15,8 @@
   "column_break_nuzj",
   "description",
   "image",
-  "device_configuration_section",
-  "devices"
+  "light_system_devices_section",
+  "light_system_devices"
  ],
  "fields": [
   {
@@ -69,14 +69,13 @@
    "reqd": 1
   },
   {
-   "fieldname": "device_configuration_section",
-   "fieldtype": "Section Break",
-   "label": "Device Configuration"
+   "fieldname": "light_system_devices_section",
+   "fieldtype": "Section Break"
   },
   {
-   "fieldname": "devices",
+   "fieldname": "light_system_devices",
    "fieldtype": "Table",
-   "label": "Devices",
+   "label": "Light System Devices",
    "options": "Light System Device Item",
    "reqd": 1
   }
@@ -84,7 +83,7 @@
  "grid_page_length": 50,
  "image_field": "image",
  "links": [],
- "modified": "2026-10-03 12:34:29.398883",
+ "modified": "2026-11-15 14:57:33.000000",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Light System",

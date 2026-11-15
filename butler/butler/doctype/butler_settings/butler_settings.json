@@ -7,8 +7,8 @@
  "field_order": [
   "quotation_section",
   "column_break_aufy",
-  "maintain_annex_price_action",
-  "role_to_override_annex_price_stop_action",
+  "maintain_device_price_action",
+  "role_to_override_device_price_stop_action",
   "column_break_xfld",
   "action_if_dependencies_missing",
   "role_to_override_dependency_stop_action",
@@ -75,14 +75,14 @@
   },
   {
    "default": "Stop",
-   "fieldname": "maintain_annex_price_action",
+   "fieldname": "maintain_device_price_action",
    "fieldtype": "Select",
-   "label": "Action if Annex standard price is not maintained",
+   "label": "Action if Device standard price is not maintained",
    "options": "Stop\nWarn"
   },
   {
-   "depends_on": "eval:doc.maintain_annex_price_action==\"Stop\"",
-   "fieldname": "role_to_override_annex_price_stop_action",
+   "depends_on": "eval:doc.maintain_device_price_action==\"Stop\"",
+   "fieldname": "role_to_override_device_price_stop_action",
    "fieldtype": "Link",
    "label": " Role allowed to override stop action ",
    "options": "Role"
@@ -141,7 +141,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-10-03 16:28:10.000000",
+ "modified": "2026-11-15 13:11:11.000000",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Butler Settings",

@@ -20,7 +20,7 @@
   "additional_amenity",
   "facility_builder_section",
   "placement_id",
-  "annexes_customised",
+  "devices_customised",
   "column_break_pwin",
   "attributes_section",
   "amenity_description",
@@ -84,15 +84,15 @@
   "column_break_rrwn",
   "base_sound_system_price",
   "base_sound_system_amount",
-  "annex_section",
-  "annex",
-  "annex_name",
-  "annex_category",
-  "annex_type",
+  "device_section",
+  "device",
+  "device_name",
+  "device_category",
+  "device_type",
   "column_break_xulg",
-  "annex_icon",
-  "annex_description",
-  "is_extra_annex",
+  "device_icon",
+  "device_description",
+  "is_extra_device",
   "section_break_zsnb",
   "manufacturer",
   "column_break_yhgn",
@@ -100,24 +100,24 @@
   "warranty_uom",
   "section_break_gaov",
   "column_break_jzok",
-  "annex_quantity",
-  "annex_uom",
-  "annex_stock_uom",
+  "device_quantity",
+  "device_uom",
+  "device_stock_uom",
   "conversion_factor",
   "column_break_ektr",
-  "annex_price_list",
-  "annex_price",
-  "annex_amount",
+  "device_price_list",
+  "device_price",
+  "device_amount",
   "section_break_nwyx",
-  "qtn_annex_price",
-  "qtn_annex_net_price",
-  "qtn_annex_amount",
-  "qtn_annex_net_amount",
+  "qtn_device_price",
+  "qtn_device_net_price",
+  "qtn_device_amount",
+  "qtn_device_net_amount",
   "column_break_tdnx",
-  "base_annex_price",
-  "base_annex_net_price",
-  "base_annex_amount",
-  "base_annex_net_amount",
+  "base_device_price",
+  "base_device_net_price",
+  "base_device_amount",
+  "base_device_net_amount",
   "floor_pricing_section",
   "floor_price",
   "floor_qty",
@@ -175,7 +175,7 @@
    "reqd": 1
   },
   {
-   "description": "The Facility Builder shape this row was drawn from. Machine key \u2014 never hand-edited.",
+   "description": "The Facility Builder shape this row was drawn from. Machine key — never hand-edited.",
    "fieldname": "placement_id",
    "fieldtype": "Data",
    "label": "Placement",
@@ -184,7 +184,7 @@
   },
   {
    "default": "0",
-   "description": "Set by pricing when any Quotation Price on this placement (an annex, light system, sound system or floor price) differs from its standard.",
+   "description": "Set by pricing when any Quotation Price on this placement (a device, light system, sound system or floor price) differs from its standard.",
    "fieldname": "quotation_price_changed",
    "fieldtype": "Check",
    "label": "Quotation Price Changed",
@@ -192,10 +192,10 @@
   },
   {
    "default": "0",
-   "description": "Set once this placement's annexes are edited. While it is off the server seeds them from the Amenity.",
-   "fieldname": "annexes_customised",
+   "description": "Set once this placement's devices are edited. While it is off the server seeds them from the Amenity.",
+   "fieldname": "devices_customised",
    "fieldtype": "Check",
-   "label": "Annexes Customised",
+   "label": "Devices Customised",
    "read_only": 1
   },
   {
@@ -345,32 +345,32 @@
    "fieldtype": "Column Break"
   },
   {
-   "fieldname": "annex",
+   "fieldname": "device",
    "fieldtype": "Link",
-   "label": "Annex",
-   "options": "Annex"
+   "label": "Device",
+   "options": "Device"
   },
   {
-   "fetch_from": "annex.annex_name",
-   "fieldname": "annex_name",
+   "fetch_from": "device.device_name",
+   "fieldname": "device_name",
    "fieldtype": "Data",
-   "label": "Annex Name",
+   "label": "Device Name",
    "read_only": 1
   },
   {
-   "fetch_from": "annex.annex_category",
-   "fieldname": "annex_category",
+   "fetch_from": "device.device_category",
+   "fieldname": "device_category",
    "fieldtype": "Link",
-   "label": "Annex Category",
-   "options": "Annex Category",
+   "label": "Device Category",
+   "options": "Device Category",
    "read_only": 1
   },
   {
    "default": "0",
-   "description": "Set by pricing when this annex is not one of its Amenity's own. It has no Annex Price, so its standard is 0 and its Quotation Price is set on the quotation.",
-   "fieldname": "is_extra_annex",
+   "description": "Set by pricing when this device is not one of its Amenity's own. It has no Device Price, so its standard is 0 and its Quotation Price is set on the quotation.",
+   "fieldname": "is_extra_device",
    "fieldtype": "Check",
-   "label": "Extra Annex",
+   "label": "Extra Device",
    "read_only": 1
   },
   {
@@ -435,9 +435,9 @@
    "read_only": 1
   },
   {
-   "fieldname": "annex_section",
+   "fieldname": "device_section",
    "fieldtype": "Section Break",
-   "label": "Annex"
+   "label": "Device"
   },
   {
    "fieldname": "sound_system_section",
@@ -503,7 +503,7 @@
    "options": "currency"
   },
   {
-   "fetch_from": "annex.manufacturer",
+   "fetch_from": "device.manufacturer",
    "fieldname": "manufacturer",
    "fieldtype": "Data",
    "label": "Manufacturer",
@@ -511,7 +511,7 @@
    "read_only": 1
   },
   {
-   "fetch_from": "annex.warranty",
+   "fetch_from": "device.warranty",
    "fieldname": "warranty",
    "fieldtype": "Float",
    "label": "Warranty",
@@ -519,7 +519,7 @@
    "read_only": 1
   },
   {
-   "fetch_from": "annex.warranty_uom",
+   "fetch_from": "device.warranty_uom",
    "fieldname": "warranty_uom",
    "fieldtype": "Select",
    "label": "Warranty UOM",
@@ -530,7 +530,7 @@
   {
    "fieldname": "section_break_gaov",
    "fieldtype": "Section Break",
-   "label": "Annex Quantity and Price"
+   "label": "Device Quantity and Price"
   },
   {
    "fieldname": "column_break_ektr",
@@ -541,33 +541,33 @@
    "fieldtype": "Column Break"
   },
   {
-   "fieldname": "annex_price",
+   "fieldname": "device_price",
    "fieldtype": "Currency",
-   "label": "Annex Price (Amenity Currency)",
+   "label": "Device Price (Amenity Currency)",
    "non_negative": 1,
    "options": "amenity_currency",
    "print_hide": 1,
    "read_only": 1
   },
   {
-   "fieldname": "annex_amount",
+   "fieldname": "device_amount",
    "fieldtype": "Currency",
-   "label": "Annex Amount (Amenity Currency)",
+   "label": "Device Amount (Amenity Currency)",
    "options": "amenity_currency",
    "read_only": 1
   },
   {
-   "fieldname": "annex_quantity",
+   "fieldname": "device_quantity",
    "fieldtype": "Float",
    "in_list_view": 1,
-   "label": "Annex Quantity",
+   "label": "Device Quantity",
    "non_negative": 1
   },
   {
-   "fieldname": "annex_uom",
+   "fieldname": "device_uom",
    "fieldtype": "Link",
    "in_list_view": 1,
-   "label": "Annex UOM",
+   "label": "Device UOM",
    "options": "UOM"
   },
   {
@@ -575,10 +575,10 @@
    "fieldtype": "Section Break"
   },
   {
-   "fieldname": "qtn_annex_price",
+   "fieldname": "qtn_device_price",
    "fieldtype": "Currency",
    "in_list_view": 1,
-   "label": "Annex Price",
+   "label": "Device Price",
    "non_negative": 1,
    "options": "currency"
   },
@@ -654,7 +654,7 @@
   },
   {
    "default": "1",
-   "description": "Set from the Facility Builder \u2014 one placement per row, summed on consolidation.",
+   "description": "Set from the Facility Builder — one placement per row, summed on consolidation.",
    "fieldname": "amenity_qty",
    "fieldtype": "Float",
    "in_list_view": 1,
@@ -663,9 +663,9 @@
    "read_only": 1
   },
   {
-   "fieldname": "annex_stock_uom",
+   "fieldname": "device_stock_uom",
    "fieldtype": "Link",
-   "label": "Annex Stock UOM",
+   "label": "Device Stock UOM",
    "options": "UOM",
    "print_hide": 1,
    "read_only": 1
@@ -747,57 +747,57 @@
    "read_only": 1
   },
   {
-   "fieldname": "base_annex_price",
+   "fieldname": "base_device_price",
    "fieldtype": "Currency",
-   "label": "Annex Price",
+   "label": "Device Price",
    "options": "Company:company:default_currency",
    "print_hide": 1,
    "read_only": 1
   },
   {
-   "fieldname": "base_annex_net_price",
+   "fieldname": "base_device_net_price",
    "fieldtype": "Currency",
-   "label": "Annex Net Price",
+   "label": "Device Net Price",
    "options": "Company:company:default_currency",
    "print_hide": 1,
    "read_only": 1
   },
   {
-   "fieldname": "base_annex_amount",
+   "fieldname": "base_device_amount",
    "fieldtype": "Currency",
-   "label": "Annex Amount",
+   "label": "Device Amount",
    "options": "Company:company:default_currency",
    "print_hide": 1,
    "read_only": 1
   },
   {
-   "fieldname": "base_annex_net_amount",
+   "fieldname": "base_device_net_amount",
    "fieldtype": "Currency",
-   "label": "Annex Net Amount",
+   "label": "Device Net Amount",
    "options": "Company:company:default_currency",
    "print_hide": 1,
    "read_only": 1
   },
   {
-   "fieldname": "qtn_annex_net_price",
+   "fieldname": "qtn_device_net_price",
    "fieldtype": "Currency",
-   "label": "Annex Net Price",
+   "label": "Device Net Price",
    "options": "currency",
    "print_hide": 1,
    "read_only": 1
   },
   {
-   "fieldname": "qtn_annex_amount",
+   "fieldname": "qtn_device_amount",
    "fieldtype": "Currency",
-   "label": "Annex Amount",
+   "label": "Device Amount",
    "options": "currency",
    "print_hide": 1,
    "read_only": 1
   },
   {
-   "fieldname": "qtn_annex_net_amount",
+   "fieldname": "qtn_device_net_amount",
    "fieldtype": "Currency",
-   "label": "Annex Net Amount",
+   "label": "Device Net Amount",
    "options": "currency",
    "print_hide": 1,
    "read_only": 1
@@ -809,31 +809,31 @@
    "label": "Has Sound System"
   },
   {
-   "fieldname": "annex_price_list",
+   "fieldname": "device_price_list",
    "fieldtype": "Link",
-   "label": "Annex Price List",
-   "options": "Annex Price"
+   "label": "Device Price List",
+   "options": "Device Price"
   },
   {
    "fieldname": "section_break_zsnb",
    "fieldtype": "Section Break"
   },
   {
-   "fetch_from": "annex.description",
+   "fetch_from": "device.description",
    "fetch_if_empty": 1,
-   "fieldname": "annex_description",
+   "fieldname": "device_description",
    "fieldtype": "Small Text",
-   "label": "Annex Description"
+   "label": "Device Description"
   },
   {
    "fieldname": "column_break_yhgn",
    "fieldtype": "Column Break"
   },
   {
-   "fetch_from": "annex.icon",
-   "fieldname": "annex_icon",
+   "fetch_from": "device.icon",
+   "fieldname": "device_icon",
    "fieldtype": "Icon",
-   "label": "Annex Icon",
+   "label": "Device Icon",
    "read_only": 1
   },
   {
@@ -970,11 +970,11 @@
    "read_only": 1
   },
   {
-   "fetch_from": "annex.annex_type",
-   "fieldname": "annex_type",
+   "fetch_from": "device.device_type",
+   "fieldname": "device_type",
    "fieldtype": "Link",
-   "label": "Annex Type",
-   "options": "Annex Type",
+   "label": "Device Type",
+   "options": "Device Type",
    "read_only": 1
   }
  ],
@@ -982,7 +982,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-11-15 11:50:19.829271",
+ "modified": "2026-11-15 13:11:11.000000",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Butler Quotation Item",

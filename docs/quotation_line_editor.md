@@ -3,8 +3,8 @@
 The Amenities section of a **Butler Quotation** (`amenities_html`). It is rendered by
 `butler/public/js/quotation/amenities_editor.js` and mounted from `render_amenities_editor`
 in `butler_quotation.js`. The `amenities` child table itself is hidden and read-only: it
-holds two row types (amenity rows and their annex rows, see
-[annexes.md](./quotation_pricing/annexes.md)), which a stock grid can't present.
+holds two row types (amenity rows and their device rows, see
+[devices.md](./quotation_pricing/devices.md)), which a stock grid can't present.
 
 ---
 
@@ -12,7 +12,7 @@ holds two row types (amenity rows and their annex rows, see
 
 *Vocabulary.* An **amenity** in these screens is one drawn placement: one row of the
 quotation's Amenities table (Butler Quotation Item), e.g. one Kitchen on the Ground Floor. The
-list groups them by amenity type. **Annexes** are the parts fitted to an amenity (AC, Motion
+list groups them by amenity type. **Devices** are the parts fitted to an amenity (AC, Motion
 Sensor…). The prose below says "room" for a placement, and the drawing stores placements under
 its `rooms` key, but there is no Room doctype and the screens never show that word.
 
@@ -21,9 +21,9 @@ its `rooms` key, but there is no Room doctype and the screens never show that wo
 [ Butler Manager: (Ahmed ×) (Mona ×) ▾ ]  [ Search amenity or alias… ]
 [ Customised ] [ Sound on ] [ Non-default light system ] [ Quotation Price changed ]
 ┌────────────────────────────┬──────────────────────────────────────────────────────┐
-│ GUEST WC'S ×6     SAR …    │ Guest WC's  [Sara's Bath]       4 annexes   SAR …    │
-│  Guest WC's        SAR …   │ Light System · Device · Light System Price · Sound…  │
-│▸ Sara's Bath  ● Quotation… │ Annex | Qty | UOM | Price | Amount                   │
+│ GUEST WC'S ×6     SAR …    │ Guest WC's  [Sara's Bath]       4 devices   SAR …    │
+│  Guest WC's        SAR …   │ Light System · Light System Device · Light Sys… ·    │
+│▸ Sara's Bath  ● Quotation… │ Device | Qty | UOM | Price | Amount                   │
 │ MAJLIS ×5         SAR …    │ …                                                    │
 └────────────────────────────┴──────────────────────────────────────────────────────┘
 ```
@@ -44,8 +44,8 @@ its `rooms` key, but there is no Room doctype and the screens never show that wo
   heading. A room shows its alias when it has one, otherwise the amenity name. A purple **●**
   means customised, and an orange **Quotation Price** badge means one of its Quotation Prices has
   been changed. ↑ / ↓ move through the rooms of the open groups while the list has focus.
-- **Detail (right).** The selected room: a sticky title bar (amenity, alias, annex count,
-  amount), then its add-ons and its annex table. Nothing is selected until you pick a
+- **Detail (right).** The selected room: a sticky title bar (amenity, alias, device count,
+  amount), then its add-ons and its device table. Nothing is selected until you pick a
   room, and the pane says so. Closing the group of the selected room keeps its detail
   open, and its heading is marked.
 - **Height.** The panel is `clamp(420px, 70vh, 720px)` tall, and the list and the detail
@@ -70,7 +70,7 @@ the manager (a room must pass all that are on):
 
 | Chip | A room passes when |
 |---|---|
-| Customised | `annexes_customised`, or a light system other than the default, or `has_sound_system`. This is the Facility Builder's own rule (`has_custom_features` in `store.js`), so a room reads the same in both |
+| Customised | `devices_customised`, or a light system other than the default, or `has_sound_system`. This is the Facility Builder's own rule (`has_custom_features` in `store.js`), so a room reads the same in both |
 | Sound on | `has_sound_system` |
 | Non-default light system | `light_system` is set and is not the Light System marked default |
 | Quotation Price changed | `quotation_price_changed`, set by pricing; see [reference.md](./quotation_pricing/reference.md#the-three-price-tiers-and-the-quotation-price) |
@@ -86,7 +86,7 @@ managers and the search.
 
 | Builder-owned (read-only here) | Quotation Price (editable here only) |
 |---|---|
-| annex quantity and UOM, light system, light system device, sound system on/off, alias | `qtn_annex_price`, `qtn_light_system_price`, `qtn_sound_system_price`, `qtn_floor_price` |
+| device quantity and UOM, light system, light system device, sound system on/off, alias | `qtn_device_price`, `qtn_light_system_price`, `qtn_sound_system_price`, `qtn_floor_price` |
 
 A Facility Builder save rebuilds the rows from the drawing, so composition edited here
 would be overwritten. That is why those controls are locked and labelled *Set in the
@@ -103,7 +103,7 @@ top of the file):
    returning to a room reuses its controls. A detail is retired only when its placement
    leaves the document.
 2. **Selecting touches one room.** Only the newly selected room's detail is built.
-3. **A control is built once.** The annex cells live as long as their detail.
+3. **A control is built once.** The device cells live as long as their detail.
 4. **Repaint with `refresh()`.** After a live recalculation, `sync()` repaints the floor
    tabs, the list amounts and badges, and the details, without rebuilding anything.
 
@@ -123,6 +123,6 @@ selection, search, managers and filters reset and the Amenity options are read a
 A draft quotation's **Reset Amenity** button (and the Butler Quotation list action of the same
 name) puts chosen amenities back to their masters: all of them, those of some amenity types,
 or individual amenities. What can be reset: *Details* (Butler Manager, image, category,
-annex details), *Prices* (Quotation Prices to standard), *Annexes* (the Amenity's own list) and
-*Light & sound* (default system, sound off, no device). Resets that reprice are saved and
+device details), *Prices* (Quotation Prices to standard), *Devices* (the Amenity's own list) and
+*Light & sound* (default system, sound off, no light system device). Resets that reprice are saved and
 recorded in the timeline. See [legacy_quotations.md](./legacy_quotations.md#reset-amenity).

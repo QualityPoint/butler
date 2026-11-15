@@ -13,9 +13,9 @@ IGNORE_TEST_RECORD_DEPENDENCIES = []  # eg. ["User"]
 
 
 
-class IntegrationTestAnnex(IntegrationTestCase):
+class IntegrationTestDevice(IntegrationTestCase):
 	"""
-	Integration tests for Annex.
+	Integration tests for Device.
 	Use this class for testing interactions between multiple components.
 	"""
 

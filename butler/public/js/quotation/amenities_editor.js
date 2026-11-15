@@ -1,7 +1,7 @@
 // The Butler Quotation line editor.
 //
-// `Butler Quotation.amenities` holds two row types — an amenity row and the annex rows
-// beneath it (see docs/quotation_pricing/annexes.md). A stock grid can't express that: it
+// `Butler Quotation.amenities` holds two row types — an amenity row and the device rows
+// beneath it (see docs/quotation_pricing/devices.md). A stock grid can't express that: it
 // would show one flat list of 88-column rows where most fields are blank for whichever
 // type the row isn't. So the table is hidden + read-only and rendered here instead, as a
 // master–detail panel: floor tabs, a searchable list of the floor's rooms grouped by
@@ -30,11 +30,11 @@
 //   3. A control is built once and then kept.  GridRow.make_control opens with
 //      `if (column.field) return;` — a cell that already has a control is never given a
 //      second one.
-//      Here: the annex cells are built when the room is first selected and live for as
+//      Here: the device cells are built when the room is first selected and live for as
 //      long as its detail does. Frappe goes further and builds no control at all until a cell is
 //      clicked (each column carries a static_area of plain text beside a hidden
 //      field_area), which is how a 50-row grid avoids building 250 controls. This editor
-//      deliberately doesn't: a room holds a handful of annex rows, and hiding their
+//      deliberately doesn't: a room holds a handful of device rows, and hiding their
 //      inputs behind a click to save that is a bad trade. What cost us was rebuilding
 //      controls, and rules 1, 2 and 4 are what stop that.
 //
@@ -166,20 +166,20 @@ butler.ui.AmenitiesEditor = class AmenitiesEditor {
 
     // Group the flat table the way the server does (group_amenity_rows): every row
     // carries the `placement_id` of the drawn amenity it belongs to, so an amenity row
-    // opens a group and each annex row joins the one it names. A row without an id joins
+    // opens a group and each device row joins the one it names. A row without an id joins
     // the amenity row above it, the same rule as ensure_placement_ids on the server.
     get_groups() {
         const groups = [];
         const at = {};
 
         for (const row of this.frm.doc.amenities || []) {
-            if (!row.annex) {
+            if (!row.device) {
                 at[row.placement_id] = groups.length;
-                groups.push({ amenity_row: row, annex_rows: [] });
+                groups.push({ amenity_row: row, device_rows: [] });
                 continue;
             }
             const position = at[row.placement_id];
-            if (position !== undefined) groups[position].annex_rows.push(row);
+            if (position !== undefined) groups[position].device_rows.push(row);
         }
         return groups;
     }
@@ -325,7 +325,7 @@ butler.ui.AmenitiesEditor = class AmenitiesEditor {
 
     // The Facility Builder's has_custom_features, so a room reads as customised in both.
     is_customised(row) {
-        return Boolean(cint(row.annexes_customised) || this.is_off_default_light(row)
+        return Boolean(cint(row.devices_customised) || this.is_off_default_light(row)
             || cint(row.has_sound_system));
     }
 
@@ -408,7 +408,7 @@ butler.ui.AmenitiesEditor = class AmenitiesEditor {
             .appendTo(this.$panel);
         this.$detail = $(`<div class="butler-room-detail"></div>`).appendTo(this.$panel);
         this.$detail_empty = $(`<div class="text-muted" style="padding:1rem"></div>`)
-            .text(__("Open a group in the list and pick an amenity to see its add-ons and annexes."))
+            .text(__("Open a group in the list and pick an amenity to see its add-ons and devices."))
             .appendTo(this.$detail);
         // a heading opens or closes its group; a <button>, so Enter and Space do it too
         this.$list.on("click", ".butler-room-heading", (e) => {
@@ -495,7 +495,7 @@ butler.ui.AmenitiesEditor = class AmenitiesEditor {
         const counts = new Map();
         for (const row of this.frm.doc.amenities || []) {
             const manager = this.manager_of(row);
-            if (row.annex || !manager) continue;
+            if (row.device || !manager) continue;
             counts.set(manager, (counts.get(manager) || 0) + 1);
         }
         const labels = new Map((this.manager_records || []).map((m) => [m.name, m.manager_name || m.name]));
@@ -692,7 +692,7 @@ butler.ui.AmenitiesEditor = class AmenitiesEditor {
     }
 };
 
-// One room — an amenity row and the annexes under it — as the detail pane shows it. This
+// One room — an amenity row and the devices under it — as the detail pane shows it. This
 // editor's GridRow: it owns its DOM from the moment it is built until it is retired, and
 // every update it takes is in place.
 //
@@ -701,7 +701,7 @@ butler.ui.AmenitiesEditor = class AmenitiesEditor {
 // it, and both vars are redefined under dark mode, so the pair inverts on its own.
 //
 // It shrinks before the amenity name does (min-width:0 here, nowhere on the name) and
-// ellipsizes, so a long alias can never push the annex count or the amount off the bar.
+// ellipsizes, so a long alias can never push the device count or the amount off the bar.
 const ALIAS_CHIP = [
     "font-size:.85em",
     "line-height:1.5",
@@ -726,22 +726,22 @@ butler.ui.AmenityCard = class AmenityCard {
         this.open = false;
 
         this.row = live(group.amenity_row);
-        this.annex_rows = group.annex_rows.map(live);
-        this.annex_key = AmenityCard.key(group.annex_rows);
+        this.device_rows = group.device_rows.map(live);
+        this.device_key = AmenityCard.key(group.device_rows);
 
         this.make();
     }
 
-    // Identifies the *shape* of the annex list, not its values — the body's table only has
+    // Identifies the *shape* of the device list, not its values — the body's table only has
     // to be rebuilt when the rows themselves change, which happens in before_validate on
     // save. JSON, not a joined string, for the same reason get_groups uses it.
-    static key(annex_rows) {
-        return JSON.stringify(annex_rows.map((r) => r.name));
+    static key(device_rows) {
+        return JSON.stringify(device_rows.map((r) => r.name));
     }
 
     make() {
         // The title bar sticks to the top of the detail pane, so the room being edited is
-        // still named while its annex table scrolls.
+        // still named while its device table scrolls.
         this.$card = $(`
             <div class="butler-amenity" style="display:none">
                 <div class="butler-amenity-head" style="position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:.75rem;padding:.6rem .75rem;background:var(--subtle-accent);border-bottom:1px solid var(--border-color)">
@@ -749,7 +749,7 @@ butler.ui.AmenityCard = class AmenityCard {
                         <span class="butler-amenity-name" style="font-weight:600;white-space:nowrap"></span>
                         <span class="butler-amenity-alias" style="${ALIAS_CHIP}"></span>
                     </span>
-                    <span class="butler-annex-count text-muted" style="font-size:.85em"></span>
+                    <span class="butler-device-count text-muted" style="font-size:.85em"></span>
                     <span class="butler-amount" style="text-align:right;font-weight:600;white-space:nowrap"></span>
                 </div>
                 <div class="butler-amenity-body" style="padding:.75rem"></div>
@@ -760,7 +760,7 @@ butler.ui.AmenityCard = class AmenityCard {
 
         const $name = this.$card.find(".butler-amenity-name");
         const $alias = this.$card.find(".butler-amenity-alias");
-        const $count = this.$card.find(".butler-annex-count");
+        const $count = this.$card.find(".butler-device-count");
         const $amount = this.$card.find(".butler-amount");
 
         this.head_syncers.push(() => {
@@ -778,7 +778,7 @@ butler.ui.AmenityCard = class AmenityCard {
                 .text(named ? alias : "")
                 .attr("title", named ? __("Alias — set in the Facility Builder") : null)
                 .toggle(named);
-            $count.text(__("{0} annexes", [this.annex_rows.length]));
+            $count.text(butler.utils.device_count(this.device_rows.length));
             $amount.text(format_currency(this.row.qtn_amenity_amount, this.frm.doc.currency));
         });
     }
@@ -796,13 +796,13 @@ butler.ui.AmenityCard = class AmenityCard {
     refresh(group) {
         this.row = live(group.amenity_row);
 
-        const key = AmenityCard.key(group.annex_rows);
-        // Only a change to the annex rows themselves invalidates the body; new values in
+        const key = AmenityCard.key(group.device_rows);
+        // Only a change to the device rows themselves invalidates the body; new values in
         // the same rows are just a sync. Controls are addressed by docname, so as long as
         // the docnames hold, what is on screen is still pointing at the right documents.
-        if (this.built && key !== this.annex_key) this.clear_body();
-        this.annex_key = key;
-        this.annex_rows = group.annex_rows.map(live);
+        if (this.built && key !== this.device_key) this.clear_body();
+        this.device_key = key;
+        this.device_rows = group.device_rows.map(live);
 
         if (this.open && !this.built) this.build_body();
     }
@@ -819,7 +819,7 @@ butler.ui.AmenityCard = class AmenityCard {
 
     sync() {
         this.row = live(this.row);
-        this.annex_rows = this.annex_rows.map(live);
+        this.device_rows = this.device_rows.map(live);
 
         for (const syncer of this.head_syncers) syncer();
         if (this.built && this.open) for (const syncer of this.body_syncers) syncer();
@@ -830,7 +830,7 @@ butler.ui.AmenityCard = class AmenityCard {
         this.built = true;
         const opts = this.editor.options[this.row.amenity] || {};
         this.render_add_ons(opts);
-        this.render_annexes();
+        this.render_devices();
     }
 
     // The add-ons this Amenity can carry — a light-system picker and a sound toggle on
@@ -882,11 +882,11 @@ butler.ui.AmenityCard = class AmenityCard {
                 // system is priced from its own standard rate across every line
             });
 
-            // The device the Facility Builder picked for a room on a non-default system.
+            // The light system device the Facility Builder picked for a room on a non-default system.
             // It counts controllers for the whole facility and never touches the price, so
             // it is shown for reference only (builder-owned, read-only).
-            const $device = slot($line, "12rem");
-            this.make_field($device, row, {
+            const $light_system_device = slot($line, "12rem");
+            this.make_field($light_system_device, row, {
                 fieldname: "light_system_device", fieldtype: "Link",
                 options: "Light System Device", label: __("Light System Device"),
             });
@@ -932,7 +932,7 @@ butler.ui.AmenityCard = class AmenityCard {
                 const chosen = Boolean(this.row.light_system);
                 $price.toggle(chosen);
                 $hint.toggle(chosen);
-                $device.toggle(Boolean(this.row.light_system_device));
+                $light_system_device.toggle(Boolean(this.row.light_system_device));
 
                 const filled = cint(this.row.default_system_lines);
                 $fill.toggle(Boolean(this.row.default_system && filled));
@@ -997,9 +997,9 @@ butler.ui.AmenityCard = class AmenityCard {
         $checks.find("input[type=checkbox]").css({ margin: 0, position: "static" });
     }
 
-    render_annexes() {
-        if (!this.annex_rows.length) {
-            this.$body.append(`<div class="text-muted" style="font-size:.85em">${__("No annexes.")}</div>`);
+    render_devices() {
+        if (!this.device_rows.length) {
+            this.$body.append(`<div class="text-muted" style="font-size:.85em">${__("No devices.")}</div>`);
             return;
         }
         const currency = this.frm.doc.currency;
@@ -1010,7 +1010,7 @@ butler.ui.AmenityCard = class AmenityCard {
         const $table = $(`
             <table class="table table-sm" style="margin:0">
                 <thead><tr>
-                    <th style="${th};width:30%">${__("Annex")}</th>
+                    <th style="${th};width:30%">${__("Device")}</th>
                     <th style="${th};width:14%">${__("Qty")}</th>
                     <th style="${th};width:18%">${__("UOM")}</th>
                     <th style="${th};width:20%">${__("Price")} <span class="text-muted">(${currency})</span></th>
@@ -1021,14 +1021,14 @@ butler.ui.AmenityCard = class AmenityCard {
         `).appendTo(this.$body);
         const $tbody = $table.find("tbody");
 
-        this.annex_rows.forEach((annex, index) => {
+        this.device_rows.forEach((device, index) => {
             // by index, not by object: sync re-reads locals, and the row it hands back on
             // the next recalc is a different object with the same docname
-            const doc_of = () => this.annex_rows[index];
+            const doc_of = () => this.device_rows[index];
 
             const $tr = $(`
                 <tr>
-                    <td class="c-annex"></td>
+                    <td class="c-device"></td>
                     <td class="c-qty"></td>
                     <td class="c-uom"></td>
                     <td class="c-price"></td>
@@ -1036,36 +1036,36 @@ butler.ui.AmenityCard = class AmenityCard {
                 </tr>
             `).appendTo($tbody);
 
-            $tr.find(".c-annex").text(annex.annex_name || annex.annex || "");
-            // An extra annex (not one of its Amenity's own) has no Annex Price, so it is
+            $tr.find(".c-device").text(device.device_name || device.device || "");
+            // An extra device (not one of its Amenity's own) has no Device Price, so it is
             // priced at 0 until its Quotation Price is set here. Marked the way the Facility
             // Builder marks it: a gold superscript "+".
-            if (annex.is_extra_annex) {
+            if (device.is_extra_device) {
                 $(`<sup style="color:#b8860b;font-weight:700;margin-left:2px;cursor:help">+</sup>`)
-                    .attr("title", __("Extra annex — not part of this Amenity. Set its price here."))
-                    .appendTo($tr.find(".c-annex"));
+                    .attr("title", __("Extra device — not part of this Amenity. Set its price here."))
+                    .appendTo($tr.find(".c-device"));
             }
 
             const $amount = $tr.find(".c-amount");
             this.body_syncers.push(() =>
-                $amount.text(format_currency(doc_of().qtn_annex_amount, currency)));
+                $amount.text(format_currency(doc_of().qtn_device_amount, currency)));
 
             // bare: the table header already names each column
             this.make_field($tr.find(".c-qty"), doc_of, {
-                fieldname: "annex_quantity", fieldtype: "Float", label: __("Qty"),
+                fieldname: "device_quantity", fieldtype: "Float", label: __("Qty"),
             }, { bare: true });
 
             this.make_field($tr.find(".c-uom"), doc_of, {
-                fieldname: "annex_uom", fieldtype: "Link", options: "UOM", label: __("UOM"),
-                // the UOMs this annex's Item is actually convertible in
+                fieldname: "device_uom", fieldtype: "Link", options: "UOM", label: __("UOM"),
+                // the UOMs this device's Item is actually convertible in
                 get_query: () => ({
-                    query: "butler.utils.queries.get_annex_uom_query",
-                    filters: { annex: doc_of().annex },
+                    query: "butler.utils.queries.get_device_uom_query",
+                    filters: { device: doc_of().device },
                 }),
             }, { bare: true });
 
             this.make_field($tr.find(".c-price"), doc_of, {
-                fieldname: "qtn_annex_price", fieldtype: "Currency", label: __("Price"),
+                fieldname: "qtn_device_price", fieldtype: "Currency", label: __("Price"),
             }, { bare: true });
         });
     }
@@ -1078,12 +1078,12 @@ butler.ui.AmenityCard = class AmenityCard {
     // because the layout is their source of truth. Locking them makes the split visible
     // instead of leaving a trap.
     static BUILDER_OWNED = new Set([
-        "annex_quantity", "annex_uom", "light_system", "light_system_device",
+        "device_quantity", "device_uom", "light_system", "light_system_device",
         "has_sound_system",
     ]);
 
     // One editable control, bound to the model the way a grid cell is. `bare` drops the
-    // label, for the annex table where the column header already names the field.
+    // label, for the device table where the column header already names the field.
     make_field($slot, doc_of, df, { bare = false } = {}) {
         const doc = doc_of();
 

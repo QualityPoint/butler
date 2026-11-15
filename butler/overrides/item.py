@@ -10,26 +10,26 @@ from frappe.utils import cint
 # sync below picks it up.
 BUTLER_WRAPPERS = (
     ("is_amenity", "Amenity", "amenity"),
-    ("is_annex", "Annex", "annex_item"),
+    ("is_device", "Device", "device_item"),
 )
 
 
 def validate(doc, method=None):
-    validate_amenity_annex(doc)
+    validate_amenity_device(doc)
     validate_butler_item(doc)
 
 def before_save(doc, method=None):
     sync_wrapper_disabled(doc)
 
-def validate_amenity_annex(doc):
-    """Validate that an Item cannot be both an Amenity and an Annex.
+def validate_amenity_device(doc):
+    """Validate that an Item cannot be both an Amenity and a Device.
 
     This is a business rule for Butler's Item doctype. An Item can be either
-    an Amenity or an Annex, but not both.
+    an Amenity or a Device, but not both.
     """
-    if doc.is_amenity and doc.is_annex:
+    if doc.is_amenity and doc.is_device:
         frappe.throw(
-            _("An Item cannot be both an Amenity and an Annex. Please select only one.")
+            _("An Item cannot be both an Amenity and a Device. Please select only one.")
         )
 
 def validate_butler_item(doc):
@@ -54,11 +54,11 @@ def validate_butler_item(doc):
         )
 
 def sync_wrapper_disabled(doc):
-    """Mirror the Item's `disabled` onto its Butler wrapper (Amenity / Annex).
+    """Mirror the Item's `disabled` onto its Butler wrapper (Amenity / Device).
 
     The wrapper's `disabled` is a hidden, read-only copy — the Item is the source of
     truth — so it's written straight to the database: there are no wrapper-side hooks
-    worth running for a flag flip (the Amenity's would re-price its whole annex table),
+    worth running for a flag flip (the Amenity's would re-price its whole device table),
     and `modified` is deliberately left alone so the flip can't collide with a form
     someone already has open.
 
@@ -72,7 +72,7 @@ def sync_wrapper_disabled(doc):
         if not doc.get(flag):
             continue
 
-        # An Item is only ever one of the two (validate_amenity_annex), and item_field is
+        # An Item is only ever one of the two (validate_amenity_device), and item_field is
         # unique on the wrapper — so this touches exactly one row, or none at all when the
         # Item carries the flag but its wrapper hasn't been created yet.
         frappe.db.set_value(

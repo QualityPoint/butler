@@ -55,7 +55,7 @@
   "additional_net_total",
   "light_system_devices_section",
   "total_lines",
-  "devices",
+  "light_system_devices",
   "taxes_and_charges_section",
   "tax_category",
   "taxes_and_charges",
@@ -1026,9 +1026,9 @@
    "label": "Light System Devices"
   },
   {
-   "fieldname": "devices",
+   "fieldname": "light_system_devices",
    "fieldtype": "Table",
-   "label": "Devices",
+   "label": "Light System Devices",
    "options": "Quotation Light System Item",
    "read_only": 1
   },
@@ -1045,7 +1045,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-10-03 14:53:58.207322",
+ "modified": "2026-11-15 13:11:11.000000",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Butler Quotation",

@@ -8,10 +8,10 @@ butler.filters = {
         });
     },
 
-    filter_annex: function (frm, field, parentfield) {
+    filter_device: function (frm, field, parentfield) {
         butler.filters._set_query(frm, field, parentfield, {
             disabled: 0,
-            is_annex: 1
+            is_device: 1
         });
     },
 

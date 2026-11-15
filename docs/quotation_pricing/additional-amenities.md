@@ -6,7 +6,7 @@
 A bundle has a fixed composition (e.g. `Spa: 3`, from `bundle_items`). When the client
 wants **more** than that — or amenities from a category the bundle doesn't cover —
 those extras are priced **exactly like the Amenities order type** (composed from the
-amenity's annexes and add-ons, then the discount) and charged on top, into
+amenity's devices and add-ons, then the discount) and charged on top, into
 `additional_total` / `additional_net_total`. The flat `bundle_price` covers everything
 else.
 
@@ -37,7 +37,7 @@ Safeguards:
 
 ## The algorithm
 
-Counted over **amenity rows only** — an annex is priced into its amenity and is never
+Counted over **amenity rows only** — a device is priced into its amenity and is never
 charged separately. The amenity's unit price already contains its floor extra, so there
 is no separate floors multiplier here any more.
 

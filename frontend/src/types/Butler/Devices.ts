@@ -1,5 +1,5 @@
 
-export interface Annexes{
+export interface Devices{
 	name: string
 	creation: string
 	modified: string
@@ -10,8 +10,8 @@ export interface Annexes{
 	parentfield?: string
 	parenttype?: string
 	idx?: number
-	/**	Annex Name : Link - Amenity Annex	*/
-	annex_name: string
+	/**	Device Name : Link - Amenity Device	*/
+	device_name: string
 	/**	Quantity : Int	*/
 	qty: number
 }

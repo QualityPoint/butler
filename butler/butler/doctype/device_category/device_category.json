@@ -28,10 +28,10 @@
  ],
  "grid_page_length": 50,
  "links": [],
- "modified": "2026-09-05 12:37:14.821680",
+ "modified": "2026-11-15 13:11:11.000000",
  "modified_by": "Administrator",
  "module": "Butler",
- "name": "Annex Category",
+ "name": "Device Category",
  "naming_rule": "By fieldname",
  "owner": "Administrator",
  "permissions": [

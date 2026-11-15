@@ -13,7 +13,7 @@
 //
 // Hence two modes:
 //   outline: true   — Frappe's own rendering, a thin stroke and no fill. What an outline
-//                     icon is meant to look like; annexes use it.
+//                     icon is meant to look like; devices use it.
 //   outline: false  — a solid glyph in one colour. The Point marker uses it, where the
 //                     colour belongs to the marker rather than to the icon.
 
