@@ -13,13 +13,16 @@
   "annex_item",
   "annex_name",
   "annex_category",
-  "description",
+  "annex_type",
   "column_break_hwpd",
   "icon",
+  "description",
+  "image",
+  "manufacture_section",
   "manufacturer",
+  "column_break_iscj",
   "warranty",
-  "warranty_uom",
-  "image"
+  "warranty_uom"
  ],
  "fields": [
   {
@@ -101,12 +104,28 @@
    "fieldname": "icon",
    "fieldtype": "Icon",
    "label": "Icon"
+  },
+  {
+   "fieldname": "manufacture_section",
+   "fieldtype": "Section Break",
+   "label": "Manufacture"
+  },
+  {
+   "fieldname": "column_break_iscj",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "annex_type",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Annex Type",
+   "options": "Annex Type"
   }
  ],
  "grid_page_length": 50,
  "image_field": "image",
  "links": [],
- "modified": "2026-09-08 11:51:10.196678",
+ "modified": "2026-11-15 11:46:43.514442",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Annex",

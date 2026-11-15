@@ -92,7 +92,7 @@ One table, **two row types** — an amenity row (`annex` empty) and its annex ro
 | `qtn_annex_price` | Currency | **Quotation Price**; the only one checked against a standard |
 | `qtn_annex_amount` | Currency (ro) | `qtn_annex_price × annex_quantity` |
 | `qtn_annex_net_price` / `qtn_annex_net_amount` | Currency (ro) | pro-rata discount share (guidance only) |
-| `annex_name` / `annex_category` / `manufacturer` / `warranty` / `warranty_uom` | (ro) | `fetch_from` annex |
+| `annex_name` / `annex_category` / `annex_type` / `manufacturer` / `warranty` / `warranty_uom` | (ro) | `fetch_from` annex |
 | `base_*` twins | Currency (ro) | company-currency mirrors |
 
 ## Composition tables

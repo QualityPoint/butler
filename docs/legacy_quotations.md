@@ -93,8 +93,8 @@ is no Room doctype: `rooms` is only the drawing's JSON key for its placements.
 - **Details** re-copies:
   - amenity → `butler_manager`, `image`, `amenity_category`, `is_system_core`,
     `is_dependant_amenity`;
-  - annex → `annex_name`, `annex_category`, `manufacturer`, `warranty`, `warranty_uom`,
-    `annex_icon`.
+  - annex → `annex_name`, `annex_category`, `annex_type`, `manufacturer`, `warranty`,
+    `warranty_uom`, `annex_icon`.
 
   `lines`, `amenity_currency` and `depends_on_floor_count` move prices, so they are refreshed
   by a repricing save instead. `alias` and the descriptions (`fetch_if_empty`) are never

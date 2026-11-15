@@ -2515,7 +2515,7 @@ LEGACY_AMENITY_RENAMES = {"pool": "Pool Indoor"}
 # refreshed by an ordinary save together with the repricing; and the fetch_if_empty fields
 # (`alias`, descriptions), which may hold what the user typed.
 REFRESH_FROM_AMENITY = ("butler_manager", "image", "amenity_category", "is_system_core", "is_dependant_amenity")
-REFRESH_FROM_ANNEX = ("annex_name", "annex_category", "manufacturer", "warranty", "warranty_uom", "annex_icon")
+REFRESH_FROM_ANNEX = ("annex_name", "annex_category", "annex_type", "manufacturer", "warranty", "warranty_uom", "annex_icon")
 
 
 def parse_geometry(geometry):

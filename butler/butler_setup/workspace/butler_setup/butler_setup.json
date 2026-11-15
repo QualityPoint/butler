@@ -73,7 +73,7 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Annex Setup",
-   "link_count": 3,
+   "link_count": 4,
    "onboard": 0,
    "type": "Card Break"
   },
@@ -93,6 +93,16 @@
    "label": "Annex Category",
    "link_count": 0,
    "link_to": "Annex Category",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Annex Type",
+   "link_count": 0,
+   "link_to": "Annex Type",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
@@ -164,7 +174,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-10-08 15:47:07.574388",
+ "modified": "2026-11-15 13:00:00.000000",
  "modified_by": "Administrator",
  "module": "Butler Setup",
  "name": "Butler Setup",
