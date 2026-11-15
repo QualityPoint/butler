@@ -155,7 +155,9 @@ class ButlerQuotation(Document):
     # Quotation, since ButlerQuotation isn't actually an AccountsController subclass.
     get_party = AccountsController.get_party
     set_payment_schedule = AccountsController.set_payment_schedule
+    set_term_outstanding = AccountsController.set_term_outstanding
     validate_payment_schedule_amount = AccountsController.validate_payment_schedule_amount
+    get_payment_schedule_grand_totals = AccountsController.get_payment_schedule_grand_totals
 
     def _validate_links(self):
         # Frappe checks every Link before before_validate runs. `annex_price_list` points at
