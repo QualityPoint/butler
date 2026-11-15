@@ -74,7 +74,7 @@ money. See [light_system_devices.md](../light_system_devices.md).
 every row is given the `placement_id` of the drawn amenity it belongs to, missing device
 rows are seeded from the Amenity, whatever the quotation owns is carried back onto rows a
 builder save has just rebuilt, and the table is re-laid-out as `amenity row → its device
-rows`. See [devices.md](./devices.md).
+rows`. See [devices/](./devices/README.md).
 
 Rule of thumb: **`validate` calculates and warns; `before_submit` blocks.**
 Amounts are recomputed on every save so the form always shows correct numbers;
@@ -105,7 +105,7 @@ These are used by both order types — see [amenities.md](./amenities.md) for de
 - **`floor_count`** — number of *distinct* `floor_type`s across the amenity rows.
 - **Group amount** — `Σ device_amount + light + sound + floor`, where the
   floor extra is `floor_extra_price × floor_count` only when the amenity
-  `depends_on_floor_count` (else `0`). See [devices.md](./devices.md).
+  `depends_on_floor_count` (else `0`). See [add-ons.md](./devices/add-ons.md).
 
 ---
 
@@ -113,7 +113,7 @@ These are used by both order types — see [amenities.md](./amenities.md) for de
 
 | File | Covers |
 |---|---|
-| [devices.md](./devices.md) | **The row model** — amenity rows, device rows, and how an amenity's price is composed |
+| [devices/](./devices/README.md) | **The row model** — amenity rows, device rows, and how an amenity's price is composed |
 | [amenities.md](./amenities.md) | The `Amenities` order type, line pricing, totals |
 | [bundle.md](./bundle.md) | The `Bundle` order type, flat price, max-discount, breakdown |
 | [additional-amenities.md](./additional-amenities.md) | Charging amenities beyond the bundle composition |

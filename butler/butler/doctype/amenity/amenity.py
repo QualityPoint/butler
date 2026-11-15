@@ -8,6 +8,7 @@ from frappe import _
 from frappe.model import display_fieldtypes, table_fields
 from frappe.model.document import Document
 from frappe.utils import cint, flt
+
 from butler.butler.doctype.device.device import get_device_default_uom
 from butler.butler.doctype.device_price.device_price import upsert_device_price
 

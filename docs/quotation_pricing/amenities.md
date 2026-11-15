@@ -12,7 +12,7 @@ All logic is in `ButlerQuotation.calculate_totals()`, run during `validate`.
 > [README.md](./README.md#downstream--the-post-submit-create-action).
 
 > A line is a **group** of rows — one amenity row and its device rows — not a single row.
-> Read [devices.md](./devices.md) first; this page covers what happens above that.
+> Read [devices/](./devices/README.md) first; this page covers what happens above that.
 
 ---
 
@@ -34,7 +34,7 @@ inherit their group's rates.
 
 ## Step 2 — Per-group amount
 
-For each amenity group (see [devices.md](./devices.md) for each component's formula):
+For each amenity group (see [devices/](./devices/README.md) for each component's formula):
 
 | Field | Set to |
 |---|---|
@@ -62,7 +62,7 @@ sound or floor Quotation Price is kept without a check. See
 [validations.md](./validations.md#device-price--maintain_device_price_action).
 
 > Floors are **additive** here, not a multiplier on the line. See
-> [devices.md](./devices.md#the-per-amenity-add-ons).
+> [add-ons.md](./devices/add-ons.md).
 
 ---
 

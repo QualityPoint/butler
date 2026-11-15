@@ -749,7 +749,7 @@ function reset_amenity_dialog(frm) {
 
 // Mount the line editor into the `amenities_html` field. The `amenities` table itself is
 // hidden and read-only — it holds two different row types that a flat grid can't present
-// (see docs/quotation_pricing/devices.md), so this renders it grouped floor → amenity →
+// (see docs/quotation_pricing/devices/), so this renders it grouped floor → amenity →
 // devices instead. Mirrors how user.js mounts frappe.RoleEditor into roles_html.
 function render_amenities_editor(frm) {
     const wrapper = frm.fields_dict.amenities_html && frm.fields_dict.amenities_html.wrapper;

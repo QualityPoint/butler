@@ -4,7 +4,7 @@ The Amenities section of a **Butler Quotation** (`amenities_html`). It is render
 `butler/public/js/quotation/amenities_editor.js` and mounted from `render_amenities_editor`
 in `butler_quotation.js`. The `amenities` child table itself is hidden and read-only: it
 holds two row types (amenity rows and their device rows, see
-[devices.md](./quotation_pricing/devices.md)), which a stock grid can't present.
+[devices/](./quotation_pricing/devices/README.md)), which a stock grid can't present.
 
 ---
 

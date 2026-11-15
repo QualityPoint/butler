@@ -12,9 +12,11 @@ def execute():
 	time anyone saves it. This saves each one now, with a timeline note of the old and new
 	total. Runs after convert_legacy_quotations, whose drafts already match. A draft that
 	fails (a customised amenity still holding a removed device) is rolled back alone and
-	logged. See docs/quotation_pricing/devices.md.
+	logged. See docs/quotation_pricing/devices/following-the-amenity.md.
 	"""
-	drafts = frappe.get_all("Butler Quotation", filters={"docstatus": 0}, pluck="name", order_by="creation asc")
+	drafts = frappe.get_all(
+		"Butler Quotation", filters={"docstatus": 0}, pluck="name", order_by="creation asc"
+	)
 	frappe.flags.mute_messages = True
 	try:
 		for name in drafts:

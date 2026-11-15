@@ -121,7 +121,7 @@ Nothing here touches a submitted quotation.
 
 1. `bench migrate`: runs `add_light_system_devices`, then `convert_legacy_quotations`, then
    `sync_quotations_with_amenities`, which brings the other drafts in line with their Amenities'
-   current device lists, with a timeline note each (see [devices.md](./quotation_pricing/devices.md#an-amenitys-device-list-changes-later)).
+   current device lists, with a timeline note each (see [following-the-amenity.md](./quotation_pricing/devices/following-the-amenity.md)).
 2. Complete the Amenities (Butler Managers, images).
 3. In the Butler Quotation list, select the quotations, then **Reset Amenity → Details** (all amenities).
 

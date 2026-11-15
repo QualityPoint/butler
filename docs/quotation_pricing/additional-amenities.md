@@ -91,7 +91,7 @@ before_submit  →  BLOCK (governed by action_if_bundle_items_unfulfilled + over
 
 Non-bundle categories never trigger this (they're auto-additional).
 
-See [validations.md](./validations.md#2-undesignated-extras).
+See [validations.md](./validations.md#2-undesignated-overflow).
 
 ---
 

@@ -32,7 +32,7 @@ governed action has a `Stop`-gated override role.
 ## Row types
 
 The `amenities` table holds **two row types** in one doctype (see
-[devices.md](./devices.md)), so the mandatory flags that would normally express this
+[devices/](./devices/row-types.md)), so the mandatory flags that would normally express this
 can't live on the fields — `device_uom` as `reqd` would block every amenity row. They are
 enforced in `validate_row_types()` instead:
 
@@ -43,9 +43,10 @@ enforced in `validate_row_types()` instead:
 
 Fields belonging to the *other* row type are **cleared**, not rejected
 (`clear_row_type_fields` in `before_validate`) — they are stale data, not a user error.
-What does throw is a device row matching no amenity row (unattached). A device that isn't one
+What does throw is a device row matching no amenity row (unattached), once
+`ensure_placement_ids` has re-homed the recoverable cases. A device that isn't one
 of its amenity's own is **not** an error: it is an
-[extra device](./devices.md#extra-devices), priced at 0 until its Quotation Price is set, and
+[extra device](./devices/extra-devices.md), priced at 0 until its Quotation Price is set, and
 left out of the device-price check below.
 
 ---
@@ -69,7 +70,7 @@ For Bundle: the **line-level** discount — `(default_bundle_price − bundle_pr
 default_bundle_price × 100` (ERPNext item-discount style) — must be `≤ max_discount`;
 otherwise governance fires. This is the bundle's own discount, **not** the document
 `discount_mode` discount (which `max_discount` does not govern). See
-[bundle.md](./bundle.md#max-discount-floor).
+[bundle.md](./bundle.md#max-discount-cap-line-level-discount).
 
 ---
 

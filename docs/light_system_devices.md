@@ -6,7 +6,7 @@ facility, not per amenity, so this is a **facility-level count**, not pricing:
 | | Light system **pricing** | Light system **devices** |
 |---|---|---|
 | Scope | per amenity row | the whole facility (quotation header) |
-| Code | `price_light_system`, `price_default_system_fill` ([devices.md](./quotation_pricing/devices.md#light-systems)) | `set_light_system_devices` and its helpers |
+| Code | `price_light_system`, `price_default_system_fill` ([light-systems.md](./quotation_pricing/devices/light-systems.md)) | `set_light_system_devices` and its helpers |
 | Writes | the row's prices, amounts, `used_lines`, `default_system_*` | `light_system_device` on amenity rows; header `total_lines` and `light_system_devices` |
 | Moves money | yes | **never** |
 

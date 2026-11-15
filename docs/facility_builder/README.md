@@ -83,7 +83,7 @@ scroller:
 
 | Picker | Where | How |
 |---|---|---|
-| Add device | above the scroller | Link (`Device`, every enabled device minus what is fitted). One outside the Amenity's own list is an [extra device](../quotation_pricing/devices.md#extra-devices), marked in gold with a superscript **+** here and on the plan |
+| Add device | above the scroller | Link (`Device`, every enabled device minus what is fitted). One outside the Amenity's own list is an [extra device](../quotation_pricing/devices/extra-devices.md), marked in gold with a superscript **+** here and on the plan |
 | Device UOM | **inside** the scroller | a plain `<select>` — the browser draws its popup outside the document, so a scroller cannot clip it |
 | Light System | below the scroller | Link (`Light System`, the whole master — an amenity that configures none still gets one), seeded with the default and never blank, its list flipped to open **upward** since it sits on the sidebar's bottom edge |
 | Light System Device | under the Light System, only when it is **not** the default system | Link (`Light System Device`, filtered to the room's system's own light system devices), seeded with that system's default device. See [light_system_devices.md](../light_system_devices.md) |

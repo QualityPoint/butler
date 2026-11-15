@@ -77,6 +77,12 @@ class TestRenameAnnexInSidebars(UnitTestCase):
 					},
 					{"type": "Link", "label": "Annex", "link_type": "DocType", "link_to": "Amenity"},
 					{"type": "Section Break", "label": "Settings"},
+					{
+						"type": "Link",
+						"label": "LIght System",
+						"link_type": "DocType",
+						"link_to": "Light System",
+					},
 				],
 			}
 		)
@@ -90,6 +96,7 @@ class TestRenameAnnexInSidebars(UnitTestCase):
 				(4, "Device Type", "Device Type"),
 				(5, "Annex", "Amenity"),
 				(6, "Settings", None),
+				(7, "Light System", "Light System"),
 			],
 		)
 		self.assertFalse(rename_items(sidebar))

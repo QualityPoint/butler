@@ -1,7 +1,7 @@
 # Device rename patches
 
 The former **Annex** is called **Device**. The light-system controllers are **Light System
-Devices**, so "Device" alone always means the former annex. Four patches move a site's
+Devices**, so "Device" alone always means the former annex. Five patches move a site's
 schema across on `bench migrate`. Record names stay as the site wrote them.
 
 | Patch (`butler/patches/v1_0/`) | Section | Renames |
@@ -10,6 +10,7 @@ schema across on `bench migrate`. Record names stay as the site wrote them.
 | `rename_annex_to_device` | `pre_model_sync` | the DocTypes Annex, Annex Category, Annex Type, Annex Price, Amenity Annex Item; their fields; `Amenity.annexes`; the Butler Settings fields; Item's `is_annex` |
 | `rename_annex_in_print_formats_and_drawings` | `pre_model_sync` | old names inside site print formats and Facility Builder drawings |
 | `rename_annex_in_sidebars` | `post_model_sync` | site sidebars' Annex labels, adding Device Type beside them |
+| `drop_amenity_annex_table` | `post_model_sync` | drops `tabAmenity Annex`, the old `Amenity.annexes` rows no DocType uses, after saving them as a private File `amenity_annex_table_copy.json` |
 
 Each field map is a constant in its patch (`COLUMNS`, `SETTINGS`, `TABLES`). This doc does
 not repeat them.
@@ -35,15 +36,17 @@ exist, it stops and asks for a hand merge.
 |---|---|
 | Print formats (`standard = No`) | DocType and field names inside `{{ }}` and `{% %}`, and builder layout fieldnames. Visible text stays |
 | Drawings (`geometry`) | `room.annexes: [{annex, …}]` becomes `room.devices: [{device, …}]` |
-| Sidebars (`standard = 0`) | the exact labels Annex Setup, Annex, Annex Category, Annex Type, Annex Price. One that fails to save is skipped and logged ("Sidebar … annex items not renamed") |
+| Sidebars (`standard = 0`) | the exact labels Annex Setup, Annex, Annex Category, Annex Type, Annex Price, and the typo "LIght System". One that fails to save is skipped and logged ("Sidebar … annex items not renamed") |
 | Client and Server Scripts, Reports, Notifications | not edited; any that mention annex are listed in the Error Log as "Annex renamed to Device: check these" |
 
 ## Deploying
 
 1. Back up the site's database first. DocType renames cannot be rolled back by a migrate.
 2. `bench --site <site> migrate`, then read the Error Log for the list above.
-3. The site's `tabAmenity Annex` table, if any, is a leftover of an older DocType. The patches
-   leave it alone.
+3. The old `tabAmenity Annex` rows, if the site had them, are in the private File
+   `amenity_annex_table_copy.json` (File list). They are an older composition of each Amenity,
+   not today's device lists.
 
 Tests: `butler/tests/test_rename_annex_patch.py` (print formats, drawings, sidebars) and
-`butler/tests/test_schema_rename.py` (column definition kept, clash refused).
+`butler/tests/test_schema_rename.py` (column definition kept, clash refused) and
+`butler/tests/test_drop_orphan_table.py` (copy kept, table dropped).

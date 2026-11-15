@@ -1,7 +1,7 @@
 // The Butler Quotation line editor.
 //
 // `Butler Quotation.amenities` holds two row types — an amenity row and the device rows
-// beneath it (see docs/quotation_pricing/devices.md). A stock grid can't express that: it
+// beneath it (see docs/quotation_pricing/devices/). A stock grid can't express that: it
 // would show one flat list of 88-column rows where most fields are blank for whichever
 // type the row isn't. So the table is hidden + read-only and rendered here instead, as a
 // master–detail panel: floor tabs, a searchable list of the floor's rooms grouped by

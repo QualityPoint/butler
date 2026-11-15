@@ -6,6 +6,7 @@ LABELS = {
 	"Annex Category": "Device Category",
 	"Annex Type": "Device Type",
 	"Annex Price": "Device Price",
+	"LIght System": "Light System",  # a typo saved on the site's Butler sidebar
 }
 
 

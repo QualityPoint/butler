@@ -1,5 +1,6 @@
 import frappe
 
+
 def get_context(context):
     context.year = frappe.utils.now_datetime().year
 

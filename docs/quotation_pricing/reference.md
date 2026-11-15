@@ -34,7 +34,7 @@ Quick lookup for the fields and functions the pricing engine touches. `*` = _Pla
 ## Butler Quotation Item (line)
 
 One table, **two row types** — an amenity row (`device` empty) and its device rows. See
-[devices.md](./devices.md). Every price exists in three tiers, by naming convention:
+[devices/](./devices/README.md). Every price exists in three tiers, by naming convention:
 
 | Prefix | Currency | `options` |
 |---|---|---|
@@ -83,7 +83,7 @@ One table, **two row types** — an amenity row (`device` empty) and its device 
 | Field | Type | Notes |
 |---|---|---|
 | `device` | Link → Device | present ⇒ this is a device row |
-| `is_extra_device` | Check (ro) | the device is not one of its Amenity's own; priced at 0 until its Quotation Price is set, and not governed. See [devices.md](./devices.md#extra-devices) |
+| `is_extra_device` | Check (ro) | the device is not one of its Amenity's own; priced at 0 until its Quotation Price is set, and not governed. See [extra-devices.md](./devices/extra-devices.md) |
 | `device_quantity` | Float | user-set; how many of this device the placement has |
 | `device_uom` | Link → UOM | user-set; defaults from Device Price, else the Item |
 | `device_stock_uom` / `conversion_factor` | (ro) | via the Device's Item; **stock qty only, never the money** |

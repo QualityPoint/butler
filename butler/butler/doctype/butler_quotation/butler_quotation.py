@@ -4,10 +4,10 @@
 import json
 import math
 from collections import deque
+from typing import ClassVar
 
 import erpnext
 import frappe
-from butler.butler.doctype.device.device import get_device_default_uom
 from erpnext.controllers.accounts_controller import AccountsController
 from erpnext.setup.utils import get_exchange_rate
 from frappe import _
@@ -24,6 +24,7 @@ from frappe.utils import (
     round_based_on_smallest_currency_fraction,
 )
 
+from butler.butler.doctype.device.device import get_device_default_uom
 
 # Fields that only make sense on a DEVICE row — cleared on an amenity row.
 DEVICE_ROW_FIELDS = (
@@ -646,8 +647,8 @@ class ButlerQuotation(Document):
     # --- row model: amenity rows and their device rows ---------------------------------
     # The `amenities` table holds two kinds of row. A row with no `device` is an AMENITY
     # row: it carries the amenity's quantity and its per-amenity add-ons (light system,
-    # sound system, floor extra). A row with an `device` is a DEVICE row belonging to the
-    # amenity row above it. See docs/quotation_pricing/devices.md.
+    # sound system, floor extra). A row with a `device` is a DEVICE row belonging to the
+    # amenity row above it. See docs/quotation_pricing/devices/row-types.md.
 
     def ensure_placement_ids(self):
         """Give every row a `placement_id`, and make sure each device row names one that
@@ -813,7 +814,7 @@ class ButlerQuotation(Document):
             )
 
         ordered = []
-        for *_, amenity_row, device_rows in sorted(decorated, key=lambda d: d[:3]):
+        for *_rank, amenity_row, device_rows in sorted(decorated, key=lambda d: d[:3]):
             ordered.append(amenity_row)
             ordered.extend(device_rows)
         ordered.extend(orphans)  # kept so validate_row_types can report them
@@ -893,7 +894,7 @@ class ButlerQuotation(Document):
           • Undesignated overflow — an included category holds MORE than configured once
             the ticked rows are set aside, so the surplus can't be priced.
 
-        Both are measured on `included = placed − ticked`: every row is one placement, and
+        Both are measured on `included = placed - ticked`: every row is one placement, and
         a ticked one is an extra being charged separately, so what the bundle actually
         covers is the rest. Counting ticks rather than noting "this category has at least
         one" is what stops a single tick licensing an overflow of any size.
@@ -1364,7 +1365,7 @@ class ButlerQuotation(Document):
             for qtn_field, standard_field in self.ADD_ON_QUOTATION_PRICES
         )
 
-    LIGHT_SIGN = {"Add": 1.0, "Subtract": -1.0}
+    LIGHT_SIGN: ClassVar[dict[str, float]] = {"Add": 1.0, "Subtract": -1.0}
 
     def default_light_system(self):
         """The Light System marked `is_default`, resolved once per document.
@@ -2700,7 +2701,7 @@ def conversion_record(doc, old_total, old_rows, rooms, light_system_devices):
             _("Amenity"), _("Floor"), _("Qty"), _("Rate"), _("Amount"), lines)
         if old_rows else ""
     )
-    light_system_device_text = ", ".join(f"{frappe.utils.escape_html(d)} × {n}" for d, n in light_system_devices) or _("none")
+    light_system_device_text = ", ".join(f"{frappe.utils.escape_html(d)} × {n}" for d, n in light_system_devices) or _("none")  # noqa: RUF001
     return "<p>{0}</p><p>{1}</p><p>{2}</p>{3}".format(
         _("Converted to the current layout: one row per drawn amenity, devices from each Amenity, "
           "priced at today's standards."),

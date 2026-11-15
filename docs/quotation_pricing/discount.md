@@ -95,7 +95,7 @@ for each item:
   discount (≈ ERPNext `apply_discount_on`). It is **separate** from the bundle's
   **line-level** discount — `default_bundle_price` (≈ `price_list_rate`) → `bundle_price`
   (≈ `rate`) — which is the one capped by `Butler Bundle.max_discount`. See
-  [bundle.md](./bundle.md#max-discount-floor) and
+  [bundle.md](./bundle.md#max-discount-cap-line-level-discount) and
   [validations.md](./validations.md#device-price--maintain_device_price_action).
   `max_discount` does **not** apply to this header discount.
 
