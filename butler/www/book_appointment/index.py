@@ -1,10 +1,14 @@
 import datetime
-import json
 
 import frappe
-import pytz
+from erpnext.www.book_appointment.index import (
+	convert_to_guest_timezone,
+	convert_to_system_timezone,
+	parse_datetime,
+	validate_timezone,
+)
 from frappe import _
-from frappe.utils.data import get_system_timezone
+from frappe.rate_limiter import rate_limit
 
 from butler.appointment_booking.notice import is_bookable, validate_notice
 
@@ -45,12 +49,19 @@ def get_timezones():
 	return pytz.all_timezones
 
 
+# The same limits as ERPNext's own booking page (erpnext/www/book_appointment/index.py).
+SLOT_REQUESTS_PER_MINUTE = 60
+BOOKINGS_PER_FIVE_MINUTES = 5
+
+
 @frappe.whitelist(allow_guest=True)
+@rate_limit(limit=SLOT_REQUESTS_PER_MINUTE, seconds=60)
 def get_appointment_slots(date, timezone):
 	# Convert query to local timezones
-	format_string = "%Y-%m-%d %H:%M:%S"
-	query_start_time = datetime.datetime.strptime(date + " 00:00:00", format_string)
-	query_end_time = datetime.datetime.strptime(date + " 23:59:59", format_string)
+	validate_timezone(timezone)
+	query_start_time = parse_datetime(date, "00:00:00")
+	date_required = query_start_time.date()
+	query_end_time = parse_datetime(date, "23:59:59")
 	query_start_time = convert_to_system_timezone(timezone, query_start_time)
 	query_end_time = convert_to_system_timezone(timezone, query_end_time)
 
@@ -73,7 +84,6 @@ def get_appointment_slots(date, timezone):
 		else:
 			converted_timeslots.append(dict(time=converted_timeslot, availability=False))
 
-	date_required = datetime.datetime.strptime(date + " 00:00:00", format_string).date()
 	converted_timeslots = filter_timeslots(date_required, converted_timeslots)
 	return converted_timeslots
 
@@ -95,16 +105,17 @@ def get_available_slots_between(query_start_time, query_end_time, settings):
 	return timeslots
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+@rate_limit(limit=BOOKINGS_PER_FIVE_MINUTES, seconds=5 * 60)
 def create_appointment(date, time, tz, contact):
-	format_string = "%Y-%m-%d %H:%M:%S"
-	scheduled_time = datetime.datetime.strptime(date + " " + time, format_string)
+	validate_timezone(tz)
+	scheduled_time = parse_datetime(date, time)
 	# Strip tzinfo from datetime objects since it's handled by the doctype
 	scheduled_time = scheduled_time.replace(tzinfo=None)
 	scheduled_time = convert_to_system_timezone(tz, scheduled_time)
 	scheduled_time = scheduled_time.replace(tzinfo=None)
 	validate_notice(scheduled_time)
-	contact = json.loads(contact)
+	contact = parse_contact(contact)
 
 	# Ensure a Lead exists for this email BEFORE inserting the appointment.
 	# Appointment.before_insert links a Lead/Customer matching the email as the
@@ -143,20 +154,14 @@ def filter_timeslots(date, timeslots):
 	return filtered_timeslots
 
 
-def convert_to_guest_timezone(guest_tz, datetimeobject):
-	guest_tz = pytz.timezone(guest_tz)
-	local_timezone = pytz.timezone(get_system_timezone())
-	datetimeobject = local_timezone.localize(datetimeobject)
-	datetimeobject = datetimeobject.astimezone(guest_tz)
-	return datetimeobject
-
-
-def convert_to_system_timezone(guest_tz, datetimeobject):
-	guest_tz = pytz.timezone(guest_tz)
-	datetimeobject = guest_tz.localize(datetimeobject)
-	system_tz = pytz.timezone(get_system_timezone())
-	datetimeobject = datetimeobject.astimezone(system_tz)
-	return datetimeobject
+def parse_contact(contact) -> dict:
+	try:
+		contact = frappe.parse_json(contact)
+	except ValueError:
+		contact = None
+	if not isinstance(contact, dict):
+		frappe.throw(_("Please fill in your contact details."))
+	return contact
 
 
 def check_availabilty(timeslot, settings):
