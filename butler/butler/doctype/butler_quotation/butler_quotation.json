@@ -157,7 +157,6 @@
   {
    "fieldname": "naming_series",
    "fieldtype": "Select",
-   "in_list_view": 1,
    "label": "Series",
    "no_copy": 1,
    "options": "BTLR-QTN-.YYYY.-",
@@ -360,7 +359,6 @@
   {
    "fieldname": "company",
    "fieldtype": "Link",
-   "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Company",
    "options": "Company",
@@ -1045,7 +1043,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-11-15 13:11:11.000000",
+ "modified": "2026-11-17 12:13:28.778977",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Butler Quotation",

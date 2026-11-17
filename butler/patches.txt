@@ -14,3 +14,4 @@ butler.patches.v1_0.remove_butler_portal_workspace
 butler.patches.v1_0.rename_annex_in_sidebars #2
 butler.patches.v1_0.drop_amenity_annex_table
 butler.patches.v1_0.set_appointment_minimum_notice
+butler.patches.v1_0.set_verification_link_expiry

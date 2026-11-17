@@ -1,18 +1,67 @@
 {% extends "templates/web.html" %}
 
-{% block title %}
-{{ _("Verify Email") }}
-{% endblock%}
+{# Board 1 (confirmed), 2 (already confirmed), 3 (not confirmed) of the approved mockup. #}
+
+{% block title %}{{ _("Appointment Confirmation") }}{% endblock %}
+{% block navbar %}{% endblock %}
+
+{% block head_include %}
+{% include "templates/includes/butler_panel_head.html" %}
+<style>
+	.butler-verify .page-card { display: grid; gap: 14px; text-align: center; color: rgba(248, 237, 217, 0.85); }
+	.butler-verify .page-card p { margin: 0; line-height: 1.55; }
+	.butler-verify .verify-when {
+		display: grid;
+		gap: 2px;
+		padding-bottom: 14px;
+		border-bottom: 1px solid rgba(206, 194, 174, 0.2);
+	}
+	.butler-verify .verify-day { color: var(--butler-tan); text-transform: uppercase; letter-spacing: 2px; font-size: 0.8rem; }
+	.butler-verify .verify-date { font-family: "Anton", "Noto Kufi Arabic", sans-serif; font-size: 1.7rem; letter-spacing: 0.5px; color: var(--butler-cream); }
+	.butler-verify .verify-time { font-weight: 700; color: var(--butler-cream); font-variant-numeric: tabular-nums; }
+	.butler-verify .verify-timezone { font-size: 0.8rem; color: rgba(248, 237, 217, 0.55); }
+	.butler-verify .verify-reason { font-weight: 700; color: var(--butler-cream); }
+	.butler-verify .verify-help { font-size: 0.85rem; color: rgba(248, 237, 217, 0.6); }
+	.butler-verify .verify-help a { font-weight: 700; white-space: nowrap; }
+	html[dir="rtl"] .butler-verify .verify-day,
+	html[dir="rtl"] .butler-verify .verify-date { letter-spacing: 0; }
+</style>
+{% endblock %}
+
+{% set phone = '<a href="tel:+966920012813" dir="ltr">9200 12 8 13</a>' %}
 
 {% block page_content %}
-
-    {% if success==True %}
-        <div class="alert alert-success">
-            {{ _("Your email has been verified and your appointment has been scheduled") }}
-        </div>
-    {% else %}
-        <div class="alert alert-danger">
-            {{ _("Verification failed please check the link") }}
-        </div>
-    {% endif %}
-{% endblock%}
+<div class="butler-panel butler-verify">
+	{% include "templates/includes/butler_nav.html" %}
+	<section>
+		<div class="page-card-head">
+			<img class="app-logo" src="/assets/butler/website/images/butler_logo-isolated.png" alt="{{ _('Butler') }}">
+			<h4>
+				{% if success and message %}{{ _("Already confirmed") }}
+				{% elif success %}{{ _("Appointment confirmed") }}
+				{% else %}{{ _("Not confirmed") }}{% endif %}
+			</h4>
+		</div>
+		<div class="page-card">
+			{% if success %}
+				{% if slot %}
+				<div class="verify-when">
+					<span class="verify-day">{{ slot.day }}</span>
+					<span class="verify-date">{{ slot.date }}</span>
+					<span class="verify-time"><bdi>{{ slot.time }}</bdi></span>
+					<span class="verify-timezone">{{ slot.timezone }}</span>
+				</div>
+				{% endif %}
+				<p>{{ message or _("Your appointment is confirmed. A confirmation is on its way to your email.") }}</p>
+				<a class="btn btn-primary btn-block" href="/">{{ _("Back to Butler") }}</a>
+				<p class="verify-help">{{ _("Need to change it? Call or WhatsApp {0}").format(phone) }}</p>
+			{% else %}
+				<p class="verify-reason">{{ message or _("Verification failed please check the link") }}</p>
+				<p>{{ _("No appointment was confirmed with this link. Choose a new time to book again.") }}</p>
+				<a class="btn btn-primary btn-block" href="/book_appointment">{{ _("Book again") }}</a>
+				<p class="verify-help">{{ _("Need help? Call or WhatsApp {0}").format(phone) }}</p>
+			{% endif %}
+		</div>
+	</section>
+</div>
+{% endblock %}

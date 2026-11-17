@@ -1,20 +1,14 @@
 import frappe
-from frappe.utils.verified_command import verify_request
+from erpnext.www.book_appointment.verify.index import get_context as verify_with_erpnext
+
+from butler.appointment_booking.verification import slot_for_link
+
+no_cache = 1
 
 
 def get_context(context):
-	if not verify_request():
-		context.success = False
-		return context
-
-	email = frappe.form_dict["email"]
-	appointment_name = frappe.form_dict["appointment"]
-
-	if email and appointment_name:
-		appointment = frappe.get_doc("Appointment", appointment_name)
-		appointment.set_verified(email)
-		context.success = True
-		return context
-	else:
-		context.success = False
-		return context
+	"""ERPNext verifies the link and sets `success` and `message`; Butler adds the slot to show."""
+	verify_with_erpnext(context)
+	context.full_width = 1  # the panel's background spans the page, as on the login page
+	context.slot = slot_for_link(frappe.form_dict.get("key")) if context.success else None
+	return context

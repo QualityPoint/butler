@@ -1,0 +1,128 @@
+/* Butler's branded panel: the paper background, top nav, logo, gold heading and navy card
+   shared by the login page (www/login.html) and the appointment verify page
+   (www/book_appointment/verify). Loaded by templates/includes/butler_panel_head.html. */
+:root {
+	--butler-gold: #805e24;
+	--butler-gold-dark: #6b4f1e;
+	--butler-cream: #f8edd9;
+	--butler-tan: #cec2ae;
+}
+
+body {
+	font-family: "Courier Prime", monospace;
+}
+
+/* full-bleed background image — same style as the marketing sections
+   (bg-cover bg-center bg-no-repeat, py-7 lg:py-20) */
+.butler-panel {
+	position: relative;
+	min-height: 100vh;
+	min-height: 100dvh;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 1.75rem 1rem;            /* py-7 */
+	background-image: url("/assets/butler/website/images/isolated_one.jpg");
+	background-size: cover;
+	background-position: center;
+	background-repeat: no-repeat;
+	color: var(--butler-cream);
+}
+
+@media (min-width: 1024px) {
+	.butler-panel { padding-top: 5rem; padding-bottom: 5rem; }  /* lg:py-20 */
+}
+
+/* hidden by default; login.js reveals the footer inline when
+   show_footer_on_login is enabled (inline style overrides this rule) */
+.web-footer,
+body > nav.navbar { display: none; }
+
+/* fluid card: grows with the panel up to a cap, never overflows small screens */
+.butler-panel section { 
+	width: 100%; 
+	max-width: min(100%, clamp(20rem, 80%, 28rem)); 
+}
+.butler-panel .page-card-head { 
+	text-align: center; 
+	margin-bottom: 1.5rem; 
+}
+.butler-panel .app-logo { 
+	height: clamp(72px, 10vw, 90px); 
+	width: auto; 
+	margin-bottom: 1rem; 
+}
+.butler-panel .page-card-head h4 {
+	font-family: "Anton", sans-serif;
+	text-transform: uppercase;
+	letter-spacing: 1px;
+	color: var(--butler-gold);
+	font-size: clamp(1.5rem, 1rem + 2.5vw, 2.1rem);
+	margin: 0;
+}
+.butler-panel .page-card {
+	background: rgba(2, 6, 23, 0.85);
+	border: 1px solid rgba(173, 129, 52, 0.22);
+	border-radius: 12px;
+	padding: clamp(1.25rem, 1rem + 2vw, 2rem);
+	box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+
+
+.butler-panel .btn {
+	height: 44px;
+	border-radius: 8px;
+	font-weight: 700;
+	border: 1.5px solid transparent;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.4rem;
+}
+.butler-panel .btn-block { display: flex; width: 100%; }
+.butler-panel .btn-primary {
+	background: var(--butler-gold);
+	border-color: var(--butler-gold);
+	color: #fff;
+}
+.butler-panel .btn-primary:hover { background: var(--butler-gold-dark); border-color: var(--butler-gold-dark); }
+
+.butler-panel a { color: var(--butler-tan); }
+.butler-panel a:hover { color: #fff; }
+
+/* top navbar overlay (same links as the marketing site) so users can go back */
+.butler-nav {
+	position: absolute;
+	top: 0; left: 0; right: 0;
+	z-index: 10;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-wrap: wrap;
+	gap: 2rem;
+	background: rgba(2, 6, 23, 0.92);
+	padding: 0.75rem clamp(1rem, 4vw, 2.5rem);
+}
+.butler-nav-logo img { height: 34px; width: auto; display: block; }
+.butler-nav-links {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 1.25rem 1.5rem;
+}
+.butler-nav-links a { color: #fff; font-weight: 700; font-size: 0.9rem; text-decoration: none; }
+.butler-nav-links a:hover { color: var(--butler-tan); }
+
+/* narrow screens: the nav wraps onto several rows, so it takes its own place above the
+   card instead of lying over the logo */
+@media (max-width: 767px) {
+	.butler-panel { flex-direction: column; justify-content: flex-start; padding-top: 0; }
+	.butler-nav { position: static; align-self: stretch; margin: 0 -1rem 1.75rem; }
+}
+
+/* Arabic: Courier Prime and Anton have no Arabic glyphs, so the browser falls back per glyph */
+.butler-panel .page-card-head h4 {
+	font-family: "Anton", "Noto Kufi Arabic", sans-serif;
+}
+.butler-panel { font-family: "Courier Prime", "Noto Kufi Arabic", monospace; }
+html[dir="rtl"] .butler-panel .page-card-head h4 { letter-spacing: 0; }

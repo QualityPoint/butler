@@ -63,80 +63,8 @@
 {% endmacro %}
 
 {% block head_include %}
-<link rel="icon" type="image/png" href="/assets/butler/website/icons/favicon.png" />
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link
-	href="https://fonts.googleapis.com/css2?family=Anton&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&display=swap"
-	rel="stylesheet" />
+{% include "templates/includes/butler_panel_head.html" %}
 <style>
-	:root {
-		--butler-gold: #805e24;
-		--butler-gold-dark: #6b4f1e;
-		--butler-cream: #f8edd9;
-		--butler-tan: #cec2ae;
-	}
-
-	body {
-		font-family: "Courier Prime", monospace;
-	}
-
-	/* full-bleed background image — same style as the marketing sections
-	   (bg-cover bg-center bg-no-repeat, py-7 lg:py-20) */
-	.butler-login {
-		position: relative;
-		min-height: 100vh;
-		min-height: 100dvh;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		padding: 1.75rem 1rem;            /* py-7 */
-		background-image: url("/assets/butler/website/images/isolated_one.jpg");
-		background-size: cover;
-		background-position: center;
-		background-repeat: no-repeat;
-		color: var(--butler-cream);
-	}
-
-	@media (min-width: 1024px) {
-		.butler-login { padding-top: 5rem; padding-bottom: 5rem; }  /* lg:py-20 */
-	}
-
-	/* hidden by default; login.js reveals the footer inline when
-	   show_footer_on_login is enabled (inline style overrides this rule) */
-	.web-footer,
-	body > nav.navbar { display: none; }
-
-	/* fluid card: grows with the panel up to a cap, never overflows small screens */
-	.butler-login section { 
-		width: 100%; 
-		max-width: min(100%, clamp(20rem, 80%, 28rem)); 
-	}
-	.butler-login .page-card-head { 
-		text-align: center; 
-		margin-bottom: 1.5rem; 
-	}
-	.butler-login .app-logo { 
-		height: clamp(72px, 10vw, 90px); 
-		width: auto; 
-		margin-bottom: 1rem; 
-	}
-	.butler-login .page-card-head h4 {
-		font-family: "Anton", sans-serif;
-		text-transform: uppercase;
-		letter-spacing: 1px;
-		color: var(--butler-gold);
-		font-size: clamp(1.5rem, 1rem + 2.5vw, 2.1rem);
-		margin: 0;
-	}
-	.butler-login .page-card {
-		background: rgba(2, 6, 23, 0.85);
-		border: 1px solid rgba(173, 129, 52, 0.22);
-		border-radius: 12px;
-		padding: clamp(1.25rem, 1rem + 2vw, 2rem);
-		box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
-	}
-
 	.butler-login .form-group { margin-bottom: 1rem; }
 	.butler-login .email-field,
 	.butler-login .password-field { position: relative; }
@@ -168,23 +96,7 @@
 		user-select: none;
 	}
 
-	.butler-login .btn {
-		height: 44px;
-		border-radius: 8px;
-		font-weight: 700;
-		border: 1.5px solid transparent;
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		gap: 0.4rem;
-	}
-	.butler-login .btn-block { display: flex; width: 100%; }
-	.butler-login .btn-primary {
-		background: var(--butler-gold);
-		border-color: var(--butler-gold);
-		color: #fff;
-	}
-	.butler-login .btn-primary:hover { background: var(--butler-gold-dark); border-color: var(--butler-gold-dark); }
+
 	.butler-login .btn-default,
 	.butler-login .btn-login-option {
 		background: transparent;
@@ -195,8 +107,7 @@
 	.butler-login .btn-default:hover,
 	.butler-login .btn-login-option:hover { border-color: var(--butler-gold); }
 
-	.butler-login a { color: var(--butler-tan); }
-	.butler-login a:hover { color: #fff; }
+
 	.butler-login .forgot-password-message { text-align: right; margin: 0.25rem 0 0; font-size: 0.85rem; }
 	.butler-login .sign-up-message { text-align: center; margin-top: 1rem; color: rgba(248, 237, 217, 0.7); }
 	.butler-login .login-divider {
@@ -221,44 +132,13 @@
 		75% { transform: translateX(8px); }
 	}
 
-	/* top navbar overlay (same links as the marketing site) so users can go back */
-	.butler-nav {
-		position: absolute;
-		top: 0; left: 0; right: 0;
-		z-index: 10;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		flex-wrap: wrap;
-		gap: 2rem;
-		background: rgba(2, 6, 23, 0.92);
-		padding: 0.75rem clamp(1rem, 4vw, 2.5rem);
-	}
-	.butler-nav-logo img { height: 34px; width: auto; display: block; }
-	.butler-nav-links {
-		display: flex;
-		align-items: center;
-		flex-wrap: wrap;
-		gap: 1.25rem 1.5rem;
-	}
-	.butler-nav-links a { color: #fff; font-weight: 700; font-size: 0.9rem; text-decoration: none; }
-	.butler-nav-links a:hover { color: var(--butler-tan); }
 </style>
 {% endblock %}
 
 {% block page_content %}
 <!-- {{ for_test }} -->
-<div class="butler-login">
-	<header class="butler-nav">
-		<a class="butler-nav-logo" href="/"><img src="/assets/butler/website/images/butler_logo-white.png" alt="{{ app_name }}"></a>
-		<nav class="butler-nav-links">
-			<a href="/">{{ _("Home") }}</a>
-			<a href="/products">{{ _("Products") }}</a>
-			<a href="/show-room">{{ _("Butler Showroom") }}</a>
-			<a href="/free-consultation">{{ _("Free Consultation") }}</a>
-			<a href="/contact-us">{{ _("Contact Us") }}</a>
-		</nav>
-	</header>
+<div class="butler-panel butler-login">
+	{% include "templates/includes/butler_nav.html" %}
 
 	<noscript>
 		<div class="text-center my-5">

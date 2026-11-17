@@ -8,3 +8,4 @@ agent and adds a calendar event.
 | File | Covers |
 |---|---|
 | [minimum-notice.md](./minimum-notice.md) | Slots close a set number of hours before they start |
+| [verify-page.md](./verify-page.md) | The page ERPNext's confirmation email links to, in Butler's style; the shared Butler panel |
