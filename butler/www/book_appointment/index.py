@@ -4,6 +4,8 @@ import frappe
 from erpnext.www.book_appointment.index import (
 	convert_to_guest_timezone,
 	convert_to_system_timezone,
+	get_booked_slot_times_for,
+	is_slot_available,
 	parse_datetime,
 	validate_timezone,
 )
@@ -69,6 +71,8 @@ def get_appointment_slots(date, timezone):
 	settings = frappe.get_doc("Appointment Booking Settings")
 	holiday_list = frappe.get_doc("Holiday List", settings.holiday_list)
 	timeslots = get_available_slots_between(query_start_time, query_end_time, settings)
+	# the day's Open bookings, once: a slot stays offered until every agent is booked
+	booked_times = get_booked_slot_times_for(timeslots, settings.appointment_duration)
 
 	# Filter and convert timeslots
 	converted_timeslots = []
@@ -79,7 +83,7 @@ def get_appointment_slots(date, timezone):
 			converted_timeslots.append(dict(time=converted_timeslot, availability=False))
 			continue
 		# Check availability
-		if check_availabilty(timeslot, settings) and is_bookable(timeslot):
+		if is_slot_available(timeslot, booked_times, settings) and is_bookable(timeslot):
 			converted_timeslots.append(dict(time=converted_timeslot, availability=True))
 		else:
 			converted_timeslots.append(dict(time=converted_timeslot, availability=False))
@@ -162,11 +166,6 @@ def parse_contact(contact) -> dict:
 	if not isinstance(contact, dict):
 		frappe.throw(_("Please fill in your contact details."))
 	return contact
-
-
-def check_availabilty(timeslot, settings):
-	# frappe.msgprint(f"hello {settings.number_of_agents}")
-	return frappe.db.count("Appointment", {"scheduled_time": timeslot}) < 1
 
 
 def _is_holiday(date, holiday_list):

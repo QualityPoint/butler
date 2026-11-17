@@ -8,5 +8,6 @@ agent and adds a calendar event.
 | File | Covers |
 |---|---|
 | [minimum-notice.md](./minimum-notice.md) | Slots close a set number of hours before they start |
+| [slot-capacity.md](./slot-capacity.md) | How many bookings a slot takes: one per agent, as ERPNext decides |
 | [guards.md](./guards.md) | Rate limits, POST-only booking and input checks on the page's server calls |
 | [verify-page.md](./verify-page.md) | The page ERPNext's confirmation email links to, in Butler's style; the shared Butler panel |
