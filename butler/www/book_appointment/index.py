@@ -6,6 +6,8 @@ import pytz
 from frappe import _
 from frappe.utils.data import get_system_timezone
 
+from butler.appointment_booking.notice import is_bookable, validate_notice
+
 WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
 no_cache = 1
@@ -51,7 +53,6 @@ def get_appointment_slots(date, timezone):
 	query_end_time = datetime.datetime.strptime(date + " 23:59:59", format_string)
 	query_start_time = convert_to_system_timezone(timezone, query_start_time)
 	query_end_time = convert_to_system_timezone(timezone, query_end_time)
-	now = convert_to_guest_timezone(timezone, datetime.datetime.now())
 
 	# Database queries
 	settings = frappe.get_doc("Appointment Booking Settings")
@@ -67,7 +68,7 @@ def get_appointment_slots(date, timezone):
 			converted_timeslots.append(dict(time=converted_timeslot, availability=False))
 			continue
 		# Check availability
-		if check_availabilty(timeslot, settings) and converted_timeslot >= now:
+		if check_availabilty(timeslot, settings) and is_bookable(timeslot):
 			converted_timeslots.append(dict(time=converted_timeslot, availability=True))
 		else:
 			converted_timeslots.append(dict(time=converted_timeslot, availability=False))
@@ -102,6 +103,7 @@ def create_appointment(date, time, tz, contact):
 	scheduled_time = scheduled_time.replace(tzinfo=None)
 	scheduled_time = convert_to_system_timezone(tz, scheduled_time)
 	scheduled_time = scheduled_time.replace(tzinfo=None)
+	validate_notice(scheduled_time)
 	contact = json.loads(contact)
 
 	# Ensure a Lead exists for this email BEFORE inserting the appointment.

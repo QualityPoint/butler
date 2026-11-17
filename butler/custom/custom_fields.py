@@ -6,6 +6,21 @@ from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 def custom_fields():
     """Butler specific custom fields that need to be added to the system."""
     return {
+        "Appointment Booking Settings": [
+            {
+                "fieldname": "minimum_notice_hours",
+                "label": _("Minimum Notice (Hours)"),
+                "fieldtype": "Int",
+                "default": "2",
+                "non_negative": 1,
+                "depends_on": "eval:doc.enable_scheduling === 1;",
+                "description": _(
+                    "The booking page closes a slot this many hours before it starts. "
+                    "Appointments created in the desk are not limited."
+                ),
+                "insert_after": "advance_booking_days",
+            }
+        ],
         "Item": [
             {
                 "fieldname": "butler_settings",

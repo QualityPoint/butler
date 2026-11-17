@@ -451,3 +451,7 @@ The light system device serving every {0} line in the facility,جهاز نظام
 Lines this device serves across the whole facility.,الخطوط التي يخدمها هذا الجهاز في المنشأة كلها.,
 Maximum number of channels this device can hold.,أقصى عدد من القنوات يمكن أن يحمله هذا الجهاز.,
 "Set in the Facility Builder. Blank when the row uses the default Light System, whose device is chosen once for the whole facility.",يُحدَّد في بناء المنشأة. يبقى فارغًا إذا استخدم الصف نظام الإضاءة الافتراضي، الذي يُختار جهازه مرة واحدة للمنشأة كلها.,
+Minimum Notice (Hours),الحد الأدنى للحجز المسبق (بالساعات),
+The booking page closes a slot this many hours before it starts. Appointments created in the desk are not limited.,تُغلق صفحة الحجز الموعد قبل بدايته بهذا العدد من الساعات. ولا يسري ذلك على المواعيد المُنشأة من لوحة التحكم.,
+Appointments must be booked at least {0} hours in advance.,يجب حجز الموعد قبل بدايته بمدة لا تقل عن {0} ساعة.,
+Too Late to Book,فات وقت الحجز,
