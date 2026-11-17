@@ -83,7 +83,7 @@ One table, **two row types** — an amenity row (`device` empty) and its device 
 | Field | Type | Notes |
 |---|---|---|
 | `device` | Link → Device | present ⇒ this is a device row |
-| `is_extra_device` | Check (ro) | the device is not one of its Amenity's own; priced at 0 until its Quotation Price is set, and not governed. See [extra-devices.md](./devices/extra-devices.md) |
+| `is_extra_device` | Check (ro) | the device is not one of its Amenity's own; its standard is the Device's Standard Rate, governed like any device price. See [extra-devices.md](./devices/extra-devices.md) |
 | `device_quantity` | Float | user-set; how many of this device the placement has |
 | `device_uom` | Link → UOM | user-set; defaults from Device Price, else the Item |
 | `device_stock_uom` / `conversion_factor` | (ro) | via the Device's Item; **stock qty only, never the money** |

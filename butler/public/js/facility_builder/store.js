@@ -1304,7 +1304,7 @@ export function getStore(mode, target_name) {
 	}
 
 	// A device fitted from outside its Amenity's own list. It has no Device Price, so the
-	// quotation prices it at 0 until its Quotation Price is set there (`is_extra_device`).
+	// quotation prices it at its Device's Standard Rate (`is_extra_device`).
 	// False while the amenity's list is still loading, so nothing flashes as extra.
 	function is_extra_device(room, device) {
 		if (!(room?.amenity in devices_by_amenity.value)) return false;

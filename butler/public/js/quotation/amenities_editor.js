@@ -1038,11 +1038,11 @@ butler.ui.AmenityCard = class AmenityCard {
 
             $tr.find(".c-device").text(device.device_name || device.device || "");
             // An extra device (not one of its Amenity's own) has no Device Price, so it is
-            // priced at 0 until its Quotation Price is set here. Marked the way the Facility
-            // Builder marks it: a gold superscript "+".
+            // priced at its Device's Standard Rate. Marked the way the Facility Builder marks
+            // it: a gold superscript "+".
             if (device.is_extra_device) {
                 $(`<sup style="color:#b8860b;font-weight:700;margin-left:2px;cursor:help">+</sup>`)
-                    .attr("title", __("Extra device — not part of this Amenity. Set its price here."))
+                    .attr("title", __("Extra device — not part of this Amenity. Priced at its Standard Rate."))
                     .appendTo($tr.find(".c-device"));
             }
 

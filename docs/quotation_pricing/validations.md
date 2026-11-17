@@ -46,8 +46,8 @@ Fields belonging to the *other* row type are **cleared**, not rejected
 What does throw is a device row matching no amenity row (unattached), once
 `ensure_placement_ids` has re-homed the recoverable cases. A device that isn't one
 of its amenity's own is **not** an error: it is an
-[extra device](./devices/extra-devices.md), priced at 0 until its Quotation Price is set, and
-left out of the device-price check below.
+[extra device](./devices/extra-devices.md), priced at its Device's Standard Rate and checked
+by the device-price check below like any other device.
 
 ---
 
@@ -55,7 +55,8 @@ left out of the device-price check below.
 
 The device Quotation Price (`qtn_device_price`) is the only Quotation Price with a published
 standard, so it is the only one governed. The standard is the **Device Price** for `(device, amenity, facility_type)`,
-falling back to the facility-type-agnostic row.
+falling back to the facility-type-agnostic row; for an [extra device](./devices/extra-devices.md) it
+is the Device's **Standard Rate**.
 
 | `order_type` | Checks (runs in `validate`) |
 |---|---|

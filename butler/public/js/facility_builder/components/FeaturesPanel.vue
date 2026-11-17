@@ -62,7 +62,7 @@
 							<sup
 								v-if="a.extra"
 								class="fb-extra-mark"
-								:title="__('Extra device — not part of this Amenity. Priced at 0 until its Quotation Price is set on the quotation.')"
+								:title="__('Extra device — not part of this Amenity. Priced at its Standard Rate.')"
 							>+</sup>
 						</div>
 						<div class="fb-device-controls">
@@ -308,8 +308,8 @@ function ensureAddControl() {
 			options: "Device",
 			placeholder: __("Add device…"),
 			// Every enabled device, minus what is already fitted. One outside this Amenity's
-			// own list is an extra device: the quotation prices it at 0 until its Quotation
-			// Price is set there, and it is marked in gold here and on the plan.
+			// own list is an extra device: the quotation prices it at its Device's Standard
+			// Rate, and it is marked in gold here and on the plan.
 			get_query: () => {
 				const fitted = devices.value.map((a) => a.device);
 				return {

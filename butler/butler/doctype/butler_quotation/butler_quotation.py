@@ -145,6 +145,12 @@ AMENITY_CARRY_FIELDS = (
 DEVICE_CARRY_FIELDS = ("qtn_device_price", "qtn_exchange_rate")
 
 
+
+def extra_device_standard(device: str) -> dict:
+    """An extra device's standard: its Device's Standard Rate, in the amenity's currency."""
+    return {"rate": frappe.db.get_value("Device", device, "standard_rate")}
+
+
 class ButlerQuotation(Document):
     # --- Payment Schedule (Payment Terms Template -> Payment Schedule table) ----------
     # Reused verbatim from ERPNext's AccountsController -- the single source of truth
@@ -593,7 +599,7 @@ class ButlerQuotation(Document):
             # blame the light system for something a device did.
             #
             # Any device may be fitted, not only the Amenity's own: one from outside it is an
-            # extra device (`is_extra_device`), priced at 0 until its Quotation Price is set.
+            # extra device (`is_extra_device`), priced at its Device's Standard Rate.
             for device_row in device_rows:
                 if flt(device_row.device_quantity) <= 0:
                     frappe.throw(
@@ -1294,12 +1300,12 @@ class ButlerQuotation(Document):
         since that price was itself derived from it.
 
         An extra device (`is_extra_device`, not one of the Amenity's own) has no Device Price —
-        those are kept per amenity — so its standard is 0 and it costs nothing until its
-        Quotation Price is set here. The same rule then keeps that price as changed.
+        those are kept per amenity — so its standard is the Device's `standard_rate`, taken as
+        is in the amenity's currency, per its default uom. A changed price is kept by the same rule.
         """
         from butler.butler.doctype.device_price.device_price import get_device_price
 
-        standard = {} if row.is_extra_device else (
+        standard = extra_device_standard(row.device) if row.is_extra_device else (
             get_device_price(row.device, row.amenity, facility_type) or {})
         row.device_price_list = standard.get("name")
         row.device_uom = row.device_uom or standard.get("uom") or get_device_default_uom(row.device)
@@ -1923,18 +1929,15 @@ class ButlerQuotation(Document):
         allowed).
 
         The device Quotation Price is the only one that carries a published standard, so
-        it is the only one governed. `bundle_price_breach` rides along when
-        a Bundle's flat price is discounted past its max_discount.
-
-        An extra device is left out: its standard is a 0 placeholder, not a published price,
-        and setting its Quotation Price is exactly what it is waiting for.
+        it is the only one governed: a Device Price, or for an extra device the Device's
+        Standard Rate. `bundle_price_breach` rides along when a Bundle's flat price is
+        discounted past its max_discount.
         """
         lines = [
             "<li>{0} &mdash; {1} (standard {2})</li>".format(
                 frappe.bold(row.device), fmt_money(row.qtn_device_price), fmt_money(standard)
             )
             for row, standard in deviations
-            if not row.is_extra_device
         ]
         if bundle_price_breach:
             lines.append(bundle_price_breach)

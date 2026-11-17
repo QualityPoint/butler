@@ -18,6 +18,9 @@
   "icon",
   "description",
   "image",
+  "pricing_section",
+  "standard_rate",
+  "column_break_nocd",
   "manufacture_section",
   "manufacturer",
   "column_break_iscj",
@@ -120,12 +123,31 @@
    "in_standard_filter": 1,
    "label": "Device Type",
    "options": "Device Type"
+  },
+  {
+   "fieldname": "pricing_section",
+   "fieldtype": "Section Break",
+   "label": "Pricing"
+  },
+  {
+   "description": "The price of this device on an Amenity that does not list it (an extra device), in that Amenity's currency, per the device's default unit. The quotation can change it.",
+   "fieldname": "standard_rate",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Standard Rate",
+   "no_copy": 1,
+   "non_negative": 1,
+   "precision": "2"
+  },
+  {
+   "fieldname": "column_break_nocd",
+   "fieldtype": "Column Break"
   }
  ],
  "grid_page_length": 50,
  "image_field": "image",
  "links": [],
- "modified": "2026-11-15 13:11:11.000000",
+ "modified": "2026-11-17 13:15:22.000000",
  "modified_by": "Administrator",
  "module": "Butler",
  "name": "Device",

@@ -12,9 +12,10 @@ Removing a device from an Amenity also deletes its Device Prices
 with "Could not find … Device Price List".
 
 A **customised** amenity keeps its own list. If it still holds a device its Amenity no longer
-has, that device becomes an [extra device](./extra-devices.md): its Device Price is gone, so the price
-it had is kept as a changed Quotation Price. *Reset Amenity → Devices* puts the placement back
-on the Amenity's list.
+has, that device becomes an [extra device](./extra-devices.md): its Device Price is gone, so its
+standard becomes the Device's Standard Rate. The price it had is kept as a changed Quotation Price,
+which the device-price check then judges against that rate. *Reset Amenity → Devices* puts the
+placement back on the Amenity's list.
 
 **Once, on deploy:** the `sync_quotations_with_amenities` patch (after
 `convert_legacy_quotations`) saves every draft that is behind its Amenities, or links a
