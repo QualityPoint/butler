@@ -1,6 +1,7 @@
 import datetime
 
 import frappe
+from erpnext.setup.doctype.holiday_list.holiday_list import is_holiday
 from erpnext.www.book_appointment.index import (
 	convert_to_guest_timezone,
 	convert_to_system_timezone,
@@ -69,7 +70,6 @@ def get_appointment_slots(date, timezone):
 
 	# Database queries
 	settings = frappe.get_doc("Appointment Booking Settings")
-	holiday_list = frappe.get_doc("Holiday List", settings.holiday_list)
 	timeslots = get_available_slots_between(query_start_time, query_end_time, settings)
 	# the day's Open bookings, once: a slot stays offered until every agent is booked
 	booked_times = get_booked_slot_times_for(timeslots, settings.appointment_duration)
@@ -78,8 +78,8 @@ def get_appointment_slots(date, timezone):
 	converted_timeslots = []
 	for timeslot in timeslots:
 		converted_timeslot = convert_to_guest_timezone(timezone, timeslot)
-		# Check if holiday
-		if _is_holiday(converted_timeslot.date(), holiday_list):
+		# a holiday is a business date: the slot's date in the site's timezone, as the server checks it
+		if is_holiday(settings.holiday_list, timeslot.date()):
 			converted_timeslots.append(dict(time=converted_timeslot, availability=False))
 			continue
 		# Check availability
@@ -166,13 +166,6 @@ def parse_contact(contact) -> dict:
 	if not isinstance(contact, dict):
 		frappe.throw(_("Please fill in your contact details."))
 	return contact
-
-
-def _is_holiday(date, holiday_list):
-	for holiday in holiday_list.holidays:
-		if holiday.holiday_date == date:
-			return True
-	return False
 
 
 def _get_records(start_time, end_time, settings):

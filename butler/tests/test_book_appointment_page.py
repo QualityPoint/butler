@@ -58,3 +58,42 @@ class TestSlotCapacity(UnitTestCase):
 	def test_open_until_all_agents_are_booked(self):
 		self.assertEqual(self.slots(3), {"13:00": True, "14:00": True})
 		self.assertEqual(self.slots(4), {"13:00": False, "14:00": True})
+
+
+class TestHolidayIsABusinessDate(UnitTestCase):
+	"""A holiday closes the slots of that date in the site's timezone, wherever the visitor is."""
+
+	def test_holiday_follows_the_site_date_not_the_visitor_date(self):
+		from datetime import date, timedelta
+		from unittest.mock import patch
+
+		settings = frappe._dict(
+			holiday_list="Test Holidays",
+			appointment_duration=60,
+			number_of_agents=4,
+			availability_of_slots=[
+				frappe._dict(day_of_week="Sunday", from_time=timedelta(hours=13), to_time=timedelta(hours=15))
+			],
+		)
+		get_doc = frappe.get_doc
+		sunday_off = lambda holiday_list, day: day == date(2026, 11, 29)  # noqa: E731
+		with (
+			patch.object(
+				page.frappe,
+				"get_doc",
+				side_effect=lambda doctype, *args: (
+					settings if doctype == "Appointment Booking Settings" else get_doc(doctype, *args)
+				),
+			),
+			patch.object(page, "is_holiday", side_effect=sunday_off) as checked,
+			patch.object(page, "get_booked_slot_times_for", return_value=[]),
+			patch.object(page, "is_bookable", return_value=True),
+		):
+			# Riyadh's Sunday 13:00 and 14:00 are Monday 00:00 and 01:00 in Kiritimati (UTC+14)
+			slots = page.get_appointment_slots("2026-11-30", "Pacific/Kiritimati")
+
+		self.assertEqual(
+			[(s["time"].strftime("%a %H:%M"), s["availability"]) for s in slots],
+			[("Mon 00:00", False), ("Mon 01:00", False)],
+		)
+		self.assertEqual({call.args[1] for call in checked.call_args_list}, {date(2026, 11, 29)})
