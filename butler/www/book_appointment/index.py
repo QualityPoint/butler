@@ -13,6 +13,7 @@ from erpnext.www.book_appointment.index import (
 from frappe import _
 from frappe.rate_limiter import rate_limit
 
+from butler.appointment_booking.display import booking_summary
 from butler.appointment_booking.notice import is_bookable, validate_notice
 
 WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
@@ -146,7 +147,8 @@ def create_appointment(date, time, tz, contact):
 	appointment.status = "Open"
 	appointment.insert(ignore_permissions=True)
 
-	return appointment
+	# only what the thanks page shows, not the whole record (agent, party, ...)
+	return booking_summary(appointment)
 
 
 # Helper Functions

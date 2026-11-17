@@ -5,4 +5,5 @@
 <link
 	href="https://fonts.googleapis.com/css2?family=Anton&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Noto+Kufi+Arabic:wght@400;700&display=swap"
 	rel="stylesheet" />
-<link rel="stylesheet" href="/assets/butler/website/css/butler_panel.css" />
+{# a bundle, so each build gets a new hashed URL and no browser keeps a stale copy #}
+{{ include_style('butler_panel.bundle.css') }}

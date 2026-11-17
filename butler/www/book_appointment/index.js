@@ -278,9 +278,9 @@ function setup_search_params() {
     name_input.disabled = true;
   }
   if (company_name) {
-    let name_input = document.getElementById("company_name");
-    name_input.value = company_name;
-    name_input.disabled = true;
+    let company_input = document.getElementById("customer_company");
+    company_input.value = company_name;
+    company_input.disabled = true;
   }
   if (customer_email) {
     let email_input = document.getElementById("customer_email");
@@ -293,6 +293,15 @@ function setup_search_params() {
     detail_input.disabled = true;
   }
 }
+const BOOKING_KEY = "butler_booking";
+
+// ERPNext's rule (erpnext/www/book_appointment/index.js): the settings' success page, else back here.
+function success_page_url() {
+  let url = (window.appointment_settings || {}).success_redirect_url;
+  if (!url) return "/book_appointment";
+  return /^(https?:)?\//.test(url) ? url : `/${url}`;
+}
+
 async function submit() {
   let button = document.getElementById("submit-button");
   button.disabled = true;
@@ -312,15 +321,13 @@ async function submit() {
       tz: window.selected_timezone,
     },
     callback: (response) => {
-      frappe.show_alert(__("Appointment Created Successfully"));
-      setTimeout(() => {
-        window.location.reload();
-        // let redirect_url = "/";
-        // if (window.appointment_settings.success_redirect_url) {
-        //   redirect_url += window.appointment_settings.success_redirect_url;
-        // }
-        // window.location.href = redirect_url;
-      }, 5000);
+      // The thanks page reads the booking from this tab only; nothing personal goes in the URL.
+      try {
+        sessionStorage.setItem(BOOKING_KEY, JSON.stringify(response.message));
+      } catch (e) {
+        // storage blocked: the thanks page shows its plain "Thank you"
+      }
+      window.location.href = success_page_url();
     },
     error: (err) => {
       frappe.show_alert(__("Something went wrong, please try again"));

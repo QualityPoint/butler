@@ -12,7 +12,7 @@ and prices the whole facility from those parts.
 | [light_system_devices.md](./light_system_devices.md) | Counting the light system devices a facility needs |
 | [facility_builder/](./facility_builder/README.md) | The Facility Builder: drawing a quotation's amenities on the floor plan |
 | [facility_location/](./facility_location/README.md) | Assign Location: a Facility's map pin from a pasted Google Maps link |
-| [appointment_booking/](./appointment_booking/README.md) | The public booking page, its minimum notice before a slot, and the verify page |
+| [appointment_booking/](./appointment_booking/README.md) | The public booking page: minimum notice, slot capacity, holidays, guards, and the thanks and verify pages |
 | [legacy_quotations.md](./legacy_quotations.md) | Converting pre-placement quotations, and Reset Amenity |
 | [device_rename.md](./device_rename.md) | The patches that renamed Annex to Device, and how to deploy them |
 | [vue/](./vue/README.md) | Vue islands in the Frappe desk, the pattern the Facility Builder uses |

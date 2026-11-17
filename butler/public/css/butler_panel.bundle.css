@@ -1,6 +1,6 @@
 /* Butler's branded panel: the paper background, top nav, logo, gold heading and navy card
    shared by the login page (www/login.html) and the appointment verify page
-   (www/book_appointment/verify). Loaded by templates/includes/butler_panel_head.html. */
+   (www/book_appointment/verify). Built as a bundle (bench build) and loaded by templates/includes/butler_panel_head.html. */
 :root {
 	--butler-gold: #805e24;
 	--butler-gold-dark: #6b4f1e;
@@ -126,3 +126,39 @@ body > nav.navbar { display: none; }
 }
 .butler-panel { font-family: "Courier Prime", "Noto Kufi Arabic", monospace; }
 html[dir="rtl"] .butler-panel .page-card-head h4 { letter-spacing: 0; }
+
+/* Result card of the appointment verify and thanks pages */
+.butler-panel .panel-result { display: grid; gap: 14px; text-align: center; color: rgba(248, 237, 217, 0.85); }
+.butler-panel .panel-result p { margin: 0; line-height: 1.55; }
+.butler-panel .panel-when {
+	display: grid;
+	gap: 2px;
+	padding-bottom: 14px;
+	border-bottom: 1px solid rgba(206, 194, 174, 0.2);
+}
+.butler-panel .panel-day { color: var(--butler-tan); text-transform: uppercase; letter-spacing: 2px; font-size: 0.8rem; }
+.butler-panel .panel-date { font-family: "Anton", "Noto Kufi Arabic", sans-serif; font-size: 1.7rem; letter-spacing: 0.5px; color: var(--butler-cream); }
+.butler-panel .panel-time { font-weight: 700; color: var(--butler-cream); font-variant-numeric: tabular-nums; }
+.butler-panel .panel-timezone { font-size: 0.8rem; color: rgba(248, 237, 217, 0.55); }
+.butler-panel .panel-reason { font-weight: 700; color: var(--butler-cream); }
+.butler-panel .panel-help { font-size: 0.85rem; color: rgba(248, 237, 217, 0.6); }
+.butler-panel .panel-help a { font-weight: 700; white-space: nowrap; }
+html[dir="rtl"] .butler-panel .panel-day,
+html[dir="rtl"] .butler-panel .panel-date { letter-spacing: 0; }
+
+.butler-panel .panel-facts {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 10px;
+	margin: 0;
+	padding-bottom: 14px;
+	border-bottom: 1px solid rgba(206, 194, 174, 0.2);
+}
+.butler-panel .panel-facts div { display: grid; gap: 3px; min-width: 0; }
+.butler-panel .panel-facts dt { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--butler-tan); font-weight: 400; }
+.butler-panel .panel-facts dd { margin: 0; font-weight: 700; color: var(--butler-cream); font-size: 0.88rem; overflow-wrap: anywhere; }
+html[dir="rtl"] .butler-panel .panel-facts dt { letter-spacing: 0; font-size: 0.8rem; }
+.butler-panel .panel-link { color: var(--butler-tan); text-decoration: underline; text-underline-offset: 3px; font-size: 0.9rem; }
+@media (max-width: 479px) {
+	.butler-panel .panel-facts { grid-template-columns: 1fr; }
+}

@@ -1,0 +1,75 @@
+{% extends "templates/web.html" %}
+
+{# Boards 1 (booked) and 2 (opened directly) of the approved thanks page mockup. #}
+
+{% from "templates/includes/butler_panel_macros.html" import phone_link %}
+
+{% block title %}{{ _("Thank You") }}{% endblock %}
+{% block navbar %}{% endblock %}
+
+{% block head_include %}
+{% include "templates/includes/butler_panel_head.html" %}
+{% endblock %}
+
+{% block page_content %}
+<div class="butler-panel butler-thanks">
+	{% include "templates/includes/butler_nav.html" %}
+	<section>
+		<div class="page-card-head">
+			<img class="app-logo" src="/assets/butler/website/images/butler_logo-isolated.png" alt="{{ _('Butler') }}">
+			<h4 data-booked="{{ _('Appointment booked') | e }}">{{ _("Thank you") }}</h4>
+		</div>
+
+		<div class="page-card panel-result" id="thanks-booked" hidden>
+			<div class="panel-when">
+				<span class="panel-day" data-field="slot.day"></span>
+				<span class="panel-date" data-field="slot.date"></span>
+				<span class="panel-time"><bdi data-field="slot.time"></bdi></span>
+				<span class="panel-timezone" data-field="slot.timezone"></span>
+			</div>
+			<dl class="panel-facts">
+				<div><dt>{{ _("Booking reference") }}</dt><dd><bdi data-field="reference"></bdi></dd></div>
+				<div><dt>{{ _("Booked on") }}</dt><dd data-field="booked_on"></dd></div>
+			</dl>
+			<p data-template="{{ _('Thank you, {0}. Your appointment is booked. Keep the reference in case you need to change it.') | e }}"></p>
+			<a class="btn btn-primary btn-block" href="/">{{ _("Back to Butler") }}</a>
+			<a class="panel-link" href="/book_appointment">{{ _("Book another appointment") }}</a>
+			<p class="panel-help">{{ _("Need to change it? Call or WhatsApp {0}").format(phone_link()) }}</p>
+		</div>
+
+		<div class="page-card panel-result" id="thanks-plain">
+			<p>{{ _("Thank you for booking with Butler.") }}</p>
+			<a class="btn btn-primary btn-block" href="/">{{ _("Back to Butler") }}</a>
+			<a class="panel-link" href="/book_appointment">{{ _("Book an appointment") }}</a>
+			<p class="panel-help">{{ _("Need help? Call or WhatsApp {0}").format(phone_link()) }}</p>
+		</div>
+	</section>
+</div>
+
+<script>
+	// The booking page stores its summary in this tab (sessionStorage) before coming here.
+	// Values are customer input, so they are set as text, never as HTML.
+	(function () {
+		let booking = null;
+		try {
+			booking = JSON.parse(sessionStorage.getItem("butler_booking") || "null");
+		} catch (e) {
+			booking = null;
+		}
+		if (!booking || !booking.reference || !booking.slot) return;
+
+		const card = document.getElementById("thanks-booked");
+		const value = (path) => path.split(".").reduce((obj, key) => (obj || {})[key], booking) || "";
+		card.querySelectorAll("[data-field]").forEach((el) => {
+			el.textContent = value(el.dataset.field);
+		});
+		const line = card.querySelector("[data-template]");
+		line.textContent = line.dataset.template.replace("{0}", booking.customer_name || "");
+
+		const heading = document.querySelector(".butler-thanks .page-card-head h4");
+		heading.textContent = heading.dataset.booked;
+		document.getElementById("thanks-plain").hidden = true;
+		card.hidden = false;
+	})();
+</script>
+{% endblock %}

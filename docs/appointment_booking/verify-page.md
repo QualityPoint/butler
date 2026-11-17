@@ -26,7 +26,8 @@ The login page (`www/login.html`) and this page share one look:
 
 | File | Holds |
 |---|---|
-| `public/website/css/butler_panel.css` | Colours, paper background, nav bar, logo, heading, card, buttons; the nav moves above the card under 768px |
+| `public/css/butler_panel.bundle.css` | Colours, paper background, nav bar, logo, heading, card, buttons, the result card of the verify and thanks pages; the nav moves above the card under 768px. A bundle: `bench build` gives it a hashed URL, so a deploy never leaves browsers on a stale copy |
+| `templates/includes/butler_panel_macros.html` | `phone_link()`, the help number |
 | `templates/includes/butler_panel_head.html` | Icon, fonts (Anton, Courier Prime, Noto Kufi Arabic) and the stylesheet |
 | `templates/includes/butler_nav.html` | The top nav bar |
 
